@@ -22,18 +22,15 @@ builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
 {
     var provider = sp.GetRequiredService<DynamicConnectionProvider>();
 
-    // ICI : on n'utilise PLUS DefaultConnection.
-    // Si la connection string n'est pas encore définie,
-    // on met une valeur vide : EF ne sera vraiment utilisable
-    // qu'après passage par le formulaire.
+    // Ici, si l'utilisateur n'a pas encore passé le formulaire,
+    // CurrentConnectionString sera vide => DbContext ne doit PAS être utilisé.
     var conn = provider.CurrentConnectionString;
 
-    // Pour éviter une exception au tout premier démarrage,
-    // on met une fausse base minimale si conn est vide,
-    // mais on NE fera pas EnsureCreated tant que conn est vide.
     if (string.IsNullOrWhiteSpace(conn))
     {
-        // petite base temporaire en mémoire ou nom bidon
+        // On met quand même quelque chose pour éviter un crash au démarrage,
+        // mais on ne fera aucun accès réel à la BDD tant que le formulaire
+        // n'a pas été validé.
         conn = "Host=localhost;Port=5432;Database=postgres;Username=openpg;Password=faux";
     }
 
@@ -44,23 +41,6 @@ builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
 builder.Services.AddScoped<BDDService>();
 
 var app = builder.Build();
-
-// *** BLOC MODIFIÉ : créer les tables UNIQUEMENT
-// quand une vraie connection string ERP a été définie ***
-using (var scope = app.Services.CreateScope())
-{
-    var provider = scope.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
-
-    // Si CurrentConnectionString est vide ici,
-    // cela veut dire que l'utilisateur n'a pas encore passé le formulaire.
-    // Donc on NE crée PAS de tables.
-    if (!string.IsNullOrWhiteSpace(provider.CurrentConnectionString))
-    {
-        var db = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
-        db.Database.EnsureCreated();   // crée les tables dans la base ERP choisie
-    }
-}
-// *** FIN DU BLOC MODIFIÉ ***
 
 if (!app.Environment.IsDevelopment())
 {
@@ -76,5 +56,5 @@ app.UseRouting();
 app.UseAuthorization();
 
 app.MapRazorPages();
-//testffffff
+
 app.Run();

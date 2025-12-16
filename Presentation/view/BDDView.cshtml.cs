@@ -1,10 +1,11 @@
-// Fichier : Pages/Presentation/view/BDDView.cshtml.cs
+// Fichier : Presentation/view/BDDView.cshtml.cs
 using System;
 using System.Threading.Tasks;
 using Donnees;
 using Metier;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace erp_pfc_20252026.Pages
 {
@@ -12,6 +13,7 @@ namespace erp_pfc_20252026.Pages
     {
         private readonly BDDService _bddService;
         private readonly DynamicConnectionProvider _connectionProvider;
+        private readonly IServiceProvider _serviceProvider;
 
         [BindProperty]
         public string MasterPassword { get; set; } = string.Empty;
@@ -34,10 +36,14 @@ namespace erp_pfc_20252026.Pages
         [BindProperty(SupportsGet = true)]
         public string GeneratedPassword { get; set; } = string.Empty;
 
-        public BDDViewModel(BDDService bddService, DynamicConnectionProvider connectionProvider)
+        public BDDViewModel(
+            BDDService bddService,
+            DynamicConnectionProvider connectionProvider,
+            IServiceProvider serviceProvider)
         {
             _bddService = bddService;
             _connectionProvider = connectionProvider;
+            _serviceProvider = serviceProvider;
         }
 
         public void OnGet()
@@ -68,21 +74,26 @@ namespace erp_pfc_20252026.Pages
                     PhoneNumber = this.PhoneNumber
                 };
 
-                // Création de la base ERP
+                // 1) Création de la base ERP
                 var created = await _bddService.CreateDatabaseIfNotExistsAsync(config);
 
-                // Construire la connection string de cette base
+                // 2) Connection string vers CETTE base
                 var conn = $"Host={config.Host};Port={config.Port};Database={config.DatabaseName};Username={config.UserName};Password={config.Password}";
-
-                // La stocker dans le provider pour tout le reste de l’appli
                 _connectionProvider.CurrentConnectionString = conn;
+
+                // 3) Créer les tables (ErpUsers, etc.) dans cette base
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
+                    await db.Database.EnsureCreatedAsync();
+                }
 
                 IsSuccess = true;
                 ResultMessage = created
-                    ? $"Succès : La base de données \"{DatabaseName}\" a été créée."
-                    : $"Info : La base de données \"{DatabaseName}\" existe déjà.";
+                    ? $"Succès : La base de données \"{DatabaseName}\" a été créée et initialisée."
+                    : $"Info : La base de données \"{DatabaseName}\" existait déjà, schéma vérifié.";
 
-                // Redirection vers la page de choix de profil
+                // 4) Redirection vers la suite (création de profil)
                 return RedirectToPage("/ChooseProfile");
             }
             catch (Exception ex)
