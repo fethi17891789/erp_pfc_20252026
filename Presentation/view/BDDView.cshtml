@@ -1,0 +1,75 @@
+﻿@page
+@model erp_pfc_20252026.Pages.BDDViewModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@{
+    ViewData["Title"] = "Configuration de la base de données ERP";
+}
+
+<div class="container">
+    <div class="header">
+        <img src="~/images/erp-logo.png" onerror="this.style.display='none'" alt="ERP Logo" />
+        <h1>Configuration de la base de données</h1>
+    </div>
+
+    <div class="alert-box">
+        Warning, your ERP database manager is not protected.<br />
+        A master password was generated:
+        <strong>@Model.GeneratedPassword</strong>
+        You can change it below, but remember it, it will be needed for future operations!
+    </div>
+
+    <form method="post" class="form-section">
+        <input type="hidden" name="GeneratedPassword" value="@Model.GeneratedPassword" />
+
+        <div class="form-group">
+            <label for="masterPassword">Master Password</label>
+            <input type="text" asp-for="MasterPassword" id="masterPassword" class="input" value="@Model.GeneratedPassword" />
+        </div>
+
+        <div class="form-group">
+            <label for="databaseName">Database Name</label>
+            <input type="text" asp-for="DatabaseName" id="databaseName" class="input" placeholder="erp_db" />
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" asp-for="Email" id="email" class="input" />
+        </div>
+
+        <div class="form-group">
+            <label for="dbPassword">PostgreSQL Password (User: openpg)</label>
+            <input type="password" asp-for="DbPassword" id="dbPassword" class="input" placeholder="Ex: fethi1234" />
+            <span class="show-password" onclick="togglePassword('dbPassword')">👁</span>
+        </div>
+
+        <div class="form-group">
+            <label for="phoneNumber">Phone Number</label>
+            <input type="text" asp-for="PhoneNumber" id="phoneNumber" class="input" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save & Configure</button>
+
+        @if (!string.IsNullOrEmpty(Model.ResultMessage))
+        {
+            <div class="alert-box" style="margin-top:15px; background: @(Model.IsSuccess ? "rgba(100, 255, 100, 0.2)" : "rgba(255, 100, 100, 0.2)"); border: 1px solid @(Model.IsSuccess ? "#4CAF50" : "#F44336"); color: #fff;">
+                @Model.ResultMessage
+            </div>
+        }
+    </form>
+
+    <div class="footer">
+        ERP Installation Module • Industrial Engineering • 2025
+    </div>
+</div>
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/BDDView.css" />
+
+@section Scripts {
+    <script>
+        function togglePassword(id) {
+            var input = document.getElementById(id);
+            input.type = input.type === "password" ? "text" : "password";
+        }
+    </script>
+}

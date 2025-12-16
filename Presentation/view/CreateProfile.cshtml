@@ -1,0 +1,46 @@
+﻿@page
+@model erp_pfc_20252026.Pages.CreateProfileModel
+
+@{
+    ViewData["Title"] = "Créer un profil ERP";
+}
+
+<div class="container">
+    <div class="header">
+        <h1>Créer un nouveau profil</h1>
+        <p>Configurez votre compte administrateur ERP.</p>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="form-section">
+        <div class="form-group">
+            <label for="logo">Logo de l'entreprise</label>
+            <input type="file" asp-for="LogoFile" id="logo" class="input" accept="image/*" />
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" asp-for="Email" id="email" class="input" />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Mot de passe</label>
+            <input type="password" asp-for="Password" id="password" class="input" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Créer le profil</button>
+
+        @if (!string.IsNullOrEmpty(Model.ResultMessage))
+        {
+            <div class="alert-box" style="margin-top:15px;">
+                @Model.ResultMessage
+            </div>
+        }
+    </form>
+
+    <div class="footer">
+        Étape 2 • Création du profil administrateur
+    </div>
+</div>
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/BDDView.css" />

@@ -1,0 +1,41 @@
+﻿@page "{email?}"
+@model erp_pfc_20252026.Pages.LoginModel
+
+@{
+    ViewData["Title"] = "Connexion ERP";
+}
+
+<div class="container">
+    <div class="header">
+        <h1>Connexion à votre ERP</h1>
+        <p>Entrez vos identifiants.</p>
+    </div>
+
+    <form method="post" class="form-section">
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" asp-for="Email" id="email" class="input" />
+        </div>
+
+        <div class="form-group">
+            <label for="password">Mot de passe</label>
+            <input type="password" asp-for="Password" id="password" class="input" />
+        </div>
+
+        <button type="submit" class="btn btn-primary">Se connecter</button>
+
+        @if (!string.IsNullOrEmpty(Model.ResultMessage))
+        {
+            <div class="alert-box" style="margin-top:15px;">
+                @Model.ResultMessage
+            </div>
+        }
+    </form>
+
+    <div class="footer">
+        Étape 3 • Connexion au profil
+    </div>
+</div>
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/BDDView.css" />

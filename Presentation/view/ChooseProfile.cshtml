@@ -1,0 +1,51 @@
+﻿@page
+@model erp_pfc_20252026.Pages.ChooseProfileModel
+
+@{
+    ViewData["Title"] = "Bienvenue dans votre ERP";
+}
+
+<div class="container">
+    <div class="header">
+        <h1>Votre base ERP est prête</h1>
+        <p>Choisissez une option :</p>
+    </div>
+
+    <div class="form-section" style="margin-top: 16px;">
+        <a asp-page="CreateProfile" class="choice-btn">
+            Créer un nouveau profil
+        </a>
+
+        <a asp-page="Login" class="choice-btn btn-secondary" style="margin-top: 8px;">
+            Se connecter à un profil existant
+        </a>
+    </div>
+
+    <div class="footer">
+        ERP Installation Module • Next step: Users & Companies
+    </div>
+</div>
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/BDDView.css" />
+
+<style>
+    .choice-btn {
+        display: block;
+        text-align: center;
+        text-decoration: none;
+        padding: 10px 20px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #7B5EFF, #8B6FFF);
+        color: #fff;
+        font-weight: 600;
+        margin-bottom: 6px;
+        box-shadow: 0 8px 25px rgba(123, 94, 255, 0.4);
+        cursor: pointer;
+    }
+
+        .choice-btn.btn-secondary {
+            background: linear-gradient(135deg, #2b2f4a, #3a3f5c);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+        }
+</style>
