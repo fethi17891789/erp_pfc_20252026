@@ -11,26 +11,34 @@ builder.Services
     .AddRazorPagesOptions(options =>
     {
         options.RootDirectory = "/Presentation/view";
-        options.Conventions.AddPageRoute("/BDDView", ""); // BDDView = page d’accueil
+        options.Conventions.AddPageRoute("/BDDView", ""); // BDDView = page d’accueil (premier démarrage)
     });
 
 // Service qui contient la connection string choisie via le formulaire
 builder.Services.AddSingleton<DynamicConnectionProvider>();
+
+// Service pour charger / sauvegarder la config ERP (fichier JSON)
+builder.Services.AddSingleton<ErpConfigStorage>();
+
+// *** CHARGER LA CONFIG AU DEMARRAGE ***
+var tempProvider = builder.Services.BuildServiceProvider();
+var configStorage = tempProvider.GetRequiredService<ErpConfigStorage>();
+var savedConfig = configStorage.Load();
+
+var dynamicProvider = tempProvider.GetRequiredService<DynamicConnectionProvider>();
+dynamicProvider.CurrentConnectionString = savedConfig.ConnectionString;
 
 // DbContext PostgreSQL (ERP) – connection string fournie dynamiquement
 builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
 {
     var provider = sp.GetRequiredService<DynamicConnectionProvider>();
 
-    // Ici, si l'utilisateur n'a pas encore passé le formulaire,
-    // CurrentConnectionString sera vide => DbContext ne doit PAS être utilisé.
     var conn = provider.CurrentConnectionString;
 
     if (string.IsNullOrWhiteSpace(conn))
     {
-        // On met quand même quelque chose pour éviter un crash au démarrage,
-        // mais on ne fera aucun accès réel à la BDD tant que le formulaire
-        // n'a pas été validé.
+        // Au tout premier démarrage (pas encore de BDD ERP),
+        // on met une connexion neutre qui ne sera pas vraiment utilisée.
         conn = "Host=localhost;Port=5432;Database=postgres;Username=openpg;Password=faux";
     }
 

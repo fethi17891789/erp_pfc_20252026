@@ -43,8 +43,10 @@ namespace erp_pfc_20252026.Pages
                 return Page();
             }
 
-            // TODO: gérer une vraie session / auth
-            return RedirectToPage("/Home"); // page d'accueil ERP à créer
+            // TODO: gérer une vraie session / auth (cookies, claims, etc.)
+
+            // Connexion réussie -> redirection vers la page d'accueil ERP
+            return RedirectToPage("/Home");
         }
     }
 }

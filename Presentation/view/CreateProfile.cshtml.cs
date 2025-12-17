@@ -28,6 +28,9 @@ namespace erp_pfc_20252026.Pages
         public string Email { get; set; } = string.Empty;
 
         [BindProperty]
+        public string Login { get; set; } = string.Empty;
+
+        [BindProperty]
         public string Password { get; set; } = string.Empty;
 
         public string? ResultMessage { get; set; }
@@ -38,20 +41,36 @@ namespace erp_pfc_20252026.Pages
 
         public async Task<IActionResult> OnPostAsync()
         {
-            if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+            // Validation basique
+            if (string.IsNullOrWhiteSpace(Email) ||
+                string.IsNullOrWhiteSpace(Login) ||
+                string.IsNullOrWhiteSpace(Password))
             {
-                ResultMessage = "Email et mot de passe sont obligatoires.";
+                ResultMessage = "Email, login et mot de passe sont obligatoires.";
                 return Page();
             }
 
             // Vérifier si l'email existe déjà
-            var existing = await _db.ErpUsers.FirstOrDefaultAsync(u => u.Email == Email);
-            if (existing != null)
+            var existingEmail = await _db.ErpUsers
+                .FirstOrDefaultAsync(u => u.Email == Email);
+
+            if (existingEmail != null)
             {
                 ResultMessage = "Cet email est déjà utilisé. Veuillez en choisir un autre.";
                 return Page();
             }
 
+            // Vérifier si le login existe déjà
+            var existingLogin = await _db.ErpUsers
+                .FirstOrDefaultAsync(u => u.Login == Login);
+
+            if (existingLogin != null)
+            {
+                ResultMessage = "Ce login est déjà utilisé. Veuillez en choisir un autre.";
+                return Page();
+            }
+
+            // Sauvegarde du logo si présent
             string? logoFileName = null;
 
             if (LogoFile != null && LogoFile.Length > 0)
@@ -66,9 +85,11 @@ namespace erp_pfc_20252026.Pages
                 await LogoFile.CopyToAsync(stream);
             }
 
+            // Création de l'utilisateur
             var user = new ErpUser
             {
                 Email = Email,
+                Login = Login,
                 Password = Password, // à remplacer plus tard par un hash
                 LogoFileName = logoFileName
             };

@@ -6,6 +6,7 @@ using Metier;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace erp_pfc_20252026.Pages
 {
@@ -14,6 +15,7 @@ namespace erp_pfc_20252026.Pages
         private readonly BDDService _bddService;
         private readonly DynamicConnectionProvider _connectionProvider;
         private readonly IServiceProvider _serviceProvider;
+        private readonly ErpConfigStorage _configStorage;
 
         [BindProperty]
         public string MasterPassword { get; set; } = string.Empty;
@@ -39,15 +41,52 @@ namespace erp_pfc_20252026.Pages
         public BDDViewModel(
             BDDService bddService,
             DynamicConnectionProvider connectionProvider,
-            IServiceProvider serviceProvider)
+            IServiceProvider serviceProvider,
+            ErpConfigStorage configStorage)
         {
             _bddService = bddService;
             _connectionProvider = connectionProvider;
             _serviceProvider = serviceProvider;
+            _configStorage = configStorage;
         }
 
         public void OnGet()
         {
+            // 1) Charger la config éventuelle
+            var existing = _configStorage.Load();
+
+            // 2) Si une connection string est présente, tester si la BDD existe encore
+            if (!string.IsNullOrWhiteSpace(existing.ConnectionString))
+            {
+                try
+                {
+                    // Mettre la connexion en mémoire
+                    _connectionProvider.CurrentConnectionString = existing.ConnectionString;
+
+                    using (var scope = _serviceProvider.CreateScope())
+                    {
+                        var db = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
+
+                        // Test de connexion : si OK, la BDD existe toujours
+                        if (db.Database.CanConnect())
+                        {
+                            // Aller directement vers la page de choix de profil
+                            Response.Redirect("/ChooseProfile");
+                            return;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Connexion impossible => on traitera comme BDD inexistante
+                }
+
+                // Connexion invalide : on réinitialise la config
+                _connectionProvider.CurrentConnectionString = string.Empty;
+                _configStorage.Save(new ErpConfig { ConnectionString = string.Empty });
+            }
+
+            // 3) Cas normal : afficher le formulaire de création BDD
             if (string.IsNullOrEmpty(GeneratedPassword))
             {
                 GeneratedPassword = Guid.NewGuid().ToString("N")[..12];
@@ -74,26 +113,32 @@ namespace erp_pfc_20252026.Pages
                     PhoneNumber = this.PhoneNumber
                 };
 
-                // 1) Création de la base ERP
+                // 1) Création de la base ERP (si pas déjà là)
                 var created = await _bddService.CreateDatabaseIfNotExistsAsync(config);
 
                 // 2) Connection string vers CETTE base
                 var conn = $"Host={config.Host};Port={config.Port};Database={config.DatabaseName};Username={config.UserName};Password={config.Password}";
+
+                // Sauvegarde en mémoire pour la session actuelle
                 _connectionProvider.CurrentConnectionString = conn;
 
-                // 3) Créer les tables (ErpUsers, etc.) dans cette base
+                // 3) Création des tables dans cette base
                 using (var scope = _serviceProvider.CreateScope())
                 {
                     var db = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
                     await db.Database.EnsureCreatedAsync();
                 }
 
+                // 4) Sauvegarde PERSISTANTE dans erpconfig.json
+                var erpConfig = new ErpConfig { ConnectionString = conn };
+                _configStorage.Save(erpConfig);
+
                 IsSuccess = true;
                 ResultMessage = created
                     ? $"Succès : La base de données \"{DatabaseName}\" a été créée et initialisée."
                     : $"Info : La base de données \"{DatabaseName}\" existait déjà, schéma vérifié.";
 
-                // 4) Redirection vers la suite (création de profil)
+                // 5) Après création/validation de la BDD, on va vers la page de choix de profil
                 return RedirectToPage("/ChooseProfile");
             }
             catch (Exception ex)
