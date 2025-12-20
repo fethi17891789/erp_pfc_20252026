@@ -1,12 +1,12 @@
 ﻿@page
 @model erp_pfc_20252026.Pages.HomeModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
 @{
     ViewData["Title"] = "Tableau de bord ERP";
 }
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="~/css/BDDView.css" />
 <link rel="stylesheet" href="~/css/Home.css" />
 
 <div class="erp-shell">
@@ -66,7 +66,6 @@
                 </svg>
                 Nouveau profil
             </button>
-            <!-- même bouton, on ajoute juste onclick -->
             <button class="sidebar-quick secondary" type="button" onclick="openLogoutModal()">
                 <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -123,7 +122,7 @@
             </div>
         </section>
 
-        <!-- BLOC PRINCIPAL : MODULES UNIQUEMENT -->
+        <!-- BLOC PRINCIPAL : MODULES -->
         <section class="erp-content">
             <div class="section-header">
                 <h2>Modules ERP</h2>
@@ -206,7 +205,7 @@
                         </div>
                         <span class="module-badge">Production</span>
                     </div>
-                    <h3>Fabrication</h3>
+                    <h3>Fabrication(MRP)</h3>
                     <p>Ordres de fabrication et planification.</p>
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
@@ -329,7 +328,7 @@
 <div id="logout-overlay" class="logout-overlay" style="display:none;">
     <div class="logout-modal">
         <h3>Confirmer la déconnexion</h3>
-        <p>Voulez-vous vraiment vous déconnecter et revenir à l’écran de choix du profil&nbsp;?</p>
+        <p>Voulez-vous vraiment vous déconnecter et revenir à l'écran de choix du profil&nbsp;?</p>
 
         <form method="post" asp-page-handler="Logout" class="logout-modal-actions">
             <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
@@ -338,21 +337,5 @@
     </div>
 </div>
 
-<!-- JS local à la page -->
-<script>
-    function openLogoutModal() {
-        const overlay = document.getElementById('logout-overlay');
-        if (overlay) {
-            overlay.style.display = 'flex';
-            document.body.classList.add('logout-blur-active');
-        }
-    }
-
-    function closeLogoutModal() {
-        const overlay = document.getElementById('logout-overlay');
-        if (overlay) {
-            overlay.style.display = 'none';
-            document.body.classList.remove('logout-blur-active');
-        }
-    }
-</script>
+<!-- SCRIPT INLINE JUSTE AVANT </body> -->
+<script src="~/js/Home.js"></script>

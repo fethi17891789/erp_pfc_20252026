@@ -5,6 +5,43 @@
     ViewData["Title"] = "Bienvenue dans votre ERP";
 }
 
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/Common.css" />
+
+<style>
+    .choice-btn {
+        display: block;
+        text-align: center;
+        text-decoration: none;
+        padding: 10px 20px;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #7B5EFF, #8B6FFF);
+        color: #fff;
+        font-weight: 600;
+        margin-bottom: 6px;
+        box-shadow: 0 8px 25px rgba(123, 94, 255, 0.4);
+        cursor: pointer;
+        transition: transform 0.15s ease-out, box-shadow 0.15s ease-out, filter 0.15s ease-out;
+    }
+
+        .choice-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 30px rgba(123, 94, 255, 0.6);
+            filter: brightness(1.05);
+        }
+
+        .choice-btn.btn-secondary {
+            background: linear-gradient(135deg, #2b2f4a, #3a3f5c);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
+        }
+
+            .choice-btn.btn-secondary:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+                filter: brightness(1.05);
+            }
+</style>
+
 <div class="container">
     <div class="header">
         <h1>Votre base ERP est prête</h1>
@@ -25,27 +62,3 @@
         ERP Installation Module • Next step: Users & Companies
     </div>
 </div>
-
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="~/css/BDDView.css" />
-
-<style>
-    .choice-btn {
-        display: block;
-        text-align: center;
-        text-decoration: none;
-        padding: 10px 20px;
-        border-radius: 999px;
-        background: linear-gradient(135deg, #7B5EFF, #8B6FFF);
-        color: #fff;
-        font-weight: 600;
-        margin-bottom: 6px;
-        box-shadow: 0 8px 25px rgba(123, 94, 255, 0.4);
-        cursor: pointer;
-    }
-
-        .choice-btn.btn-secondary {
-            background: linear-gradient(135deg, #2b2f4a, #3a3f5c);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.35);
-        }
-</style>
