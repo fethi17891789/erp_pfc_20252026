@@ -239,8 +239,6 @@ body {
         z-index: 1;
     }
 
-    /* CUSTOM SCROLLBAR - ULTRA FIN ET DISCRET */
-
     .erp-main::-webkit-scrollbar {
         width: 4px;
     }
@@ -798,4 +796,87 @@ body {
     .kpi-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+}
+
+/* ==== POPUP DE DECONNEXION + FLOU ==== */
+
+.logout-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(3, 6, 23, 0.65);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 999;
+}
+
+.logout-modal {
+    width: 340px;
+    max-width: 90%;
+    border-radius: 18px;
+    padding: 18px 20px;
+    background: radial-gradient(circle at top left, rgba(123, 94, 255, 0.35), transparent 55%), radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.95), rgba(3, 7, 18, 0.98));
+    border: 1px solid rgba(148, 163, 253, 0.5);
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9);
+    color: #e5e7eb;
+    animation: logoutModalIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+    .logout-modal h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .logout-modal p {
+        font-size: 0.85rem;
+        color: #a5b4fc;
+        margin-bottom: 16px;
+    }
+
+.logout-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+    .logout-modal-actions .btn-primary,
+    .logout-modal-actions .btn-secondary {
+        border-radius: 999px;
+        font-size: 0.8rem;
+        padding: 6px 14px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+    }
+
+    .logout-modal-actions .btn-primary {
+        background: linear-gradient(135deg, #7b5eff, #9c8cff);
+        color: #fff;
+    }
+
+    .logout-modal-actions .btn-secondary {
+        background: rgba(15, 23, 42, 0.9);
+        color: #e5e7eb;
+        border: 1px solid rgba(148, 163, 253, 0.4);
+    }
+
+@keyframes logoutModalIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* flou léger du contenu quand le popup est ouvert */
+.logout-blur-active .erp-shell {
+    filter: blur(3px);
+    pointer-events: none;
 }

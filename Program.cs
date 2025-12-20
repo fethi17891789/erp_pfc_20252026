@@ -1,9 +1,14 @@
 // Fichier : Program.cs
+using System.Diagnostics;
 using Donnees;
 using Metier;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// URL d'écoute par défaut (tu peux changer le port si tu veux)
+var appUrl = "http://localhost:5000";
+builder.WebHost.UseUrls(appUrl);
 
 // Razor Pages – tes pages sont dans /Presentation/view
 builder.Services
@@ -65,4 +70,27 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
+// ---------- Lancer le navigateur automatiquement ----------
+OpenBrowser(appUrl);
+
 app.Run();
+
+// Fonction utilitaire
+static void OpenBrowser(string url)
+{
+    try
+    {
+        // Windows / Linux / macOS
+        var psi = new ProcessStartInfo
+        {
+            FileName = url,
+            UseShellExecute = true
+        };
+        Process.Start(psi);
+    }
+    catch
+    {
+        // Si pour une raison quelconque le lancement échoue,
+        // on n'empêche pas le serveur de démarrer.
+    }
+}
