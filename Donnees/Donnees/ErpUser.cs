@@ -14,5 +14,8 @@ namespace Donnees
         public string Password { get; set; } = string.Empty;
 
         public string? LogoFileName { get; set; }
+
+        // Nouveau : poste occupé dans l'entreprise
+        public string Poste { get; set; } = string.Empty;
     }
 }

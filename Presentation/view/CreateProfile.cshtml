@@ -39,6 +39,45 @@
             <span asp-validation-for="Password" class="text-danger"></span>
         </div>
 
+        <!-- Poste occupé -->
+        <div class="form-group">
+            <label>Poste occupé</label>
+
+            @if (Model.IsFirstUser)
+            {
+                <!-- Premier utilisateur : PDG forcé, champ grisé non interactif -->
+                <div class="locked-field">
+                    <input type="text"
+                           class="input input-locked"
+                           value="PDG"
+                           readonly
+                           tabindex="-1" />
+                    <span class="locked-badge">PDG (verrouillé)</span>
+                    <input type="hidden" asp-for="SelectedPoste" value="PDG" />
+                </div>
+            }
+            else
+            {
+                <!-- Autres utilisateurs : champ combiné (saisie + menu déroulant filtrable) -->
+                <div class="job-input-wrapper">
+                    <input type="text"
+                           id="job-input"
+                           class="job-input"
+                           placeholder="Saisir ou rechercher un poste (ex : Responsable MRP, RH, Stagiaire...)"
+                           autocomplete="off" />
+
+                    <span class="job-input-icon">▼</span>
+
+                    <div id="job-dropdown" class="job-dropdown">
+                        <!-- Options injectées par CreateProfile.js -->
+                    </div>
+
+                    <!-- Champ caché lié à SelectedPoste pour le POST -->
+                    <input type="hidden" asp-for="SelectedPoste" id="SelectedPoste" />
+                </div>
+            }
+        </div>
+
         <button type="submit" class="btn btn-primary">Créer le profil</button>
 
         @if (!string.IsNullOrEmpty(Model.ResultMessage))
@@ -54,6 +93,4 @@
     </div>
 </div>
 
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}
+<script src="~/js/CreateProfile.js"></script>

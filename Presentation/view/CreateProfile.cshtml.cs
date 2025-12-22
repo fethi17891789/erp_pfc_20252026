@@ -1,4 +1,4 @@
-using System;
+Ôªøusing System;
 using System.IO;
 using System.Threading.Tasks;
 using Donnees;
@@ -33,14 +33,38 @@ namespace erp_pfc_20252026.Pages
         [BindProperty]
         public string Password { get; set; } = string.Empty;
 
+        // Nouveau : poste s√©lectionn√© via le champ combin√©
+        [BindProperty]
+        public string SelectedPoste { get; set; } = string.Empty;
+
+        // Nouveau : indique √† la vue si c'est le premier utilisateur
+        public bool IsFirstUser { get; set; }
+
         public string? ResultMessage { get; set; }
 
-        public void OnGet()
+        public async Task OnGetAsync()
         {
+            // D√©terminer si aucun utilisateur n'existe encore
+            IsFirstUser = !await _db.ErpUsers.AnyAsync();
+
+            if (IsFirstUser)
+            {
+                // Premier compte ‚Üí PDG forc√©
+                SelectedPoste = "PDG";
+            }
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            // Recalculer l'√©tat "premier utilisateur"
+            IsFirstUser = !await _db.ErpUsers.AnyAsync();
+
+            if (IsFirstUser)
+            {
+                // Premier compte : poste forc√© en PDG, on ignore ce qui vient du formulaire
+                SelectedPoste = "PDG";
+            }
+
             // Validation basique
             if (string.IsNullOrWhiteSpace(Email) ||
                 string.IsNullOrWhiteSpace(Login) ||
@@ -50,27 +74,27 @@ namespace erp_pfc_20252026.Pages
                 return Page();
             }
 
-            // VÈrifier si l'email existe dÈj‡
+            // V√©rifier si l'email existe d√©j√†
             var existingEmail = await _db.ErpUsers
                 .FirstOrDefaultAsync(u => u.Email == Email);
 
             if (existingEmail != null)
             {
-                ResultMessage = "Cet email est dÈj‡ utilisÈ. Veuillez en choisir un autre.";
+                ResultMessage = "Cet email est d√©j√† utilis√©. Veuillez en choisir un autre.";
                 return Page();
             }
 
-            // VÈrifier si le login existe dÈj‡
+            // V√©rifier si le login existe d√©j√†
             var existingLogin = await _db.ErpUsers
                 .FirstOrDefaultAsync(u => u.Login == Login);
 
             if (existingLogin != null)
             {
-                ResultMessage = "Ce login est dÈj‡ utilisÈ. Veuillez en choisir un autre.";
+                ResultMessage = "Ce login est d√©j√† utilis√©. Veuillez en choisir un autre.";
                 return Page();
             }
 
-            // Sauvegarde du logo si prÈsent
+            // Sauvegarde du logo si pr√©sent
             string? logoFileName = null;
 
             if (LogoFile != null && LogoFile.Length > 0)
@@ -85,19 +109,20 @@ namespace erp_pfc_20252026.Pages
                 await LogoFile.CopyToAsync(stream);
             }
 
-            // CrÈation de l'utilisateur
+            // Cr√©ation de l'utilisateur
             var user = new ErpUser
             {
                 Email = Email,
                 Login = Login,
-                Password = Password, // ‡ remplacer plus tard par un hash
-                LogoFileName = logoFileName
+                Password = Password, // TODO: passer √† un hash plus tard
+                LogoFileName = logoFileName,
+                Poste = SelectedPoste // Nouveau : enregistrement du poste
             };
 
             _db.ErpUsers.Add(user);
             await _db.SaveChangesAsync();
 
-            // Rediriger vers la page de connexion avec l'email prÈ-rempli
+            // Rediriger vers la page de connexion avec l'email pr√©-rempli
             return RedirectToPage("/Login", new { email = Email });
         }
     }

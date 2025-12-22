@@ -1,0 +1,12 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
+
+namespace erp_pfc_20252026.Presentation.view
+{
+    public class ReportsModel : PageModel
+    {
+        public void OnGet()
+        {
+        }
+    }
+}
