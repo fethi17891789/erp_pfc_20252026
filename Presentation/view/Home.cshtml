@@ -299,11 +299,10 @@
                     </div>
                 </article>
 
-                <!-- Rapports (NOUVEAU MODULE) -->
+                <!-- Rapports -->
                 <article class="module-tile">
                     <div class="module-tile-header">
                         <div class="module-circle">
-                            <!-- Icône simple pour Rapports -->
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M4 4h12l4 4v12H4z"></path>
                                 <path d="M16 4v4h4"></path>
@@ -318,8 +317,9 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">Actif</span>
-                        <button class="module-action" type="button">
-                            O
+                        <!-- Redirection vers la page du module Rapports -->
+                        <button class="module-action" type="button" onclick="window.location.href='/Reports';">
+                            Ouvrir
                         </button>
                     </div>
                 </article>
@@ -362,5 +362,4 @@
     </div>
 </div>
 
-<!-- SCRIPT INLINE JUSTE AVANT </body> -->
 <script src="~/js/Home.js"></script>

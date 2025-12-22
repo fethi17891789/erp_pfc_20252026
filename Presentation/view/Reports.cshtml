@@ -1,4 +1,104 @@
 ﻿@page
-@model erp_pfc_20252026.Presentation.view.ReportsModel
+@model erp_pfc_20252026.Pages.ReportsModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
 @{
+    ViewData["Title"] = "Module Rapports";
 }
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/Home.css" />
+<link rel="stylesheet" href="~/css/ReportsFull.css" />
+
+<div class="reports-full-shell">
+    <!-- HEADER -->
+    <header class="reports-full-header">
+        <div class="reports-full-header-left">
+            <h1>Rapports</h1>
+            <p>Créer des modèles de rapports et consulter les rapports archivés.</p>
+        </div>
+        <div class="reports-full-header-right">
+            <button class="reports-full-back-btn">
+                ← Retour
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="reports-full-main">
+        <!-- Barre d'actions principale -->
+        <section class="reports-full-toolbar">
+            <div class="reports-full-toolbar-left">
+                <h2>Bienvenue dans vos rapports</h2>
+                <p>Commencez par créer votre premier formulaire de rapport.</p>
+            </div>
+        </section>
+
+        <!-- Zone boutons principaux -->
+        <section class="reports-full-actions">
+            <div class="reports-full-action-grid">
+                <!-- Bouton Créer un formulaire (non réactif pour l'instant) -->
+                <div class="reports-full-action-card disabled">
+                    <div class="reports-full-action-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 5v14M5 12h14" />
+                        </svg>
+                    </div>
+                    <h3>Créer un formulaire</h3>
+                    <p>Construisez un nouveau modèle de rapport personnalisé</p>
+                    <div class="reports-full-action-status">
+                        <span class="status-badge coming-soon">Bientôt disponible</span>
+                    </div>
+                </div>
+
+                <!-- Bouton Mes formulaires -->
+                <div class="reports-full-action-card">
+                    <div class="reports-full-action-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                    </div>
+                    <h3>Mes formulaires</h3>
+                    <p>Consultez et gérez vos modèles de rapports existants</p>
+                    <div class="reports-full-action-cta">
+                        <button class="reports-full-cta-btn">
+                            Ouvrir mes formulaires
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="arrow-icon">
+                                <path d="M9 18l6-6-6-6" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Aperçu des fonctionnalités -->
+        <section class="reports-full-features">
+            <h2>Que pouvez-vous faire ?</h2>
+            <div class="reports-full-features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h4>Rapports personnalisés</h4>
+                    <p>Créez des rapports adaptés à vos besoins métier</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h4>Visualisations avancées</h4>
+                    <p>Graphiques, tableaux et métriques en temps réel</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📤</div>
+                    <h4>Export multiples</h4>
+                    <p>PDF, Excel, CSV pour tous vos usages</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h4>Accès sécurisé</h4>
+                    <p>Permissions granulaires par utilisateur</p>
+                </div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script src="~/js/ReportsFull.js"></script>
