@@ -21,7 +21,7 @@ namespace erp_pfc_20252026.Pages
         public string MasterPassword { get; set; } = string.Empty;
 
         [BindProperty]
-        public string DatabaseName { get; set; } = "erp_db";
+        public string DatabaseName { get; set; } = "fethifethifethi";
 
         [BindProperty]
         public string Email { get; set; } = string.Empty;
@@ -96,7 +96,7 @@ namespace erp_pfc_20252026.Pages
 
         public async Task<IActionResult> OnPostAsync()
         {
-            if (string.IsNullOrWhiteSpace(DatabaseName)) DatabaseName = "erp_db";
+            if (string.IsNullOrWhiteSpace(DatabaseName)) DatabaseName = "fethifethifethi";
             if (string.IsNullOrWhiteSpace(DbPassword)) DbPassword = "fethi1234";
 
             try

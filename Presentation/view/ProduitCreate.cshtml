@@ -1,0 +1,163 @@
+﻿@page
+@model erp_pfc_20252026.Pages.ProduitsModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    ViewData["Title"] = "Produits";
+}
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="~/css/Common.css" />
+<link rel="stylesheet" href="~/css/Home.css" />
+<link rel="stylesheet" href="~/css/Produits.css" />
+
+<div class="erp-shell">
+    <!-- BARRE LATERALE GAUCHE (même que les autres pages) -->
+    <aside class="erp-sidebar">
+        <div class="erp-logo">
+            <span class="erp-logo-mark">E</span>
+            <span class="erp-logo-text">ERP Suite</span>
+        </div>
+
+        <nav class="erp-nav">
+            <a asp-page="/Home" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+                <span>Accueil</span>
+            </a>
+
+            <a asp-page="/Fabrication" class="nav-item nav-item-active">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                </svg>
+                <span>Modules</span>
+            </a>
+
+            <button class="nav-item" type="button">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+                <span>Profils</span>
+            </button>
+
+            <button class="nav-item" type="button">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>Bases ERP</span>
+            </button>
+
+            <button class="nav-item" type="button">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <path d="M12 1v6m6.07 6.07h-6.14M12 19v4m6.07-6.07v0"></path>
+                    <path d="M19 5l-4.24 4.24M5 19l4.24-4.24"></path>
+                    <path d="M19 19l-4.24-4.24M5 5l4.24 4.24"></path>
+                </svg>
+                <span>Paramètres</span>
+            </button>
+        </nav>
+
+        <div class="erp-sidebar-footer">
+            <button class="sidebar-quick" type="button">
+                <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Nouveau profil
+            </button>
+            <button class="sidebar-quick secondary" type="button" onclick="openLogoutModal()">
+                <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 3 16 10 13 7"></polyline>
+                    <path d="M16 10v7a2 2 0 0 1-2 2h-2"></path>
+                </svg>
+                Déconnexion
+            </button>
+        </div>
+    </aside>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="erp-main">
+        <header class="erp-header">
+            <div class="header-left">
+                <h1>Produits</h1>
+                <p>Créer et administrer les fiches produits.</p>
+            </div>
+
+            <div class="header-right">
+                <div class="header-db">
+                    <span class="header-db-label">Base active</span>
+                    <span class="header-db-name">erp_db</span>
+                </div>
+                <button class="header-btn" type="button">
+                    <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 4v6h6"></path>
+                        <path d="M23 20v-6h-6"></path>
+                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64"></path>
+                        <path d="M3.51 15A9 9 0 0 0 18.36 18.36"></path>
+                    </svg>
+                    Changer de base
+                </button>
+                <button class="header-profile-btn" type="button">
+                    <div class="header-avatar">P</div>
+                </button>
+            </div>
+        </header>
+
+        <section class="erp-content">
+            <!-- Toolbar: barre recherche + bouton Créer produit -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+                <!-- centre : barre de recherche -->
+                <div style="flex:1; display:flex; justify-content:center;">
+                    <div class="job-input-wrapper" style="max-width:420px; width:100%;">
+                        <input type="text"
+                               class="job-input"
+                               placeholder="Rechercher un produit..." />
+                        <span class="job-input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;">
+                                <circle cx="11" cy="11" r="6"></circle>
+                                <line x1="16" y1="16" x2="20" y2="20"></line>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <!-- droite : bouton Créer produit -->
+                <div style="margin-left:16px;">
+                    <a asp-page="/ProduitNew" style="text-decoration:none;">
+                        <button type="button"
+                                class="sidebar-quick"
+                                style="display:inline-flex; align-items:center; gap:6px; padding-inline:16px;">
+                            <span>Créer produit</span>
+                            <span style="font-size:16px; line-height:1;">+</span>
+                        </button>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Ici tu ajouteras plus tard la liste / création de produits -->
+        </section>
+    </main>
+</div>
+
+<!-- POPUP DE DÉCONNEXION -->
+<div id="logout-overlay" class="logout-overlay" style="display:none;">
+    <div class="logout-modal">
+        <h3>Confirmer la déconnexion</h3>
+        <p>Voulez-vous vraiment vous déconnecter et revenir à l'écran de choix du profil&nbsp;?</p>
+
+        <form method="post" asp-page-handler="Logout" class="logout-modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
+            <button type="submit" class="btn-primary">Oui, se déconnecter</button>
+        </form>
+    </div>
+</div>
+
+<script src="~/js/Home.js"></script>

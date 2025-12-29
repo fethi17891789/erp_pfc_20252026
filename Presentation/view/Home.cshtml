@@ -18,27 +18,27 @@
         </div>
 
         <nav class="erp-nav">
-            <button class="nav-item nav-item-active">
+            <button class="nav-item nav-item-active" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                     <polyline points="9 22 9 12 15 12 15 22"></polyline>
                 </svg>
                 <span>Accueil</span>
             </button>
-            <button class="nav-item">
+            <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
                 </svg>
                 <span>Modules</span>
             </button>
-            <button class="nav-item">
+            <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
                 <span>Profils</span>
             </button>
-            <button class="nav-item">
+            <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="7" height="7"></rect>
                     <rect x="14" y="3" width="7" height="7"></rect>
@@ -47,7 +47,7 @@
                 </svg>
                 <span>Bases ERP</span>
             </button>
-            <button class="nav-item">
+            <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="1"></circle>
                     <path d="M12 1v6m6.07 6.07h-6.14M12 19v4m6.07-6.07v0"></path>
@@ -59,7 +59,7 @@
         </nav>
 
         <div class="erp-sidebar-footer">
-            <button class="sidebar-quick">
+            <button class="sidebar-quick" type="button">
                 <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -91,7 +91,7 @@
                     <span class="header-db-label">Base active</span>
                     <span class="header-db-name">erp_db</span>
                 </div>
-                <button class="header-btn">
+                <button class="header-btn" type="button">
                     <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M1 4v6h6"></path>
                         <path d="M23 20v-6h-6"></path>
@@ -100,7 +100,7 @@
                     </svg>
                     Changer de base
                 </button>
-                <button class="header-profile-btn">
+                <button class="header-profile-btn" type="button">
                     <div class="header-avatar">P</div>
                 </button>
             </div>
@@ -126,7 +126,7 @@
         <section class="erp-content">
             <div class="section-header">
                 <h2>Modules ERP</h2>
-                <button class="section-link">Voir tous</button>
+                <button class="section-link" type="button">Voir tous</button>
             </div>
 
             <div class="modules-grid">
@@ -147,7 +147,7 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
 
@@ -168,7 +168,7 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
 
@@ -190,7 +190,7 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
 
@@ -209,8 +209,10 @@
                     <p>Ordres de fabrication et planification.</p>
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
-                        <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <span class="module-status-text">Actif</span>
+                        <a asp-page="/Fabrication" class="module-action-link">
+                            <button class="module-action" type="button">Ouvrir</button>
+                        </a>
                     </div>
                 </article>
 
@@ -231,7 +233,7 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
 
@@ -253,7 +255,7 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
 
@@ -273,7 +275,7 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
 
@@ -295,15 +297,14 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
 
-                <!-- Rapports (NOUVEAU MODULE) -->
+                <!-- Rapports -->
                 <article class="module-tile">
                     <div class="module-tile-header">
                         <div class="module-circle">
-                            <!-- Icône simple pour Rapports -->
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M4 4h12l4 4v12H4z"></path>
                                 <path d="M16 4v4h4"></path>
@@ -318,9 +319,7 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">Actif</span>
-                        <button class="module-action" type="button">
-                            O
-                        </button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
 
@@ -341,7 +340,7 @@
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
                         <span class="module-status-text">À venir</span>
-                        <button class="module-action">Ouvrir</button>
+                        <button class="module-action" type="button">Ouvrir</button>
                     </div>
                 </article>
             </div>
@@ -362,5 +361,4 @@
     </div>
 </div>
 
-<!-- SCRIPT INLINE JUSTE AVANT </body> -->
 <script src="~/js/Home.js"></script>
