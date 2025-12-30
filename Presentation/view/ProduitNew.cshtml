@@ -1,16 +1,13 @@
 ﻿@page
 @model erp_pfc_20252026.Pages.ProduitNewModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
-
 @{
     ViewData["Title"] = "Nouveau produit";
 }
-
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="~/css/Common.css" />
 <link rel="stylesheet" href="~/css/Home.css" />
 <link rel="stylesheet" href="~/css/Produits.css" />
-
 <div class="erp-shell">
     <!-- BARRE LATERALE GAUCHE -->
     <aside class="erp-sidebar">
@@ -18,7 +15,6 @@
             <span class="erp-logo-mark">E</span>
             <span class="erp-logo-text">ERP Suite</span>
         </div>
-
         <nav class="erp-nav">
             <a asp-page="/Home" class="nav-item">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -27,14 +23,12 @@
                 </svg>
                 <span>Accueil</span>
             </a>
-
             <a asp-page="/Fabrication" class="nav-item nav-item-active">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
                 </svg>
                 <span>Modules</span>
             </a>
-
             <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -42,7 +36,6 @@
                 </svg>
                 <span>Profils</span>
             </button>
-
             <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="7" height="7"></rect>
@@ -52,7 +45,6 @@
                 </svg>
                 <span>Bases ERP</span>
             </button>
-
             <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="1"></circle>
@@ -63,7 +55,6 @@
                 <span>Paramètres</span>
             </button>
         </nav>
-
         <div class="erp-sidebar-footer">
             <button class="sidebar-quick" type="button">
                 <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -82,7 +73,6 @@
             </button>
         </div>
     </aside>
-
     <!-- CONTENU PRINCIPAL -->
     <main class="erp-main">
         <header class="erp-header">
@@ -90,7 +80,6 @@
                 <h1>Nouveau produit</h1>
                 <p>Définir les informations principales du produit.</p>
             </div>
-
             <div class="header-right">
                 <div class="header-db">
                     <span class="header-db-label">Base active</span>
@@ -110,42 +99,122 @@
                 </button>
             </div>
         </header>
-
         <section class="erp-content">
-            <!-- Toolbar : barre de recherche produits (même style que Produits) -->
-            <div style="display:flex; align-items:center; justify-content:center; margin-bottom:24px;">
-                <div class="job-input-wrapper" style="max-width:420px; width:100%;">
-                    <input type="text"
-                           class="job-input"
-                           placeholder="Rechercher un produit..." />
-                    <span class="job-input-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;">
-                            <circle cx="11" cy="11" r="6"></circle>
-                            <line x1="16" y1="16" x2="20" y2="20"></line>
-                        </svg>
-                    </span>
-                </div>
+            <div class="product-form-card">
+                <form id="produit-new-form" method="post" enctype="multipart/form-data">
+                    <!-- LIGNE 1 -->
+                    <div class="form-row form-row-3">
+                        <div class="form-group">
+                            <label for="ProductName" class="form-label">Nom du produit</label>
+                            <input id="ProductName" name="ProductName" type="text" class="form-input" placeholder="par ex. Cheeseburger" required />
+                        </div>
+                        <div class="form-group">
+                            <label for="Reference" class="form-label">Référence interne</label>
+                            <input id="Reference" name="Reference" type="text" class="form-input" placeholder="Code interne, SKU..." />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Type de produit</label>
+                            <div class="radio-group-horizontal">
+                                <label class="radio-label">
+                                    <input type="radio" name="ProductType" value="Bien" checked />
+                                    <span>Bien</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="ProductType" value="Service" />
+                                    <span>Service</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- LIGNE 2 -->
+                    <div class="form-row form-row-3">
+                        <div class="form-group">
+                            <label for="Barcode" class="form-label">Code-barres</label>
+                            <input id="Barcode" name="Barcode" type="text" class="form-input" placeholder="EAN, UPC..." />
+                        </div>
+                        <div class="form-group">
+                            <label for="SalePrice" class="form-label">Prix de vente</label>
+                            <div class="input-group">
+                                <input id="SalePrice" name="SalePrice" type="number" step="0.01" min="0" class="form-input form-input-number" placeholder="0,00" />
+                                <span class="input-suffix">DA</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="Cost" class="form-label">Coût</label>
+                            <div class="input-group">
+                                <input id="Cost" name="Cost" type="number" step="0.01" min="0" class="form-input form-input-number" placeholder="0,00" />
+                                <span class="input-suffix">DA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- LIGNE 3 -->
+                    <div class="form-row form-row-3">
+                        <div class="form-group">
+                            <label class="form-label">Disponible à la vente</label>
+                            <label class="checkbox-inline">
+                                <input type="checkbox" name="IsSaleable" checked />
+                                <span>Oui</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Suivre l'inventaire</label>
+                            <label class="checkbox-inline">
+                                <input type="checkbox" name="TrackInventory" checked />
+                                <span>Par quantité</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="ProductImage" class="form-label">Image du produit</label>
+                            <input id="ProductImage" name="ProductImage" type="file" accept="image/*" class="file-input-hidden" />
+                            <label for="ProductImage" class="file-input-button-mini">
+                                <svg style="width: 12px; height: 12px; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                <span>Choisir</span>
+                            </label>
+                            <span id="file-name-display" class="file-name-display"></span>
+                        </div>
+                    </div>
+                    <!-- LIGNE 4 -->
+                    <div class="form-row form-row-1">
+                        <div class="form-group">
+                            <label for="Comment" class="form-label">Notes internes</label>
+                            <textarea id="Comment" name="Comment" class="form-input form-textarea" placeholder="Cette note est pour usage interne seulement." rows="4"></textarea>
+                        </div>
+                    </div>
+                    <!-- FOOTER -->
+                    <div class="form-footer">
+                        <button type="submit" class="btn-primary">Enregistrer</button>
+                        <a asp-page="/Fabrication" class="btn-secondary btn-cancel">Annuler</a>
+                    </div>
+                </form>
             </div>
-
-            <!-- Formulaire de création (structure vide, à remplir plus tard) -->
-            <form id="produit-new-form" method="post" class="form-section" style="max-width:520px;">
-                <!-- On ajoutera les champs ici après tes instructions -->
-            </form>
         </section>
     </main>
 </div>
-
-<!-- POPUP DE DÉCONNEXION -->
+<!-- POPUP DÉCONNEXION -->
 <div id="logout-overlay" class="logout-overlay" style="display:none;">
     <div class="logout-modal">
         <h3>Confirmer la déconnexion</h3>
-        <p>Voulez-vous vraiment vous déconnecter et revenir à l'écran de choix du profil&nbsp;?</p>
-
+        <p>Voulez-vous vraiment vous déconnecter et revenir à l'écran de choix du profil ?</p>
         <form method="post" asp-page-handler="Logout" class="logout-modal-actions">
             <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
             <button type="submit" class="btn-primary">Oui, se déconnecter</button>
         </form>
     </div>
 </div>
-
 <script src="~/js/Home.js"></script>
+<script>
+    document.getElementById('ProductImage').addEventListener('change', function(e) {
+        const fileName = e.target.files[0]?.name || '';
+        document.getElementById('file-name-display').textContent = fileName;
+    });
+    function openLogoutModal() {
+        document.getElementById('logout-overlay').style.display = 'flex';
+    }
+    function closeLogoutModal() {
+        document.getElementById('logout-overlay').style.display = 'none';
+    }
+</script>
