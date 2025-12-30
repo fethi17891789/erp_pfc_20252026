@@ -1,59 +1,134 @@
-// Fichier : Program.cs
+Ôªø// Fichier : Program.cs
 using System.Diagnostics;
 using Donnees;
 using Metier;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// URL d'Ècoute par dÈfaut (tu peux changer le port si tu veux)
+// URL d'√©coute par d√©faut
 var appUrl = "http://localhost:5000";
 builder.WebHost.UseUrls(appUrl);
 
-// Razor Pages ñ tes pages sont dans /Presentation/view
+// Razor Pages ‚Äì tes pages sont dans /Presentation/view
 builder.Services
     .AddRazorPages()
     .AddRazorPagesOptions(options =>
     {
         options.RootDirectory = "/Presentation/view";
-        options.Conventions.AddPageRoute("/BDDView", ""); // BDDView = page díaccueil (premier dÈmarrage)
+        options.Conventions.AddPageRoute("/BDDView", "");
     });
 
-// Service qui contient la connection string choisie via le formulaire
+// Services singletons
 builder.Services.AddSingleton<DynamicConnectionProvider>();
-
-// Service pour charger / sauvegarder la config ERP (fichier JSON)
 builder.Services.AddSingleton<ErpConfigStorage>();
 
-// *** CHARGER LA CONFIG AU DEMARRAGE ***
-var tempProvider = builder.Services.BuildServiceProvider();
-var configStorage = tempProvider.GetRequiredService<ErpConfigStorage>();
-var savedConfig = configStorage.Load();
-
-var dynamicProvider = tempProvider.GetRequiredService<DynamicConnectionProvider>();
-dynamicProvider.CurrentConnectionString = savedConfig.ConnectionString;
-
-// DbContext PostgreSQL (ERP) ñ connection string fournie dynamiquement
+// DbContext PostgreSQL (ERP) ‚Äì connection string fournie dynamiquement
 builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
 {
     var provider = sp.GetRequiredService<DynamicConnectionProvider>();
-
     var conn = provider.CurrentConnectionString;
 
     if (string.IsNullOrWhiteSpace(conn))
     {
-        // Au tout premier dÈmarrage (pas encore de BDD ERP),
-        // on met une connexion neutre qui ne sera pas vraiment utilisÈe.
+        // Connexion neutre tant que l'utilisateur n'a pas configur√© la BDD
         conn = "Host=localhost;Port=5432;Database=postgres;Username=openpg;Password=faux";
     }
 
     options.UseNpgsql(conn);
 });
 
-// Service mÈtier qui crÈe la base ERP (via le formulaire)
+// Service m√©tier
 builder.Services.AddScoped<BDDService>();
 
 var app = builder.Build();
+
+// ********** CHARGER LA CONFIG APRES Build(), AVEC LE VRAI ServiceProvider **********
+using (var scope = app.Services.CreateScope())
+{
+    var sp = scope.ServiceProvider;
+
+    var configStorage = sp.GetRequiredService<ErpConfigStorage>();
+    var savedConfig = configStorage.Load();
+
+    Console.WriteLine($"[DEBUG] Program - ConnectionString apr√®s Load : {savedConfig.ConnectionString}");
+
+    var dynamicProvider = sp.GetRequiredService<DynamicConnectionProvider>();
+    dynamicProvider.CurrentConnectionString = savedConfig.ConnectionString;
+}
+// *****************************************************************************
+
+
+// ---------- CREATION AUTOMATIQUE DE LA TABLE "Produits" S'IL LE FAUT ----------
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        Console.WriteLine($"[DEBUG] Connexion utilis√©e pour Produits : {connString}");
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string checkSql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'Produits'
+                );";
+
+            using (var checkCmd = new NpgsqlCommand(checkSql, conn))
+            {
+                var existsObj = checkCmd.ExecuteScalar();
+                var exists = existsObj is bool b && b;
+
+                Console.WriteLine($"[DEBUG] Table Produits existe d√©j√† ? {exists}");
+
+                if (!exists)
+                {
+                    const string createSql = @"
+                        CREATE TABLE ""Produits"" (
+                            ""Id"" SERIAL PRIMARY KEY,
+                            ""Nom"" VARCHAR(100) NOT NULL,
+                            ""Reference"" VARCHAR(50),
+                            ""CodeBarres"" VARCHAR(50),
+                            ""Type"" VARCHAR(20) NOT NULL DEFAULT 'Bien',
+                            ""PrixVente"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                            ""Cout"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                            ""DisponibleVente"" BOOLEAN NOT NULL DEFAULT TRUE,
+                            ""SuiviInventaire"" BOOLEAN NOT NULL DEFAULT TRUE,
+                            ""Image"" VARCHAR(255),
+                            ""Notes"" VARCHAR(500),
+                            ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                            CONSTRAINT ""UQ_Produits_Reference"" UNIQUE (""Reference"")
+                        );";
+
+                    Console.WriteLine("[DEBUG] Cr√©ation de la table Produits...");
+                    using var createCmd = new NpgsqlConnection(connString);
+                    createCmd.Open();
+                    using var createTableCmd = new NpgsqlCommand(createSql, createCmd);
+                    createTableCmd.ExecuteNonQuery();
+                    Console.WriteLine("[DEBUG] Table Produits cr√©√©e.");
+                }
+            }
+        }
+        else
+        {
+            Console.WriteLine("[DEBUG] Connexion vide, aucune cr√©ation de table Produits.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la cr√©ation auto de la table Produits : {ex}");
+    }
+}
+// ------------------------------------------------------------------------------
 
 if (!app.Environment.IsDevelopment())
 {
@@ -70,17 +145,15 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
-// ---------- Lancer le navigateur automatiquement ----------
+// Lancer le navigateur automatiquement
 OpenBrowser(appUrl);
 
 app.Run();
 
-// Fonction utilitaire
 static void OpenBrowser(string url)
 {
     try
     {
-        // Windows / Linux / macOS
         var psi = new ProcessStartInfo
         {
             FileName = url,
@@ -90,7 +163,6 @@ static void OpenBrowser(string url)
     }
     catch
     {
-        // Si pour une raison quelconque le lancement Èchoue,
-        // on n'empÍche pas le serveur de dÈmarrer.
+        // On ignore les erreurs de lancement du navigateur
     }
 }

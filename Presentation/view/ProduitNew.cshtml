@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="~/css/Common.css" />
 <link rel="stylesheet" href="~/css/Home.css" />
 <link rel="stylesheet" href="~/css/Produits.css" />
+
 <div class="erp-shell">
     <!-- BARRE LATERALE GAUCHE -->
     <aside class="erp-sidebar">
@@ -73,6 +74,7 @@
             </button>
         </div>
     </aside>
+
     <!-- CONTENU PRINCIPAL -->
     <main class="erp-main">
         <header class="erp-header">
@@ -99,18 +101,29 @@
                 </button>
             </div>
         </header>
+
         <section class="erp-content">
             <div class="product-form-card">
+
+                @if (!string.IsNullOrWhiteSpace(Model.Message))
+                {
+                    <div class="alert-info">
+                        @Model.Message
+                    </div>
+                }
+
                 <form id="produit-new-form" method="post" enctype="multipart/form-data">
                     <!-- LIGNE 1 -->
                     <div class="form-row form-row-3">
                         <div class="form-group">
                             <label for="ProductName" class="form-label">Nom du produit</label>
                             <input id="ProductName" name="ProductName" type="text" class="form-input" placeholder="par ex. Cheeseburger" required />
+                            <span asp-validation-for="NouveauProduit.Nom" class="text-danger"></span>
                         </div>
                         <div class="form-group">
                             <label for="Reference" class="form-label">Référence interne</label>
                             <input id="Reference" name="Reference" type="text" class="form-input" placeholder="Code interne, SKU..." />
+                            <span asp-validation-for="NouveauProduit.Reference" class="text-danger"></span>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Type de produit</label>
@@ -126,6 +139,7 @@
                             </div>
                         </div>
                     </div>
+
                     <!-- LIGNE 2 -->
                     <div class="form-row form-row-3">
                         <div class="form-group">
@@ -147,6 +161,7 @@
                             </div>
                         </div>
                     </div>
+
                     <!-- LIGNE 3 -->
                     <div class="form-row form-row-3">
                         <div class="form-group">
@@ -177,6 +192,7 @@
                             <span id="file-name-display" class="file-name-display"></span>
                         </div>
                     </div>
+
                     <!-- LIGNE 4 -->
                     <div class="form-row form-row-1">
                         <div class="form-group">
@@ -184,6 +200,7 @@
                             <textarea id="Comment" name="Comment" class="form-input form-textarea" placeholder="Cette note est pour usage interne seulement." rows="4"></textarea>
                         </div>
                     </div>
+
                     <!-- FOOTER -->
                     <div class="form-footer">
                         <button type="submit" class="btn-primary">Enregistrer</button>
@@ -194,6 +211,7 @@
         </section>
     </main>
 </div>
+
 <!-- POPUP DÉCONNEXION -->
 <div id="logout-overlay" class="logout-overlay" style="display:none;">
     <div class="logout-modal">
@@ -205,12 +223,23 @@
         </form>
     </div>
 </div>
+
 <script src="~/js/Home.js"></script>
 <script>
-    document.getElementById('ProductImage').addEventListener('change', function(e) {
+    document.getElementById('ProductImage').addEventListener('change', function (e) {
         const fileName = e.target.files[0]?.name || '';
         document.getElementById('file-name-display').textContent = fileName;
     });
+
+    // LOG du formulaire au submit
+    document.getElementById('produit-new-form').addEventListener('submit', function (e) {
+        console.log('[JS] Formulaire produit-new-form en cours de submission...');
+        const formData = new FormData(this);
+        console.log('[JS] ProductName:', formData.get('ProductName'));
+        console.log('[JS] Reference:', formData.get('Reference'));
+        console.log('[JS] URL actuelle:', window.location.href);
+    });
+
     function openLogoutModal() {
         document.getElementById('logout-overlay').style.display = 'flex';
     }
