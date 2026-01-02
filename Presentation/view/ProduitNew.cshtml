@@ -1,13 +1,14 @@
-﻿@page
+﻿@page "{id?}"
 @model erp_pfc_20252026.Pages.ProduitNewModel
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 @{
-    ViewData["Title"] = "Nouveau produit";
+    var isEdit = Model.NouveauProduit != null && Model.NouveauProduit.Id > 0;
+    ViewData["Title"] = isEdit ? "Modifier produit" : "Nouveau produit";
 }
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="~/css/Common.css" />
 <link rel="stylesheet" href="~/css/Home.css" />
-<link rel="stylesheet" href="~/css/Produits.css" />
+
 
 <div class="erp-shell">
     <!-- BARRE LATERALE GAUCHE -->
@@ -77,10 +78,18 @@
 
     <!-- CONTENU PRINCIPAL -->
     <main class="erp-main">
+        @if (!string.IsNullOrWhiteSpace(Model.Message))
+        {
+            <div id="product-success-toast" class="toast-success">
+                <div class="toast-success-icon">✔</div>
+                <span>@Model.Message</span>
+            </div>
+        }
+
         <header class="erp-header">
             <div class="header-left">
-                <h1>Nouveau produit</h1>
-                <p>Définir les informations principales du produit.</p>
+                <h1>@(isEdit ? "Modifier le produit" : "Nouveau produit")</h1>
+                <p>@(isEdit ? "Mettre à jour les informations du produit." : "Définir les informations principales du produit.")</p>
             </div>
             <div class="header-right">
                 <div class="header-db">
@@ -104,36 +113,34 @@
 
         <section class="erp-content">
             <div class="product-form-card">
-
-                @if (!string.IsNullOrWhiteSpace(Model.Message))
-                {
-                    <div class="alert-info">
-                        @Model.Message
-                    </div>
-                }
-
                 <form id="produit-new-form" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="Id" value="@Model.NouveauProduit.Id" />
+
                     <!-- LIGNE 1 -->
                     <div class="form-row form-row-3">
                         <div class="form-group">
                             <label for="ProductName" class="form-label">Nom du produit</label>
-                            <input id="ProductName" name="ProductName" type="text" class="form-input" placeholder="par ex. Cheeseburger" required />
-                            <span asp-validation-for="NouveauProduit.Nom" class="text-danger"></span>
+                            <input id="ProductName" name="ProductName" type="text" class="form-input"
+                                   value="@Model.NouveauProduit.Nom"
+                                   placeholder="par ex. Cheeseburger" required />
                         </div>
                         <div class="form-group">
                             <label for="Reference" class="form-label">Référence interne</label>
-                            <input id="Reference" name="Reference" type="text" class="form-input" placeholder="Code interne, SKU..." />
-                            <span asp-validation-for="NouveauProduit.Reference" class="text-danger"></span>
+                            <input id="Reference" name="Reference" type="text" class="form-input"
+                                   value="@Model.NouveauProduit.Reference"
+                                   placeholder="Code interne, SKU..." />
                         </div>
                         <div class="form-group">
                             <label class="form-label">Type de produit</label>
                             <div class="radio-group-horizontal">
                                 <label class="radio-label">
-                                    <input type="radio" name="ProductType" value="Bien" checked />
+                                    <input type="radio" name="ProductType" value="Bien"
+                                           @(string.IsNullOrEmpty(Model.NouveauProduit.Type) || Model.NouveauProduit.Type == "Bien" ? "checked" : "") />
                                     <span>Bien</span>
                                 </label>
                                 <label class="radio-label">
-                                    <input type="radio" name="ProductType" value="Service" />
+                                    <input type="radio" name="ProductType" value="Service"
+                                           @(Model.NouveauProduit.Type == "Service" ? "checked" : "") />
                                     <span>Service</span>
                                 </label>
                             </div>
@@ -144,19 +151,27 @@
                     <div class="form-row form-row-3">
                         <div class="form-group">
                             <label for="Barcode" class="form-label">Code-barres</label>
-                            <input id="Barcode" name="Barcode" type="text" class="form-input" placeholder="EAN, UPC..." />
+                            <input id="Barcode" name="Barcode" type="text" class="form-input"
+                                   value="@Model.NouveauProduit.CodeBarres"
+                                   placeholder="EAN, UPC..." />
                         </div>
                         <div class="form-group">
                             <label for="SalePrice" class="form-label">Prix de vente</label>
                             <div class="input-group">
-                                <input id="SalePrice" name="SalePrice" type="number" step="0.01" min="0" class="form-input form-input-number" placeholder="0,00" />
+                                <input id="SalePrice" name="SalePrice" type="number" step="0.01" min="0"
+                                       class="form-input form-input-number"
+                                       value="@(Model.NouveauProduit.PrixVente)"
+                                       placeholder="0,00" />
                                 <span class="input-suffix">DA</span>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="Cost" class="form-label">Coût</label>
                             <div class="input-group">
-                                <input id="Cost" name="Cost" type="number" step="0.01" min="0" class="form-input form-input-number" placeholder="0,00" />
+                                <input id="Cost" name="Cost" type="number" step="0.01" min="0"
+                                       class="form-input form-input-number"
+                                       value="@(Model.NouveauProduit.Cout)"
+                                       placeholder="0,00" />
                                 <span class="input-suffix">DA</span>
                             </div>
                         </div>
@@ -167,20 +182,27 @@
                         <div class="form-group">
                             <label class="form-label">Disponible à la vente</label>
                             <label class="checkbox-inline">
-                                <input type="checkbox" name="IsSaleable" checked />
+                                <input type="checkbox" name="IsSaleable"
+                                       @(Model.NouveauProduit.DisponibleVente ? "checked" : "") />
                                 <span>Oui</span>
                             </label>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Suivre l'inventaire</label>
                             <label class="checkbox-inline">
-                                <input type="checkbox" name="TrackInventory" checked />
+                                <input type="checkbox" name="TrackInventory"
+                                       @(Model.NouveauProduit.SuiviInventaire ? "checked" : "") />
                                 <span>Par quantité</span>
                             </label>
                         </div>
                         <div class="form-group">
                             <label for="ProductImage" class="form-label">Image du produit</label>
-                            <input id="ProductImage" name="ProductImage" type="file" accept="image/*" class="file-input-hidden" />
+
+                            <!-- Input natif caché, conservé pour le fonctionnement -->
+                            <input id="ProductImage" name="ProductImage" type="file" accept="image/*"
+                                   class="file-input-hidden" style="display:none;" />
+
+                            <!-- Seul bouton visible et designé -->
                             <label for="ProductImage" class="file-input-button-mini">
                                 <svg style="width: 12px; height: 12px; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -189,7 +211,25 @@
                                 </svg>
                                 <span>Choisir</span>
                             </label>
+
                             <span id="file-name-display" class="file-name-display"></span>
+
+                            <div id="product-image-preview-wrapper"
+                                 style="margin-top:10px; display:flex; align-items:center; gap:10px;">
+                                @{
+                                    var hasExistingImage = !string.IsNullOrWhiteSpace(Model.NouveauProduit?.Image);
+                                    var existingImageUrl = hasExistingImage ? Url.Content("~/images/produits/" + Model.NouveauProduit.Image) : "";
+                                }
+
+                                <div id="product-image-preview-container"
+                                     style="@(hasExistingImage ? "display:flex;" : "display:none;") width:80px; height:80px; border-radius:18px; overflow:hidden; border:1px solid var(--border-soft); background:#020617; cursor:pointer; align-items:center; justify-content:center; box-shadow:0 10px 30px rgba(15,23,42,0.8);"
+                                     onclick="openImageModalFromPreview()">
+                                    <img id="product-image-preview"
+                                         src="@(hasExistingImage? existingImageUrl : "")"
+                                         alt="Image produit"
+                                         style="max-width:100%; max-height:100%; object-fit:cover;" />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -197,14 +237,14 @@
                     <div class="form-row form-row-1">
                         <div class="form-group">
                             <label for="Comment" class="form-label">Notes internes</label>
-                            <textarea id="Comment" name="Comment" class="form-input form-textarea" placeholder="Cette note est pour usage interne seulement." rows="4"></textarea>
+                            <textarea id="Comment" name="Comment" class="form-input form-textarea"
+                                      placeholder="Cette note est pour usage interne seulement." rows="4">@Model.NouveauProduit.Notes</textarea>
                         </div>
                     </div>
 
-                    <!-- FOOTER -->
                     <div class="form-footer">
                         <button type="submit" class="btn-primary">Enregistrer</button>
-                        <a asp-page="/Fabrication" class="btn-secondary btn-cancel">Annuler</a>
+                        <a asp-page="/ProduitCreate" class="btn-secondary btn-cancel">Annuler</a>
                     </div>
                 </form>
             </div>
@@ -224,21 +264,61 @@
     </div>
 </div>
 
+<!-- MODAL APERÇU GRANDE IMAGE -->
+<div id="image-modal-overlay" class="logout-overlay" style="display:none; background:rgba(3,6,23,0.8);">
+    <div class="logout-modal" style="max-width:520px; width:90%; padding:12px 12px 16px 12px;">
+        <h3 style="margin-bottom:10px;">Image du produit</h3>
+        <div style="border-radius:16px; overflow:hidden; border:1px solid var(--border-soft); background:#020617; max-height:70vh; display:flex; align-items:center; justify-content:center;">
+            <img id="image-modal-img"
+                 src=""
+                 alt="Image produit"
+                 style="max-width:100%; max-height:70vh; object-fit:contain;" />
+        </div>
+        <div class="logout-modal-actions" style="margin-top:12px;">
+            <button type="button" class="btn-primary" onclick="closeImageModal()">Fermer</button>
+        </div>
+    </div>
+</div>
+
 <script src="~/js/Home.js"></script>
 <script>
-    document.getElementById('ProductImage').addEventListener('change', function (e) {
-        const fileName = e.target.files[0]?.name || '';
-        document.getElementById('file-name-display').textContent = fileName;
-    });
+    const inputImage = document.getElementById('ProductImage');
+    const fileNameDisplay = document.getElementById('file-name-display');
+    const previewContainer = document.getElementById('product-image-preview-container');
+    const previewImg = document.getElementById('product-image-preview');
+    const imageModalOverlay = document.getElementById('image-modal-overlay');
+    const imageModalImg = document.getElementById('image-modal-img');
 
-    // LOG du formulaire au submit
-    document.getElementById('produit-new-form').addEventListener('submit', function (e) {
-        console.log('[JS] Formulaire produit-new-form en cours de submission...');
-        const formData = new FormData(this);
-        console.log('[JS] ProductName:', formData.get('ProductName'));
-        console.log('[JS] Reference:', formData.get('Reference'));
-        console.log('[JS] URL actuelle:', window.location.href);
-    });
+    if (inputImage) {
+        inputImage.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            const fileName = file?.name || '';
+            if (fileNameDisplay) {
+                fileNameDisplay.textContent = fileName;
+            }
+
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function (ev) {
+                    if (previewImg && previewContainer) {
+                        previewImg.src = ev.target.result;
+                        previewContainer.style.display = 'flex';
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
+    function openImageModalFromPreview() {
+        if (!previewImg || !previewImg.src) return;
+        imageModalImg.src = previewImg.src;
+        imageModalOverlay.style.display = 'flex';
+    }
+
+    function closeImageModal() {
+        imageModalOverlay.style.display = 'none';
+    }
 
     function openLogoutModal() {
         document.getElementById('logout-overlay').style.display = 'flex';
@@ -246,4 +326,23 @@
     function closeLogoutModal() {
         document.getElementById('logout-overlay').style.display = 'none';
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const toast = document.getElementById('product-success-toast');
+        if (toast) {
+            requestAnimationFrame(() => {
+                toast.classList.add('visible');
+            });
+
+            setTimeout(() => {
+                toast.classList.remove('visible');
+            }, 3000);
+        }
+    });
+
+    document.addEventListener('click', function (e) {
+        if (e.target === imageModalOverlay) {
+            closeImageModal();
+        }
+    });
 </script>

@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Donnees;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -18,12 +22,16 @@ namespace erppfc20252026.Pages
 
         public async Task OnGetAsync()
         {
+            await ChargerProduitsAsync();
+        }
+
+        private async Task ChargerProduitsAsync()
+        {
             try
             {
-                // Récupérer tous les produits avec les infos essentielles
                 Produits = await _context.Produits
                     .OrderByDescending(p => p.DateCreation)
-                    .Take(50) // Limite pour la performance
+                    .Take(50)
                     .ToListAsync();
 
                 Console.WriteLine($"DEBUG Produits.OnGetAsync - {Produits.Count} produits chargés");
@@ -34,11 +42,29 @@ namespace erppfc20252026.Pages
             }
         }
 
+        public async Task<IActionResult> OnPostDeleteAsync(int id)
+        {
+            Console.WriteLine($"DEBUG Produits.OnPostDeleteAsync - demande suppression id={id}");
+
+            var produit = await _context.Produits.FirstOrDefaultAsync(p => p.Id == id);
+            if (produit == null)
+            {
+                Console.WriteLine($"WARN Produits.OnPostDeleteAsync - produit id={id} introuvable");
+                return RedirectToPage(); // recharge la liste
+            }
+
+            _context.Produits.Remove(produit);
+            await _context.SaveChangesAsync();
+
+            Console.WriteLine($"DEBUG Produits.OnPostDeleteAsync - produit id={id} supprimé");
+
+            return RedirectToPage();
+        }
+
         public async Task<IActionResult> OnPostLogoutAsync()
         {
-            // Logique de déconnexion (à implémenter selon ton système d'auth)
             Console.WriteLine("DEBUG Produits.OnPostLogoutAsync - Déconnexion");
-            return RedirectToPage("/Index"); // ou ta page de login
+            return RedirectToPage("/Index");
         }
     }
 }
