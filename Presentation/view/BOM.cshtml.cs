@@ -1,34 +1,91 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Donnees;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
-namespace erp_pfc_20252026.Pages
+namespace erp_pfc_20252026.Pages.Fabrication
 {
     public class BOMModel : PageModel
     {
-        // Représente une ligne de nomenclature (affichage)
-        public class BomItem
+        private readonly ErpDbContext _context;
+
+        public BOMModel(ErpDbContext context)
         {
-            public string CodeProduit { get; set; } = string.Empty;
-            public string NomProduit { get; set; } = string.Empty;
-            public string CodeBom { get; set; } = string.Empty;
-            public string Version { get; set; } = string.Empty;
+            _context = context;
         }
 
-        // Liste des BOM à afficher dans le tableau
-        public List<BomItem> Boms { get; set; } = new List<BomItem>();
-
-        public void OnGet()
+        // ViewModel pour l'affichage des cartes
+        public class BomCardItem
         {
-            // Pour l’instant, on laisse vide.
-            // Plus tard tu rempliras Boms depuis la base.
-            // Exemple de données de test (à décommenter si tu veux voir le tableau) :
-            /*
-            Boms = new List<BomItem>
+            public int ProduitId { get; set; }
+            public string Reference { get; set; } = string.Empty;
+            public string Nom { get; set; } = string.Empty;
+            public decimal Prix { get; set; }
+            public string? Image { get; set; }
+
+            // Statut BOM
+            public bool HasBom { get; set; }
+            public string VersionBom { get; set; } = string.Empty;
+            public string CodeBom { get; set; } = string.Empty;
+
+            // Optionnel : Id de la BOM si tu veux y accéder directement
+            public int? BomId { get; set; }
+        }
+
+        public List<BomCardItem> BomItems { get; set; } = new();
+
+        public async Task OnGetAsync(string? searchTerm)
+        {
+            // 1) Tous les produits
+            var productsQuery = _context.Produits.AsNoTracking();
+
+            if (!string.IsNullOrWhiteSpace(searchTerm))
             {
-                new BomItem { CodeProduit = "P-001", NomProduit = "Produit A", CodeBom = "BOM-001", Version = "1.0" },
-                new BomItem { CodeProduit = "P-002", NomProduit = "Produit B", CodeBom = "BOM-002", Version = "1.1" }
-            };
-            */
+                var lowered = searchTerm.ToLower();
+                productsQuery = productsQuery.Where(p =>
+                    p.Nom.ToLower().Contains(lowered) ||
+                    (p.Reference != null && p.Reference.ToLower().Contains(lowered)));
+            }
+
+            var products = await productsQuery.ToListAsync();
+
+            // 2) Boms par produit (on prend la première pour l’instant)
+            var bomsByProduct = await _context.Boms
+                .AsNoTracking()
+                .GroupBy(b => b.ProduitId)
+                .Select(g => new
+                {
+                    ProduitId = g.Key,
+                    BomId = g.Min(b => b.Id)
+                })
+                .ToListAsync();
+
+            var dictBoms = bomsByProduct.ToDictionary(x => x.ProduitId, x => x.BomId);
+
+            // 3) Mapping produits -> cartes
+            BomItems = products
+                .Select(p =>
+                {
+                    var hasBom = dictBoms.ContainsKey(p.Id);
+                    int? bomId = hasBom ? dictBoms[p.Id] : (int?)null;
+
+                    return new BomCardItem
+                    {
+                        ProduitId = p.Id,
+                        Reference = p.Reference ?? string.Empty,
+                        Nom = p.Nom,
+                        Prix = p.PrixVente,
+                        Image = p.Image,
+                        HasBom = hasBom,
+                        // Pour l’instant "v1" pour tous les produits qui ont une BOM
+                        VersionBom = hasBom ? "v1" : string.Empty,
+                        CodeBom = string.Empty,
+                        BomId = bomId
+                    };
+                })
+                .ToList();
         }
     }
 }

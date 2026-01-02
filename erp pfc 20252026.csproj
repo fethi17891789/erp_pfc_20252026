@@ -4,15 +4,26 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<RootNamespace>erp_pfc_20252026</RootNamespace>
+
+		<!-- EXE console : la fenêtre CMD s'affiche -->
+		<OutputType>Exe</OutputType>
+		<ApplicationIcon>App.ico</ApplicationIcon>
 	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
 	</ItemGroup>
+
 	<ItemGroup>
-	  <None Include="wwwroot\css\BDDView.css" />
-	  <None Include="wwwroot\js\BDDView.js" />
+		<None Include="wwwroot\css\BDDView.css" />
+		<None Include="wwwroot\js\BDDView.js" />
 	</ItemGroup>
+
 	<ItemGroup>
-	  <Folder Include="wwwroot\images\produits\" />
+		<Folder Include="wwwroot\images\produits\" />
+		<!-- Icône d'application -->
+		<Content Include="App.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 	</ItemGroup>
 </Project>

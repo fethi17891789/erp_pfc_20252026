@@ -115,11 +115,11 @@
                     </div>
                 </div>
                 <div style="margin-left:16px;">
-                    <a asp-page="/ProduitNew" style="text-decoration:none;">
-                        <button type="button" class="sidebar-quick" style="display:inline-flex; align-items:center; gap:6px; padding-inline:16px;">
-                            <span>Créer produit</span>
-                            <span style="font-size:16px; line-height:1">+</span>
-                        </button>
+                    <a asp-page="/ProduitNew"
+                       class="sidebar-quick"
+                       style="display:inline-flex; align-items:center; gap:6px; padding-inline:16px; text-decoration:none;">
+                        <span>Créer produit</span>
+                        <span style="font-size:16px; line-height:1">+</span>
                     </a>
                 </div>
             </div>
@@ -132,23 +132,23 @@
                     @foreach (var produit in Model.Produits)
                     {
                         <div class="form-group product-item" data-ref="@produit.Reference" style="margin:0; position:relative;">
-                            <div style="
-                                    padding:12px 12px;
-                                    background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
-                                    border:1px solid var(--border-soft);
-                                    border-radius:var(--radius-sm);
-                                    display:flex;
-                                    flex-direction:column;
-                                    gap:8px;
-                                    transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                               box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                               transform 80ms ease-out,
-                                               background 140ms cubic-bezier(0.2,0.8,0.2,1);
-                                "
+                            <div class="product-card"
+                                 style="
+                                            padding:12px 12px;
+                                            background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
+                                            border:1px solid var(--border-soft);
+                                            border-radius:var(--radius-sm);
+                                            display:flex;
+                                            flex-direction:column;
+                                            gap:8px;
+                                            transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1),
+                                                       box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1),
+                                                       transform 80ms ease-out,
+                                                       background 140ms cubic-bezier(0.2,0.8,0.2,1);
+                                         "
                                  onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                                  onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
-
+                                <div class="product-card-header">
                                     @{
                                         var hasImage = !string.IsNullOrWhiteSpace(produit.Image);
                                         var thumbUrl = hasImage ? Url.Content("~/images/produits/" + produit.Image) : "";
@@ -174,16 +174,16 @@
                                     </div>
 
                                     <!-- TEXTE CLIQUABLE (LIEN VERS ProduitNew) -->
-                                    <a asp-page="/ProduitNew" asp-route-id="@produit.Id" style="text-decoration:none; color:inherit; flex:1;">
-                                        <div>
-                                            <div style="font-weight:700; font-size:0.95rem; margin-bottom:4px; color:var(--text); line-height:1.3;">
+                                    <a asp-page="/ProduitNew" asp-route-id="@produit.Id" style="text-decoration:none; color:inherit; flex:1; min-width:0;">
+                                        <div class="product-card-text">
+                                            <div class="product-card-title">
                                                 @produit.Nom
                                             </div>
-                                            <div style="color:var(--text-muted); font-size:0.8rem; margin-bottom:6px;">
+                                            <div class="product-card-subtitle">
                                                 REF: @produit.Reference
                                             </div>
-                                            <div style="display:flex; align-items:center; gap:4px; font-size:0.85rem; font-weight:700; color:var(--accent);">
-                                                <span style="color:var(--text-muted); font-weight:500; font-size:0.78rem;">Prix :</span>
+                                            <div class="product-card-price">
+                                                <span class="product-card-price-label">Prix :</span>
                                                 <span>@produit.PrixVente.ToString("N2") DA</span>
                                             </div>
                                         </div>
@@ -309,7 +309,7 @@
 
         items.forEach(item => {
             const ref = (item.dataset.ref || '').toLowerCase();
-            const nameEl = item.querySelector('div[style*="font-weight:700"]');
+            const nameEl = item.querySelector('.product-card-title');
             const name = nameEl ? nameEl.textContent.toLowerCase() : '';
             if (ref.includes(searchTerm.toLowerCase()) || name.includes(searchTerm.toLowerCase())) {
                 item.style.display = '';
@@ -332,7 +332,7 @@
     }
 
     document.addEventListener('click', function () {
-        document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none');
+        document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none';
         document.getElementById('delete-overlay').style.display = 'none';
     });
 
@@ -340,7 +340,7 @@
         event.preventDefault();
         event.stopPropagation();
 
-        document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none');
+        document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none';
 
         const idInput = document.getElementById('delete-product-id');
         idInput.value = id;
@@ -350,6 +350,14 @@
 
     function closeDeleteModal() {
         document.getElementById('delete-overlay').style.display = 'none';
+    }
+
+    function openLogoutModal() {
+        document.getElementById('logout-overlay').style.display = 'flex';
+    }
+
+    function closeLogoutModal() {
+        document.getElementById('logout-overlay').style.display = 'none';
     }
 
     function openProductImageModal(url) {

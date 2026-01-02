@@ -23,15 +23,27 @@ namespace erp_pfc_20252026.Pages
         }
 
         public Produit NouveauProduit { get; set; } = new Produit();
-
         public string Message { get; set; } = string.Empty;
+
+        // utilisé pour savoir si on doit revenir vers BOM
+        public bool ReturnToBom { get; set; }
+        public string InitialName { get; set; } = string.Empty;
+
+        // cible dans la BOM : "header" (produit principal) ou "row" (composant)
+        public string? BomTarget { get; set; }
+        public int? BomRowIndex { get; set; }
 
         [BindProperty]
         public IFormFile? ProductImage { get; set; }
 
-        // GET avec id optionnel
-        public async Task OnGetAsync(int? id)
+        // GET : id optionnel, name & returnToBom & target & rowIndex depuis la querystring
+        public async Task OnGetAsync(int? id, string? name, bool? returnToBom, string? target, int? rowIndex)
         {
+            ReturnToBom = returnToBom ?? false;
+            InitialName = name ?? string.Empty;
+            BomTarget = target;
+            BomRowIndex = rowIndex;
+
             if (id.HasValue)
             {
                 Console.WriteLine($"[DEBUG] ProduitNew.OnGetAsync - mode EDIT, id={id.Value}");
@@ -50,6 +62,11 @@ namespace erp_pfc_20252026.Pages
             {
                 Console.WriteLine("[DEBUG] ProduitNew.OnGetAsync - mode CREATION");
                 NouveauProduit = new Produit();
+
+                if (!string.IsNullOrWhiteSpace(InitialName))
+                {
+                    NouveauProduit.Nom = InitialName;
+                }
             }
         }
 
@@ -59,6 +76,20 @@ namespace erp_pfc_20252026.Pages
 
             var idValue = Request.Form["Id"].ToString();
             int.TryParse(idValue, out var id);
+
+            var returnToBomRaw = Request.Form["ReturnToBom"].ToString();
+            var initialNameRaw = Request.Form["InitialName"].ToString();
+            ReturnToBom = !string.IsNullOrWhiteSpace(returnToBomRaw) &&
+                          (returnToBomRaw.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                           returnToBomRaw.Equals("on", StringComparison.OrdinalIgnoreCase));
+            InitialName = initialNameRaw ?? string.Empty;
+
+            BomTarget = Request.Query["target"].ToString();
+            var rowIndexRaw = Request.Query["rowIndex"].ToString();
+            if (int.TryParse(rowIndexRaw, out var rowIndexParsed))
+                BomRowIndex = rowIndexParsed;
+            else
+                BomRowIndex = null;
 
             var productNameValue = Request.Form["ProductName"].ToString();
             var referenceValue = Request.Form["Reference"].ToString();
@@ -122,7 +153,6 @@ namespace erp_pfc_20252026.Pages
                     existing.SuiviInventaire = NouveauProduit.SuiviInventaire;
                     existing.Notes = NouveauProduit.Notes;
 
-                    // Image : si un nouveau fichier est fourni, on l’enregistre et on remplace le nom
                     if (ProductImage != null && ProductImage.Length > 0)
                     {
                         var fileName = await SaveProductImageAsync(ProductImage);
@@ -133,6 +163,8 @@ namespace erp_pfc_20252026.Pages
                     await _context.SaveChangesAsync();
                     Message = $"Produit '{existing.Nom}' mis à jour avec succès (ID = {existing.Id}).";
                     NouveauProduit = existing;
+
+                    return Page();
                 }
                 else
                 {
@@ -160,8 +192,25 @@ namespace erp_pfc_20252026.Pages
                     _context.Produits.Add(NouveauProduit);
                     await _context.SaveChangesAsync();
 
+                    Console.WriteLine($"[DEBUG] ProduitNew.OnPost - produit créé ID={NouveauProduit.Id}, ReturnToBom={ReturnToBom}, BomTarget={BomTarget}, BomRowIndex={BomRowIndex}");
+
+                    if (ReturnToBom)
+                    {
+                        if (!string.IsNullOrEmpty(BomTarget) &&
+                            BomTarget.Equals("row", StringComparison.OrdinalIgnoreCase) &&
+                            BomRowIndex.HasValue)
+                        {
+                            return RedirectToPage("/BOMCreate", new
+                            {
+                                fromComponentId = NouveauProduit.Id,
+                                rowIndex = BomRowIndex.Value
+                            });
+                        }
+
+                        return RedirectToPage("/BOMCreate", new { fromProductId = NouveauProduit.Id });
+                    }
+
                     Message = $"Produit '{NouveauProduit.Nom}' créé avec succès (ID = {NouveauProduit.Id}).";
-                    // on recharge le produit pour avoir l’image en édition plutôt que vider le formulaire
                     return RedirectToPage(new { id = NouveauProduit.Id });
                 }
             }
@@ -214,7 +263,7 @@ namespace erp_pfc_20252026.Pages
                 await file.CopyToAsync(stream);
             }
 
-            return uniqueName; // ce nom sera stocké dans Produit.Image
+            return uniqueName;
         }
     }
 }

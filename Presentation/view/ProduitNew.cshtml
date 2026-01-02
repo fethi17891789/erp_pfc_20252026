@@ -5,10 +5,9 @@
     var isEdit = Model.NouveauProduit != null && Model.NouveauProduit.Id > 0;
     ViewData["Title"] = isEdit ? "Modifier produit" : "Nouveau produit";
 }
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
 <link rel="stylesheet" href="~/css/Common.css" />
 <link rel="stylesheet" href="~/css/Home.css" />
-
 
 <div class="erp-shell">
     <!-- BARRE LATERALE GAUCHE -->
@@ -115,6 +114,8 @@
             <div class="product-form-card">
                 <form id="produit-new-form" method="post" enctype="multipart/form-data">
                     <input type="hidden" name="Id" value="@Model.NouveauProduit.Id" />
+                    <input type="hidden" name="ReturnToBom" value="@(Model.ReturnToBom ? "true" : "false")" />
+                    <input type="hidden" name="InitialName" value="@Model.InitialName" />
 
                     <!-- LIGNE 1 -->
                     <div class="form-row form-row-3">
@@ -198,11 +199,9 @@
                         <div class="form-group">
                             <label for="ProductImage" class="form-label">Image du produit</label>
 
-                            <!-- Input natif caché, conservé pour le fonctionnement -->
                             <input id="ProductImage" name="ProductImage" type="file" accept="image/*"
                                    class="file-input-hidden" style="display:none;" />
 
-                            <!-- Seul bouton visible et designé -->
                             <label for="ProductImage" class="file-input-button-mini">
                                 <svg style="width: 12px; height: 12px; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -244,7 +243,21 @@
 
                     <div class="form-footer">
                         <button type="submit" class="btn-primary">Enregistrer</button>
-                        <a asp-page="/ProduitCreate" class="btn-secondary btn-cancel">Annuler</a>
+
+                        @* Annuler : si on vient de la BOM, on retourne à BOMCreate, sinon autre page *@
+                        @if (Model.ReturnToBom)
+                        {
+                            <a asp-page="/BOMCreate"
+                               class="btn-secondary btn-cancel">
+                                Annuler
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-page="/ProduitCreate" class="btn-secondary btn-cancel">
+                                Annuler
+                            </a>
+                        }
                     </div>
                 </form>
             </div>
@@ -293,9 +306,7 @@
         inputImage.addEventListener('change', function (e) {
             const file = e.target.files[0];
             const fileName = file?.name || '';
-            if (fileNameDisplay) {
-                fileNameDisplay.textContent = fileName;
-            }
+            if (fileNameDisplay) fileNameDisplay.textContent = fileName;
 
             if (file) {
                 const reader = new FileReader();
@@ -330,13 +341,8 @@
     document.addEventListener('DOMContentLoaded', function () {
         const toast = document.getElementById('product-success-toast');
         if (toast) {
-            requestAnimationFrame(() => {
-                toast.classList.add('visible');
-            });
-
-            setTimeout(() => {
-                toast.classList.remove('visible');
-            }, 3000);
+            requestAnimationFrame(() => toast.classList.add('visible'));
+            setTimeout(() => toast.classList.remove('visible'), 3000);
         }
     });
 

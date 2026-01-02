@@ -31,9 +31,11 @@
     padding: 0;
     box-sizing: border-box;
 }
+
 html {
     scroll-behavior: smooth;
 }
+
 body {
     height: 100vh;
     width: 100vw;
@@ -66,11 +68,13 @@ body {
     animation: containerEntry 1.6s cubic-bezier(0.2, 0.8, 0.2, 1);
     z-index: 10; /* le dropdown passera au-dessus avec un z-index plus fort */
 }
+
 @keyframes containerEntry {
     from {
         opacity: 0;
         transform: translateY(12px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -85,6 +89,7 @@ body {
     margin-bottom: 12px;
     text-align: center;
 }
+
     .header img {
         width: 52px;
         height: 52px;
@@ -93,6 +98,7 @@ body {
         background: linear-gradient(135deg, rgba(123, 94, 255, 0.15), rgba(156, 140, 255, 0.1));
         border: 1px solid rgba(255, 255, 255, 0.12);
     }
+
     .header h1 {
         font-size: 1.3rem;
         font-weight: 800;
@@ -101,6 +107,7 @@ body {
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
     }
+
 .alert-box {
     margin: 10px 0 14px;
     padding: 10px 14px;
@@ -112,6 +119,7 @@ body {
     line-height: 1.4;
     box-shadow: 0 8px 25px rgba(233, 193, 90, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
+
     .alert-box strong {
         display: block;
         margin-top: 4px;
@@ -125,12 +133,14 @@ body {
     flex-direction: column;
     gap: 8px;
 }
+
 .form-group {
     display: flex;
     flex-direction: column;
     gap: 4px;
     position: relative;
 }
+
     .form-group label {
         font-size: 0.75rem;
         color: var(--text-muted);
@@ -139,6 +149,7 @@ body {
         text-transform: uppercase;
         opacity: 0.9;
     }
+
     .form-group input[type="text"],
     .form-group input[type="email"],
     .form-group input[type="password"],
@@ -154,9 +165,11 @@ body {
         outline: none;
         transition: border-color 140ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms cubic-bezier(0.2, 0.8, 0.2, 1), background 140ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 80ms ease-out;
     }
+
     .form-group input::placeholder {
         color: rgba(164, 167, 200, 0.5);
     }
+
     .form-group input:focus {
         border-color: rgba(123, 94, 255, 0.8);
         box-shadow: 0 0 0 1px rgba(123, 94, 255, 0.5), 0 0 15px var(--accent-glow), inset 0 1px 2px rgba(255, 255, 255, 0.08);
@@ -170,13 +183,15 @@ body {
         gap: 8px;
         margin-top: 4px;
     }
+
         .form-group.checkbox input {
             height: auto;
         }
+
         .form-group.checkbox label {
             margin: 0;
-            text-transform: none;
             font-size: 0.8rem;
+            text-transform: none;
         }
 /* Icône œil (Position ajustée) */
 .show-password {
@@ -190,6 +205,7 @@ body {
     user-select: none;
     transition: opacity 100ms ease-out, transform 80ms ease-out;
 }
+
     .show-password:hover {
         opacity: 1;
         transform: translateY(10px) scale(1.08);
@@ -212,6 +228,7 @@ button[type="submit"] {
     position: relative;
     overflow: hidden;
 }
+
     button[type="submit"]::before {
         content: '';
         position: absolute;
@@ -222,14 +239,17 @@ button[type="submit"] {
         background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         transition: left 400ms ease;
     }
+
     button[type="submit"]:hover {
         transform: translateY(-1px) scale(1.01);
         box-shadow: 0 14px 40px rgba(123, 94, 255, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.25);
         filter: brightness(1.05) saturate(1.1);
     }
+
         button[type="submit"]:hover::before {
             left: 100%;
         }
+
     button[type="submit"]:active {
         transform: translateY(0);
         box-shadow: 0 6px 20px rgba(123, 94, 255, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -253,70 +273,88 @@ button[type="submit"] {
         margin: 0;
         border-radius: var(--radius-md);
     }
+
     .header h1 {
         font-size: 1.2rem;
     }
+
     .alert-box {
         padding: 8px 12px;
         font-size: 0.75rem;
     }
+
     .form-section {
         gap: 6px;
     }
+
     .form-group input {
         height: 32px;
         font-size: 0.85rem;
     }
+
     .form-group label {
         font-size: 0.7rem;
     }
+
     button[type="submit"] {
         padding: 10px 20px;
         font-size: 0.85rem;
     }
 }
+
 @media (max-height: 750px) {
     .container {
         padding: 10px 20px;
     }
+
     .header {
         margin-bottom: 5px;
     }
+
         .header img {
             width: 36px;
             height: 36px;
         }
+
         .header h1 {
             font-size: 1.1rem;
         }
+
     .alert-box {
         margin: 5px 0 8px;
         padding: 4px 8px;
         font-size: 0.65rem;
     }
+
     .form-section {
         gap: 4px;
     }
+
     .form-group {
         gap: 2px;
     }
+
         .form-group input {
             height: 28px;
             font-size: 0.8rem;
         }
+
         .form-group label {
             font-size: 0.65rem;
         }
+
     button[type="submit"] {
         margin-top: 6px;
         padding: 8px 18px;
         font-size: 0.8rem;
     }
+
     .footer {
         margin-top: 5px;
         padding-top: 5px;
         font-size: 0.6rem;
     }
+
     .show-password {
         transform: translateY(8px);
     }
@@ -327,6 +365,7 @@ button[type="submit"] {
     align-items: center;
     gap: 8px;
 }
+
 .input-locked {
     height: var(--input-height);
     padding: 0 14px;
@@ -338,6 +377,7 @@ button[type="submit"] {
     font-weight: 600;
     cursor: not-allowed;
 }
+
 .locked-badge {
     padding: 4px 10px;
     border-radius: var(--radius-full);
@@ -351,6 +391,7 @@ button[type="submit"] {
 .job-input-wrapper {
     position: relative;
 }
+
 .job-input {
     height: var(--input-height);
     padding: 0 34px 0 14px;
@@ -364,9 +405,11 @@ button[type="submit"] {
     width: 100%;
     transition: border-color 140ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms cubic-bezier(0.2, 0.8, 0.2, 1), background 140ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 80ms ease-out;
 }
+
     .job-input::placeholder {
         color: rgba(164, 167, 200, 0.5);
     }
+
     .job-input:focus {
         border-color: rgba(123, 94, 255, 0.8);
         box-shadow: 0 0 0 1px rgba(123, 94, 255, 0.5), 0 0 15px var(--accent-glow), inset 0 1px 2px rgba(255, 255, 255, 0.08);
@@ -402,20 +445,24 @@ button[type="submit"] {
     transform: translateY(0);
     transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
 }
+
     .job-dropdown.visible {
         opacity: 1;
         visibility: visible;
         transform: translateY(4px);
     }
+
 .job-option {
     padding: 6px 14px;
     font-size: 0.85rem;
     color: var(--text);
     cursor: pointer;
 }
+
     .job-option:hover {
         background: rgba(123, 94, 255, 0.18);
     }
+
 .job-option-muted {
     font-size: 0.8rem;
     color: var(--text-muted-2);
@@ -427,43 +474,52 @@ button[type="submit"] {
     margin-bottom: 20px;
     align-items: end; /* aligne les baselines des champs */
 }
+
 .form-row-3 {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 20px;
 }
+
 .form-row-1 {
     display: flex;
 }
+
 .form-row .form-group {
     width: 100%;
 }
+
 .radio-group-horizontal {
     display: flex;
     gap: 16px;
     margin-top: 8px;
 }
+
 .checkbox-inline {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-top: 8px;
 }
+
 .file-input-button-mini {
     display: inline-flex;
     align-items: center;
     margin-top: 8px;
 }
+
 .file-name-display {
     margin-left: 12px;
     color: var(--text-muted);
     font-size: 0.85rem;
 }
+
 @media (max-width: 900px) {
     .form-row-3 {
         grid-template-columns: 1fr;
     }
 }
+
 .btn-secondary,
 .btn-cancel {
     margin-top: 10px;
@@ -483,6 +539,7 @@ button[type="submit"] {
     overflow: hidden;
     text-decoration: none; /* Pour les <a> */
 }
+
     .btn-secondary:hover,
     .btn-cancel:hover {
         color: var(--text);
@@ -490,11 +547,13 @@ button[type="submit"] {
         transform: translateY(-1px);
         box-shadow: 0 8px 20px rgba(123, 94, 255, 0.2);
     }
+
     .btn-secondary:active,
     .btn-cancel:active {
         transform: translateY(0);
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     }
+
 .form-textarea {
     height: auto;
     min-height: 80px;
@@ -509,21 +568,26 @@ button[type="submit"] {
     resize: vertical;
     transition: border-color 140ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms cubic-bezier(0.2, 0.8, 0.2, 1), background 140ms cubic-bezier(0.2, 0.8, 0.2, 1), transform 80ms ease-out;
 }
+
     .form-textarea::placeholder {
         color: rgba(164, 167, 200, 0.5);
     }
+
     .form-textarea:focus {
         border-color: rgba(123, 94, 255, 0.8);
         box-shadow: 0 0 0 1px rgba(123, 94, 255, 0.5), 0 0 15px var(--accent-glow), inset 0 1px 2px rgba(255, 255, 255, 0.08);
         background: linear-gradient(135deg, rgba(15, 18, 48, 1), rgba(25, 30, 70, 1));
         transform: translateY(-1px);
     }
+
 .form-input-number {
     text-align: right;
 }
+
 .input-group {
     position: relative;
 }
+
 .input-suffix {
     position: absolute;
     right: 14px;
@@ -533,6 +597,7 @@ button[type="submit"] {
     font-size: 0.9rem;
     pointer-events: none;
 }
+
 .file-input-button-mini {
     padding: 6px 12px;
     border-radius: var(--radius-sm);
@@ -548,15 +613,18 @@ button[type="submit"] {
     align-items: center;
     gap: 4px;
 }
+
     .file-input-button-mini:hover {
         transform: translateY(-1px) scale(1.02);
         box-shadow: 0 8px 20px rgba(123, 94, 255, 0.3);
         filter: brightness(1.05);
     }
+
     .file-input-button-mini:active {
         transform: translateY(0);
         box-shadow: 0 2px 8px rgba(123, 94, 255, 0.2);
     }
+
     .file-input-button-mini svg {
         width: 12px;
         height: 12px;
@@ -568,14 +636,17 @@ button[type="submit"] {
     justify-content: space-between;
     margin-bottom: 24px;
 }
+
 .bom-toolbar-center {
     flex: 1;
     display: flex;
     justify-content: center;
 }
+
 .bom-create-container {
     margin-left: 16px;
 }
+
 .bom-create-link {
     display: inline-flex;
     align-items: center;
@@ -583,6 +654,7 @@ button[type="submit"] {
     padding-inline: 16px;
     text-decoration: none;
 }
+
 .bom-card {
     margin-top: 8px;
     padding: 16px;
@@ -590,25 +662,70 @@ button[type="submit"] {
     background: rgba(4, 6, 20, 0.9);
     border: 1px solid rgba(255, 255, 255, 0.06);
 }
+
 .bom-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
 }
+
     .bom-table thead tr {
         text-align: left;
         color: var(--text-muted);
         font-size: 0.75rem;
     }
+
     .bom-table th,
     .bom-table td {
         padding: 8px 6px;
     }
+
     .bom-table tbody tr {
         border-top: 1px solid rgba(255, 255, 255, 0.04);
     }
+/* ====== Toast succès produit ====== */
+.toast-success {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    padding: 10px 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(22, 163, 74, 0.95), rgba(34, 197, 94, 0.95));
+    color: #ECFDF3;
+    font-size: 0.85rem;
+    font-weight: 600;
+    box-shadow: 0 18px 45px rgba(22, 163, 74, 0.4);
+    border: 1px solid rgba(220, 252, 231, 0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 160ms ease-out, transform 160ms ease-out;
+}
 
-/* ====== Styles pour la zone drag & drop (ajoutés pour ton upload de merde) ====== */
+    .toast-success.visible {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+.toast-success-icon {
+    width: 16px;
+    height: 16px;
+}
+
+.toast-success-close {
+    background: transparent;
+    border: none;
+    color: #DCFCE7;
+    font-size: 0.9rem;
+    cursor: pointer;
+    padding: 0 2px;
+}
+/* ====== Styles pour la zone drag & drop (ajoutés pour ton upload) ====== */
 .drop-zone {
     width: 100%;
     height: 160px;
@@ -625,23 +742,23 @@ button[type="submit"] {
     overflow: hidden;
 }
 
-.drop-zone.drag-over {
-    border-color: #3b82f6;
-    background: rgba(59, 130, 246, 0.15);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-}
+    .drop-zone.drag-over {
+        border-color: #3b82f6;
+        background: rgba(59, 130, 246, 0.15);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+    }
 
-.drop-zone.drag-over .drop-icon {
-    transform: scale(1.2) rotate(5deg); /* Petite animation bonus, comme une bite qui tremble */
-    stroke: #3b82f6;
-    animation: pulse 0.5s infinite;
-}
+        .drop-zone.drag-over .drop-icon {
+            transform: scale(1.2) rotate(5deg);
+            stroke: #3b82f6;
+            animation: pulse 0.5s infinite;
+        }
 
-.drop-zone.drag-over .drop-text {
-    color: #3b82f6;
-    font-weight: 600;
-}
+        .drop-zone.drag-over .drop-text {
+            color: #3b82f6;
+            font-weight: 600;
+        }
 
 .drop-icon {
     width: 48px;
@@ -669,7 +786,84 @@ button[type="submit"] {
 }
 
 @keyframes pulse {
-    0% { transform: scale(1.2); }
-    50% { transform: scale(1.3); }
-    100% { transform: scale(1.2); }
+    0% {
+        transform: scale(1.2);
+    }
+
+    50% {
+        transform: scale(1.3);
+    }
+
+    100% {
+        transform: scale(1.2);
+    }
+}
+
+/* ====== Cartes produits : taille fixe + ellipsis ====== */
+
+.product-card {
+    height: 140px;
+    min-height: 140px;
+    max-height: 140px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.product-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0; /* important pour ellipsis dans flex */
+}
+
+.product-card-text {
+    flex: 1;
+    min-width: 0; /* permet à text-overflow de fonctionner */
+}
+
+.product-card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+    color: var(--text);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.product-card-subtitle {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.product-card-price {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.product-card-price-label {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.78rem;
+}
+
+/* Responsive léger pour écrans bas */
+@media (max-height: 750px) {
+    .product-card {
+        height: 130px;
+        min-height: 130px;
+        max-height: 130px;
+    }
 }

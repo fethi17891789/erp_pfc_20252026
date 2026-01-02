@@ -1,4 +1,5 @@
 ﻿// Fichier : Program.cs
+using System;
 using System.Diagnostics;
 using Donnees;
 using Metier;
@@ -42,7 +43,8 @@ builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
 // Service métier
 builder.Services.AddScoped<BDDService>();
 
-var app = builder.Build();
+var app = WebApplication.CreateBuilder(args).Build(); // <-- si tu avais recopié, remplace par :
+app = builder.Build();
 
 // ********** CHARGER LA CONFIG APRES Build(), AVEC LE VRAI ServiceProvider **********
 using (var scope = app.Services.CreateScope())
@@ -129,6 +131,113 @@ using (var scope = app.Services.CreateScope())
     }
 }
 // ------------------------------------------------------------------------------
+
+// ---------- CREATION AUTOMATIQUE DES TABLES BOM / BOMLIGNES ----------
+using (var scope2 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope2.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        Console.WriteLine($"[DEBUG] Connexion utilisée pour BOM : {connString}");
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            // Table Boms
+            const string checkBomsSql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'Boms'
+                );";
+
+            bool bomsExists;
+            using (var checkCmd = new NpgsqlCommand(checkBomsSql, conn))
+            {
+                var existsObj = checkCmd.ExecuteScalar();
+                bomsExists = existsObj is bool b && b;
+            }
+
+            Console.WriteLine($"[DEBUG] Table Boms existe déjà ? {bomsExists}");
+
+            if (!bomsExists)
+            {
+                const string createBomsSql = @"
+                    CREATE TABLE ""Boms"" (
+                        ""Id"" SERIAL PRIMARY KEY,
+                        ""ProduitId"" INT NOT NULL,
+                        CONSTRAINT ""FK_Boms_Produits_ProduitId""
+                            FOREIGN KEY (""ProduitId"") REFERENCES ""Produits""(""Id"")
+                            ON DELETE RESTRICT
+                    );";
+
+                using (var createCmd = new NpgsqlCommand(createBomsSql, conn))
+                {
+                    Console.WriteLine("[DEBUG] Création de la table Boms...");
+                    createCmd.ExecuteNonQuery();
+                    Console.WriteLine("[DEBUG] Table Boms créée.");
+                }
+            }
+
+            // Table BomLignes
+            const string checkBomLignesSql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'BomLignes'
+                );";
+
+            bool bomLignesExists;
+            using (var checkCmd = new NpgsqlCommand(checkBomLignesSql, conn))
+            {
+                var existsObj = checkCmd.ExecuteScalar();
+                bomLignesExists = existsObj is bool b && b;
+            }
+
+            Console.WriteLine($"[DEBUG] Table BomLignes existe déjà ? {bomLignesExists}");
+
+            if (!bomLignesExists)
+            {
+                const string createBomLignesSql = @"
+                    CREATE TABLE ""BomLignes"" (
+                        ""Id"" SERIAL PRIMARY KEY,
+                        ""BomId"" INT NOT NULL,
+                        ""ComposantProduitId"" INT NOT NULL,
+                        ""Quantite"" NUMERIC(18,4) NOT NULL DEFAULT 1,
+                        ""PrixUnitaire"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        CONSTRAINT ""FK_BomLignes_Boms_BomId""
+                            FOREIGN KEY (""BomId"") REFERENCES ""Boms""(""Id"")
+                            ON DELETE CASCADE,
+                        CONSTRAINT ""FK_BomLignes_Produits_ComposantProduitId""
+                            FOREIGN KEY (""ComposantProduitId"") REFERENCES ""Produits""(""Id"")
+                            ON DELETE RESTRICT
+                    );";
+
+                using (var createCmd = new NpgsqlCommand(createBomLignesSql, conn))
+                {
+                    Console.WriteLine("[DEBUG] Création de la table BomLignes...");
+                    createCmd.ExecuteNonQuery();
+                    Console.WriteLine("[DEBUG] Table BomLignes créée.");
+                }
+            }
+        }
+        else
+        {
+            Console.WriteLine("[DEBUG] Connexion vide, aucune création de tables BOM.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto des tables BOM : {ex}");
+    }
+}
+// --------------------------------------------------------------------
 
 if (!app.Environment.IsDevelopment())
 {

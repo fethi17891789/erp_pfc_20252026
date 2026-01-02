@@ -30,7 +30,7 @@
 
             <a asp-page="/Fabrication" class="nav-item nav-item-active">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                    <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z"></path>
                 </svg>
                 <span>Modules</span>
             </a>
@@ -112,7 +112,171 @@
         </header>
 
         <section class="erp-content">
-            <!-- Ici viendront plus tard le formulaire produit + lignes de nomenclature -->
+            <div class="bom-create-form">
+                <form method="post">
+                    <!-- PRODUIT PRINCIPAL -->
+                    <div class="form-section">
+                        <h2>Produit principal</h2>
+
+                        <div class="form-group">
+                            <label class="form-label" for="ProduitInput">Produit</label>
+
+                            <div class="job-input-wrapper">
+                                <input asp-for="ProduitNomSaisi"
+                                       class="job-input"
+                                       id="ProduitInput"
+                                       autocomplete="off"
+                                       placeholder="Saisir ou rechercher un produit..." />
+
+                                <div class="job-input-icon">▼</div>
+
+                                <div class="job-dropdown" id="ProduitList">
+                                    @foreach (var produit in Model.Produits)
+                                    {
+                                        <div class="job-option"
+                                             data-id="@produit.Id"
+                                             data-prix="@produit.PrixVente"
+                                             data-label="@($"{produit.Nom} {produit.Reference}".ToLower())">
+                                            @produit.Nom
+                                            @if (!string.IsNullOrEmpty(produit.Reference))
+                                            {
+                                                <span class="job-option-muted">(@produit.Reference)</span>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <input type="hidden" asp-for="SelectedProduitId" id="SelectedProduitId" />
+                            <span asp-validation-for="ProduitNomSaisi" class="text-danger"></span>
+                            <span asp-validation-for="SelectedProduitId" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <!-- LIGNES DE COMPOSANTS -->
+                    <div class="form-section">
+                        <h2>Composants</h2>
+
+                        <table class="erp-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 50%;">Composant</th>
+                                    <th style="width: 20%;">Prix unitaire</th>
+                                    <th style="width: 20%;">Quantité</th>
+                                    <th style="width: 10%;"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="bom-rows">
+                                @if (Model.Lignes != null && Model.Lignes.Count > 0)
+                                {
+                                    foreach (var ligne in Model.Lignes)
+                                    {
+                                        <tr data-row-index="@ligne.Index">
+                                            <td>
+                                                <div class="job-input-wrapper">
+                                                    <input class="job-input bom-comp-input"
+                                                           name="Lignes[@ligne.Index].ComposantNomSaisi"
+                                                           value="@ligne.ComposantNomSaisi"
+                                                           autocomplete="off"
+                                                           placeholder="Saisir ou rechercher un composant..." />
+                                                    <div class="job-input-icon">▼</div>
+                                                    <div class="job-dropdown bom-comp-dropdown">
+                                                        @foreach (var produit in Model.Produits)
+                                                        {
+                                                            var label = $"{produit.Nom} {produit.Reference}".ToLower();
+                                                            <div class="job-option"
+                                                                 data-id="@produit.Id"
+                                                                 data-prix="@produit.PrixVente"
+                                                                 data-label="@label">
+                                                                @produit.Nom
+                                                                @if (!string.IsNullOrEmpty(produit.Reference))
+                                                                {
+                                                                    <span class="job-option-muted">(@produit.Reference)</span>
+                                                                }
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+
+                                                <input type="hidden"
+                                                       name="Lignes[@ligne.Index].ComposantProduitId"
+                                                       value="@ligne.ComposantProduitId" />
+                                                <input type="hidden"
+                                                       name="Lignes[@ligne.Index].Index"
+                                                       value="@ligne.Index" />
+                                            </td>
+                                            <td>
+                                                <div class="form-group bom-inline-group">
+                                                    <input class="form-input-number"
+                                                           name="Lignes[@ligne.Index].PrixUnitaire"
+                                                           type="number"
+                                                           step="0.01"
+                                                           min="0"
+                                                           value="@ligne.PrixUnitaire" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-group bom-inline-group">
+                                                    <input class="form-input-number"
+                                                           name="Lignes[@ligne.Index].Quantite"
+                                                           type="number"
+                                                           step="1"
+                                                           min="0"
+                                                           value="@ligne.Quantite" />
+                                                </div>
+                                            </td>
+                                            <td class="table-actions-cell">
+                                                <button type="button" class="btn-icon btn-remove-row" title="Supprimer la ligne">
+                                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                                    </svg>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+
+                        <div class="table-add-row-bar">
+                            <button type="button" id="btnAddRow" class="btn-icon">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                <span>Ajouter un composant</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-actions form-actions-spaced" style="display:flex; gap:12px; align-items:center;">
+                        <button type="submit" class="btn-primary btn-large">
+                            Enregistrer la BOM
+                            <svg style="width: 16px; height: 16px; margin-left: 8px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        </button>
+
+                        <a asp-page="/BOM" class="btn-secondary btn-cancel">
+                            Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            @if (Model.BomTreeRoot != null)
+            {
+                <div class="form-section" style="margin-top: 24px;">
+                    <h2>Aperçu de la nomenclature complète</h2>
+                    <p style="margin-top:4px; font-size:0.85rem; color:rgba(148, 163, 184, 0.9);">
+                        Quantités cumulées en tenant compte des composants des composants.
+                    </p>
+
+                    <div class="bom-tree">
+                        @Model.RenderBomTree()
+                    </div>
+                </div>
+            }
         </section>
     </main>
 </div>
@@ -131,3 +295,368 @@
 </div>
 
 <script src="~/js/Home.js"></script>
+<script>
+    // Combobox PRODUIT
+    (function () {
+        const input = document.getElementById('ProduitInput');
+        const dropdown = document.getElementById('ProduitList');
+               const hiddenId = document.getElementById('SelectedProduitId');
+
+        if (!input || !dropdown || !hiddenId) return;
+
+        const options = Array.from(dropdown.querySelectorAll('.job-option'));
+
+        function openDropdown() { dropdown.classList.add('visible'); }
+        function closeDropdown() { dropdown.classList.remove('visible'); }
+
+        function filterOptions() {
+            const term = input.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            options.forEach(opt => {
+                const label = opt.getAttribute('data-label') || opt.textContent.toLowerCase();
+                const isVisible = term === "" || label.includes(term);
+                opt.style.display = isVisible ? 'block' : 'none';
+                if (isVisible) visibleCount++;
+            });
+
+            const existingCreate = dropdown.querySelector('.job-option-create');
+            if (existingCreate) existingCreate.remove();
+
+            if (visibleCount === 0 && term.length > 0) {
+                const createOpt = document.createElement('div');
+                createOpt.className = 'job-option job-option-create';
+                createOpt.innerHTML = `Créer le produit "<strong>${input.value}</strong>"`;
+                createOpt.addEventListener('mousedown', e => {
+                    e.preventDefault();
+                    const url = `/ProduitNew?name=${encodeURIComponent(input.value)}&returnToBom=true&target=header`;
+                    window.location.href = url;
+                });
+                dropdown.appendChild(createOpt);
+            }
+
+            openDropdown();
+            hiddenId.value = '';
+        }
+
+        function selectOption(opt) {
+            input.value = opt.textContent.trim();
+            hiddenId.value = opt.getAttribute('data-id');
+            closeDropdown();
+        }
+
+        input.addEventListener('focus', filterOptions);
+        input.addEventListener('input', filterOptions);
+
+        options.forEach(opt => {
+            opt.addEventListener('mousedown', e => {
+                e.preventDefault();
+                selectOption(opt);
+            });
+        });
+
+        document.addEventListener('click', e => {
+            if (!dropdown.contains(e.target) && e.target !== input) {
+                closeDropdown();
+            }
+        });
+    })();
+
+    // Tableau des composants
+    (function () {
+        const btnAddRow = document.getElementById('btnAddRow');
+        const tbody = document.getElementById('bom-rows');
+
+        if (!btnAddRow || !tbody) return;
+
+        let rowIndex = 0;
+
+        const produits = Array.from(document.querySelectorAll('#ProduitList .job-option')).map(item => ({
+            id: item.getAttribute('data-id'),
+            label: item.textContent.trim(),
+            dataLabel: item.getAttribute('data-label') || item.textContent.toLowerCase(),
+            prix: item.getAttribute('data-prix') || '0'
+        }));
+
+        function createRow(index) {
+            const tr = document.createElement('tr');
+            tr.setAttribute('data-row-index', index);
+
+            tr.innerHTML = `
+                <td>
+                    <div class="job-input-wrapper">
+                        <input class="job-input bom-comp-input"
+                               name="Lignes[${index}].ComposantNomSaisi"
+                               autocomplete="off"
+                               placeholder="Saisir ou rechercher un composant..." />
+                        <div class="job-input-icon">▼</div>
+                        <div class="job-dropdown bom-comp-dropdown">
+                            ${produits.map(p => `
+                                <div class="job-option"
+                                     data-id="${p.id}"
+                                     data-prix="${p.prix}"
+                                     data-label="${p.dataLabel}">
+                                    ${p.label}
+                                </div>`).join('')}
+                        </div>
+                    </div>
+                    <input type="hidden" name="Lignes[${index}].ComposantProduitId" />
+                    <input type="hidden" name="Lignes[${index}].Index" value="${index}" />
+                </td>
+                <td>
+                    <div class="form-group bom-inline-group">
+                        <input class="form-input-number"
+                               name="Lignes[${index}].PrixUnitaire"
+                               type="number"
+                               step="0.01"
+                               min="0"
+                               value="0" />
+                    </div>
+                </td>
+                <td>
+                    <div class="form-group bom-inline-group">
+                        <input class="form-input-number"
+                               name="Lignes[${index}].Quantite"
+                               type="number"
+                               step="1"
+                               min="0"
+                               value="1" />
+                    </div>
+                </td>
+                <td class="table-actions-cell">
+                    <button type="button" class="btn-icon btn-remove-row" title="Supprimer la ligne">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </button>
+                </td>
+            `;
+
+            initRowCombo(tr);
+            initRowRemove(tr);
+
+            return tr;
+        }
+
+        function initRowCombo(row) {
+            const input = row.querySelector('.bom-comp-input');
+            const dropdown = row.querySelector('.bom-comp-dropdown');
+            const hiddenId = row.querySelector('input[name$=".ComposantProduitId"]');
+            const prixInput = row.querySelector('input[name$=".PrixUnitaire"]');
+
+            if (!input || !dropdown || !hiddenId || !prixInput) return;
+
+            const options = Array.from(dropdown.querySelectorAll('.job-option'));
+
+            function openDropdown() { dropdown.classList.add('visible'); }
+            function closeDropdown() { dropdown.classList.remove('visible'); }
+
+            function filterOptions() {
+                const term = input.value.toLowerCase().trim();
+                let visibleCount = 0;
+
+                options.forEach(opt => {
+                    const label = opt.getAttribute('data-label') || opt.textContent.toLowerCase();
+                    const isVisible = term === "" || label.includes(term);
+                    opt.style.display = isVisible ? 'block' : 'none';
+                    if (isVisible) visibleCount++;
+                });
+
+                const existingCreate = dropdown.querySelector('.job-option-create');
+                if (existingCreate) existingCreate.remove();
+
+                if (visibleCount === 0 && term.length > 0) {
+                    const rowIndex = row.getAttribute('data-row-index');
+                    const createOpt = document.createElement('div');
+                    createOpt.className = 'job-option job-option-create';
+                    createOpt.innerHTML = `Créer le produit "<strong>${input.value}</strong>"`;
+                    createOpt.addEventListener('mousedown', e => {
+                        e.preventDefault();
+                        const url = `/ProduitNew?name=${encodeURIComponent(input.value)}&returnToBom=true&target=row&rowIndex=${rowIndex}`;
+                        window.location.href = url;
+                    });
+                    dropdown.appendChild(createOpt);
+                }
+
+                openDropdown();
+                hiddenId.value = '';
+            }
+
+            function selectOption(opt) {
+                input.value = opt.textContent.trim();
+                hiddenId.value = opt.getAttribute('data-id');
+                const prix = opt.getAttribute('data-prix');
+                prixInput.value = prix || '0';
+                closeDropdown();
+            }
+
+            input.addEventListener('focus', filterOptions);
+            input.addEventListener('input', filterOptions);
+
+            options.forEach(opt => {
+                opt.addEventListener('mousedown', e => {
+                    e.preventDefault();
+                    selectOption(opt);
+                });
+            });
+
+            document.addEventListener('click', e => {
+                if (!dropdown.contains(e.target) && e.target !== input) {
+                    closeDropdown();
+                }
+            });
+        }
+
+        function initRowRemove(row) {
+            const btnRemove = row.querySelector('.btn-remove-row');
+            if (!btnRemove) return;
+            btnRemove.addEventListener('click', () => row.remove());
+        }
+
+        const existingRows = Array.from(tbody.querySelectorAll('tr[data-row-index]'));
+        if (existingRows.length > 0) {
+            existingRows.forEach(r => {
+                const idx = parseInt(r.getAttribute('data-row-index'), 10);
+                if (!isNaN(idx) && idx >= rowIndex) {
+                    rowIndex = idx + 1;
+                }
+                initRowCombo(r);
+                initRowRemove(r);
+            });
+        }
+
+        btnAddRow.addEventListener('click', () => {
+            const tr = createRow(rowIndex++);
+            tbody.appendChild(tr);
+        });
+    })();
+</script>
+
+<style>
+    .job-input,
+    .form-group input,
+    .form-group input::placeholder {
+        color: var(--text);
+    }
+
+        .form-group input::placeholder {
+            color: rgba(164, 167, 200, 0.5);
+        }
+
+    .job-option-create {
+        border-top: 1px solid rgba(255,255,255,0.08);
+        margin-top: 2px;
+        padding-top: 8px;
+        color: var(--accent-light);
+    }
+
+        .job-option-create strong {
+            font-weight: 700;
+        }
+
+    .erp-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 12px;
+    }
+
+        .erp-table th,
+        .erp-table td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.26);
+            vertical-align: middle;
+        }
+
+        .erp-table thead {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+    .table-actions-cell {
+        text-align: center;
+    }
+
+    .table-add-row-bar {
+        margin-top: 10px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: flex-start;
+    }
+
+        .table-add-row-bar .btn-icon {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            font-size: 0.85rem;
+        }
+
+    .btn-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 6px 8px;
+        border-radius: var(--radius-full);
+        border: none;
+        background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+        color: #fff;
+        cursor: pointer;
+    }
+
+        .btn-icon.btn-remove-row {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.16);
+        }
+
+    .form-actions-spaced {
+        margin-top: 12px;
+    }
+
+    .bom-inline-group input[type="number"] {
+        height: var(--input-height);
+        padding: 0 14px;
+        border-radius: var(--radius-sm);
+        background: linear-gradient(135deg, rgba(8, 11, 32, 0.98), rgba(18, 22, 54, 0.98));
+        border: 1.2px solid var(--border);
+        color: var(--text);
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .bom-tree {
+        margin-top: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: radial-gradient(circle at 0 0, rgba(79, 70, 229, 0.08), rgba(15, 23, 42, 0.95));
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        max-height: 260px;
+        overflow-y: auto;
+    }
+
+    .bom-tree-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 2px 0;
+        font-size: 0.88rem;
+        color: #e5e7eb;
+    }
+
+    .bom-tree-qty {
+        min-width: 40px;
+        font-weight: 600;
+        color: #a5b4fc;
+    }
+
+    .bom-tree-name {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .bom-tree-ref {
+        margin-left: 4px;
+        font-size: 0.8rem;
+        color: #9ca3af;
+    }
+</style>
