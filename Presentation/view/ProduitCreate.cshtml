@@ -155,7 +155,7 @@
                                     }
 
                                     <!-- IMAGE CLIQUABLE, HORS DU LIEN -->
-                                    <div style="width:80px; height:80px; border-radius:14px; overflow:hidden; border:1px solid rgba(148,163,184,0.5); background:#020617; flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer;"
+                                    <div style="width:80px; height:100px; border-radius:14px; overflow:hidden; border:1px solid rgba(148,163,184,0.5); background:#020617; flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer;"
                                          onclick="openProductImageModal('@thumbUrl'); event.stopPropagation();">
                                         @if (hasImage)
                                         {
@@ -186,6 +186,10 @@
                                                 <span class="product-card-price-label">Prix :</span>
                                                 <span>@produit.PrixVente.ToString("N2") DA</span>
                                             </div>
+                                            <!-- NOUVEAU : stock disponible -->
+                                            <div class="product-card-stock" style="font-size:0.8rem; color:var(--text-muted); margin-top:2px;">
+                                                Stock : @produit.QuantiteDisponible
+                                            </div>
                                         </div>
                                     </a>
 
@@ -215,7 +219,6 @@
                 else
                 {
                     <div style="grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text-muted);">
-                        <!-- Icône stylée à la place de l'emoji -->
                         <div style="display:inline-flex; align-items:center; justify-content:center; width:72px; height:72px; border-radius:24px; background:rgba(15,23,42,0.9); border:1px solid rgba(148,163,184,0.35); margin-bottom:20px; box-shadow:0 18px 40px rgba(15,23,42,0.7);">
                             <svg viewBox="0 0 24 24"
                                  fill="none"
@@ -332,7 +335,7 @@
     }
 
     document.addEventListener('click', function () {
-        document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none';
+        document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none');
         document.getElementById('delete-overlay').style.display = 'none';
     });
 
@@ -340,7 +343,7 @@
         event.preventDefault();
         event.stopPropagation();
 
-        document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none';
+        document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none');
 
         const idInput = document.getElementById('delete-product-id');
         idInput.value = id;

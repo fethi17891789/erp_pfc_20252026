@@ -13,70 +13,47 @@ namespace Donnees
         public DbSet<ErpUser> ErpUsers { get; set; }
         public DbSet<Produit> Produits { get; set; }
 
-        // AJOUT BOM
+        // BOM
         public DbSet<Bom> Boms { get; set; }
         public DbSet<BomLigne> BomLignes { get; set; }
+
+        // MESSAGERIE (Nouveaux ajouts)
+        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<Message> Messages { get; set; }
+        public DbSet<MessageAttachment> MessageAttachments { get; set; }
+        public DbSet<MessageReadState> MessageReadStates { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            // --- CONFIG USER ---
             modelBuilder.Entity<ErpUser>()
                 .HasIndex(u => u.Login)
                 .IsUnique();
 
+            // --- CONFIG PRODUITS ---
             modelBuilder.Entity<Produit>(entity =>
             {
                 entity.ToTable("Produits");
                 entity.HasKey(p => p.Id);
 
-                entity.Property(p => p.Nom)
-                    .IsRequired()
-                    .HasMaxLength(100);
+                entity.Property(p => p.Nom).IsRequired().HasMaxLength(100);
+                entity.Property(p => p.Reference).HasMaxLength(50);
+                entity.Property(p => p.CodeBarres).HasMaxLength(50);
+                entity.Property(p => p.Type).IsRequired().HasMaxLength(20).HasDefaultValue("Bien");
+                entity.Property(p => p.PrixVente).HasColumnType("decimal(18,2)").HasDefaultValue(0m);
+                entity.Property(p => p.Cout).HasColumnType("decimal(18,2)").HasDefaultValue(0m);
+                entity.Property(p => p.DisponibleVente).IsRequired().HasDefaultValue(true);
+                entity.Property(p => p.SuiviInventaire).IsRequired().HasDefaultValue(true);
+                entity.Property(p => p.Image).HasMaxLength(255);
+                entity.Property(p => p.Notes).HasMaxLength(500);
+                entity.Property(p => p.DateCreation).HasColumnType("timestamp with time zone").HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
 
-                entity.Property(p => p.Reference)
-                    .HasMaxLength(50);
-
-                entity.Property(p => p.CodeBarres)
-                    .HasMaxLength(50);
-
-                entity.Property(p => p.Type)
-                    .IsRequired()
-                    .HasMaxLength(20)
-                    .HasDefaultValue("Bien");
-
-                entity.Property(p => p.PrixVente)
-                    .HasColumnType("decimal(18,2)")
-                    .HasDefaultValue(0m);
-
-                entity.Property(p => p.Cout)
-                    .HasColumnType("decimal(18,2)")
-                    .HasDefaultValue(0m);
-
-                entity.Property(p => p.DisponibleVente)
-                    .IsRequired()
-                    .HasDefaultValue(true);
-
-                entity.Property(p => p.SuiviInventaire)
-                    .IsRequired()
-                    .HasDefaultValue(true);
-
-                entity.Property(p => p.Image)
-                    .HasMaxLength(255);
-
-                entity.Property(p => p.Notes)
-                    .HasMaxLength(500);
-
-                entity.Property(p => p.DateCreation)
-                    .HasColumnType("timestamp with time zone")
-                    .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
-
-                entity.HasIndex(p => p.Reference)
-                    .IsUnique()
-                    .HasDatabaseName("UQ_Produits_Reference");
+                entity.HasIndex(p => p.Reference).IsUnique().HasDatabaseName("UQ_Produits_Reference");
             });
 
-            // CONFIG BOM
+            // --- CONFIG BOM ---
             modelBuilder.Entity<Bom>(entity =>
             {
                 entity.ToTable("Boms");
@@ -92,8 +69,7 @@ namespace Donnees
                     .HasForeignKey(l => l.BomId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasIndex(b => b.ProduitId)
-                    .HasDatabaseName("IX_Boms_ProduitId");
+                entity.HasIndex(b => b.ProduitId).HasDatabaseName("IX_Boms_ProduitId");
             });
 
             modelBuilder.Entity<BomLigne>(entity =>
@@ -101,22 +77,64 @@ namespace Donnees
                 entity.ToTable("BomLignes");
                 entity.HasKey(l => l.Id);
 
-                entity.Property(l => l.Quantite)
-                    .HasColumnType("decimal(18,4)");
-
-                entity.Property(l => l.PrixUnitaire)
-                    .HasColumnType("decimal(18,2)");
+                entity.Property(l => l.Quantite).HasColumnType("decimal(18,4)");
+                entity.Property(l => l.PrixUnitaire).HasColumnType("decimal(18,2)");
 
                 entity.HasOne(l => l.ComposantProduit)
                     .WithMany()
                     .HasForeignKey(l => l.ComposantProduitId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasIndex(l => l.BomId)
-                    .HasDatabaseName("IX_BomLignes_BomId");
+                entity.HasIndex(l => l.BomId).HasDatabaseName("IX_BomLignes_BomId");
+                entity.HasIndex(l => l.ComposantProduitId).HasDatabaseName("IX_BomLignes_ComposantProduitId");
+            });
 
-                entity.HasIndex(l => l.ComposantProduitId)
-                    .HasDatabaseName("IX_BomLignes_ComposantProduitId");
+            // --- CONFIG MESSAGERIE ---
+
+            // Conversation
+            modelBuilder.Entity<Conversation>(entity =>
+            {
+                entity.ToTable("Conversations");
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.Type).HasDefaultValue("direct");
+                entity.Property(c => c.DateCreation).HasDefaultValueSql("NOW()");
+            });
+
+            // Message
+            modelBuilder.Entity<Message>(entity =>
+            {
+                entity.ToTable("Messages");
+                entity.HasKey(m => m.Id);
+
+                // Relation: Si on supprime une conversation, on supprime ses messages
+                entity.HasOne(m => m.Conversation)
+                      .WithMany(c => c.Messages)
+                      .HasForeignKey(m => m.ConversationId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Attachments
+            modelBuilder.Entity<MessageAttachment>(entity =>
+            {
+                entity.ToTable("MessageAttachments");
+                entity.HasKey(a => a.Id);
+
+                // Relation: Si on supprime un message, on supprime ses pièces jointes
+                entity.HasOne(a => a.Message)
+                      .WithMany(m => m.Attachments)
+                      .HasForeignKey(a => a.MessageId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // ReadStates
+            modelBuilder.Entity<MessageReadState>(entity =>
+            {
+                entity.ToTable("MessageReadStates");
+                entity.HasKey(r => r.Id);
+
+                // Relation: Nettoyage si le message disparaît (optionnel)
+                // Note: EF Core ne supporte pas toujours bien les FK multiples en cascade sans config précise,
+                // mais ici c'est simple.
             });
         }
     }

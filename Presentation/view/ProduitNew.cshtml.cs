@@ -23,20 +23,19 @@ namespace erp_pfc_20252026.Pages
         }
 
         public Produit NouveauProduit { get; set; } = new Produit();
-        public string Message { get; set; } = string.Empty;
 
-        // utilisé pour savoir si on doit revenir vers BOM
+        public string SuccessMessage { get; set; } = string.Empty;
+        public string ErrorMessage { get; set; } = string.Empty;
+
         public bool ReturnToBom { get; set; }
         public string InitialName { get; set; } = string.Empty;
 
-        // cible dans la BOM : "header" (produit principal) ou "row" (composant)
         public string? BomTarget { get; set; }
         public int? BomRowIndex { get; set; }
 
         [BindProperty]
         public IFormFile? ProductImage { get; set; }
 
-        // GET : id optionnel, name & returnToBom & target & rowIndex depuis la querystring
         public async Task OnGetAsync(int? id, string? name, bool? returnToBom, string? target, int? rowIndex)
         {
             ReturnToBom = returnToBom ?? false;
@@ -54,7 +53,7 @@ namespace erp_pfc_20252026.Pages
                 }
                 else
                 {
-                    Message = "Produit introuvable.";
+                    ErrorMessage = "Produit introuvable.";
                     NouveauProduit = new Produit();
                 }
             }
@@ -67,6 +66,8 @@ namespace erp_pfc_20252026.Pages
                 {
                     NouveauProduit.Nom = InitialName;
                 }
+
+                NouveauProduit.QuantiteDisponible = 0m;
             }
         }
 
@@ -100,6 +101,7 @@ namespace erp_pfc_20252026.Pages
             var commentValue = Request.Form["Comment"].ToString();
             var isSaleableValue = Request.Form["IsSaleable"].ToString();
             var trackInvValue = Request.Form["TrackInventory"].ToString();
+            var availableQtyValue = Request.Form["AvailableQuantity"].ToString();
 
             NouveauProduit.Nom = productNameValue;
             NouveauProduit.Reference = referenceValue;
@@ -108,6 +110,7 @@ namespace erp_pfc_20252026.Pages
 
             NouveauProduit.PrixVente = ParseDecimalFromForm(salePriceValue);
             NouveauProduit.Cout = ParseDecimalFromForm(costValue);
+            NouveauProduit.QuantiteDisponible = ParseDecimalFromForm(availableQtyValue);
 
             NouveauProduit.DisponibleVente = !string.IsNullOrEmpty(isSaleableValue) && (isSaleableValue == "on" || isSaleableValue == "true");
             NouveauProduit.SuiviInventaire = !string.IsNullOrEmpty(trackInvValue) && (trackInvValue == "on" || trackInvValue == "true");
@@ -115,7 +118,7 @@ namespace erp_pfc_20252026.Pages
 
             if (string.IsNullOrWhiteSpace(NouveauProduit.Nom))
             {
-                Message = "Le nom du produit est obligatoire.";
+                ErrorMessage = "Le nom du produit est obligatoire.";
                 return Page();
             }
 
@@ -127,7 +130,7 @@ namespace erp_pfc_20252026.Pages
                     var existing = await _context.Produits.FirstOrDefaultAsync(p => p.Id == id);
                     if (existing == null)
                     {
-                        Message = "Produit introuvable.";
+                        ErrorMessage = "Produit introuvable.";
                         return Page();
                     }
 
@@ -138,7 +141,7 @@ namespace erp_pfc_20252026.Pages
 
                         if (refExiste)
                         {
-                            Message = "Cette référence existe déjà pour un autre produit.";
+                            ErrorMessage = "Cette référence existe déjà pour un autre produit.";
                             return Page();
                         }
                     }
@@ -152,6 +155,7 @@ namespace erp_pfc_20252026.Pages
                     existing.DisponibleVente = NouveauProduit.DisponibleVente;
                     existing.SuiviInventaire = NouveauProduit.SuiviInventaire;
                     existing.Notes = NouveauProduit.Notes;
+                    existing.QuantiteDisponible = NouveauProduit.QuantiteDisponible;
 
                     if (ProductImage != null && ProductImage.Length > 0)
                     {
@@ -161,7 +165,7 @@ namespace erp_pfc_20252026.Pages
                     }
 
                     await _context.SaveChangesAsync();
-                    Message = $"Produit '{existing.Nom}' mis à jour avec succès (ID = {existing.Id}).";
+                    SuccessMessage = $"Produit '{existing.Nom}' mis à jour avec succès (ID = {existing.Id}).";
                     NouveauProduit = existing;
 
                     return Page();
@@ -177,7 +181,7 @@ namespace erp_pfc_20252026.Pages
 
                         if (refExiste)
                         {
-                            Message = "Cette référence existe déjà.";
+                            ErrorMessage = "Cette référence existe déjà.";
                             return Page();
                         }
                     }
@@ -210,14 +214,16 @@ namespace erp_pfc_20252026.Pages
                         return RedirectToPage("/BOMCreate", new { fromProductId = NouveauProduit.Id });
                     }
 
-                    Message = $"Produit '{NouveauProduit.Nom}' créé avec succès (ID = {NouveauProduit.Id}).";
-                    return RedirectToPage(new { id = NouveauProduit.Id });
+                    SuccessMessage = $"Produit '{NouveauProduit.Nom}' créé avec succès (ID = {NouveauProduit.Id}).";
+
+                    // RESTER sur la page après création pour voir la pastille verte de création
+                    return Page();
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[DEBUG] Erreur OnPost ProduitNew : {ex}");
-                Message = $"Erreur lors de l'enregistrement : {ex.Message}";
+                Console.WriteLine($"[DEBUG] Erreur lors de l'enregistrement : {ex}");
+                ErrorMessage = $"Erreur lors de l'enregistrement : {ex.Message}";
             }
 
             return Page();

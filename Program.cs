@@ -5,6 +5,7 @@ using Donnees;
 using Metier;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
+using Microsoft.AspNetCore.Http; // pour SessionExtensions si besoin
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,11 +41,27 @@ builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
     options.UseNpgsql(conn);
 });
 
-// Service métier
+// Service métier (Global)
 builder.Services.AddScoped<BDDService>();
 
-var app = WebApplication.CreateBuilder(args).Build(); // <-- si tu avais recopié, remplace par :
-app = builder.Build();
+// --- Service de Messagerie ---
+builder.Services.AddScoped<Metier.Messagerie.MessagerieService>();
+
+// SignalR
+builder.Services.AddSignalR();
+
+// ********** AJOUT : SESSION **********
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.Cookie.Name = ".erp_pfc_20252026.session";
+    options.IdleTimeout = TimeSpan.FromHours(8);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+});
+// **************************************
+
+var app = builder.Build();
 
 // ********** CHARGER LA CONFIG APRES Build(), AVEC LE VRAI ServiceProvider **********
 using (var scope = app.Services.CreateScope())
@@ -62,7 +79,7 @@ using (var scope = app.Services.CreateScope())
 // *****************************************************************************
 
 
-// ---------- CREATION AUTOMATIQUE DE LA TABLE "Produits" S'IL LE FAUT ----------
+// ---------- 1. CREATION AUTOMATIQUE DE LA TABLE "Produits" S'IL LE FAUT ----------
 using (var scope = app.Services.CreateScope())
 {
     try
@@ -112,9 +129,7 @@ using (var scope = app.Services.CreateScope())
                         );";
 
                     Console.WriteLine("[DEBUG] Création de la table Produits...");
-                    using var createCmd = new NpgsqlConnection(connString);
-                    createCmd.Open();
-                    using var createTableCmd = new NpgsqlCommand(createSql, createCmd);
+                    using var createTableCmd = new NpgsqlCommand(createSql, conn);
                     createTableCmd.ExecuteNonQuery();
                     Console.WriteLine("[DEBUG] Table Produits créée.");
                 }
@@ -132,7 +147,7 @@ using (var scope = app.Services.CreateScope())
 }
 // ------------------------------------------------------------------------------
 
-// ---------- CREATION AUTOMATIQUE DES TABLES BOM / BOMLIGNES ----------
+// ---------- 2. CREATION AUTOMATIQUE DES TABLES BOM / BOMLIGNES ----------
 using (var scope2 = app.Services.CreateScope())
 {
     try
@@ -239,6 +254,88 @@ using (var scope2 = app.Services.CreateScope())
 }
 // --------------------------------------------------------------------
 
+// ---------- 3. CREATION AUTOMATIQUE DES TABLES DE MESSAGERIE ----------
+using (var scope3 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope3.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        Console.WriteLine($"[DEBUG] Connexion utilisée pour MESSAGERIE : {connString}");
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createMessagingTablesSql = @"
+                -- 1. Table Conversations
+                CREATE TABLE IF NOT EXISTS ""Conversations"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Titre"" VARCHAR(200) NULL,
+                    ""Type"" VARCHAR(20) NOT NULL DEFAULT 'direct',
+                    ""CreatedByUserId"" INT NULL,
+                    ""IsArchived"" BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+                );
+
+                -- 2. Table Messages
+                CREATE TABLE IF NOT EXISTS ""Messages"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""ConversationId"" INT NOT NULL,
+                    ""SenderId"" INT NOT NULL,
+                    ""Content"" TEXT NULL,
+                    ""MessageType"" VARCHAR(20) NOT NULL DEFAULT 'text',
+                    ""IsEdited"" BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""EditedAt"" TIMESTAMP WITHOUT TIME ZONE NULL,
+                    ""IsDeleted"" BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""Timestamp"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    CONSTRAINT ""FK_Messages_Conversations_ConversationId""
+                        FOREIGN KEY (""ConversationId"") REFERENCES ""Conversations""(""Id"")
+                        ON DELETE CASCADE
+                );
+
+                -- 3. Table MessageAttachments
+                CREATE TABLE IF NOT EXISTS ""MessageAttachments"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""MessageId"" INT NOT NULL,
+                    ""AttachmentType"" VARCHAR(20) NOT NULL,
+                    ""FileName"" VARCHAR(255) NOT NULL,
+                    ""FileUrl"" VARCHAR(500) NOT NULL,
+                    ""FileSizeBytes"" BIGINT NULL,
+                    CONSTRAINT ""FK_Attachments_Messages_MessageId""
+                        FOREIGN KEY (""MessageId"") REFERENCES ""Messages""(""Id"")
+                        ON DELETE CASCADE
+                );
+
+                -- 4. Table MessageReadStates
+                CREATE TABLE IF NOT EXISTS ""MessageReadStates"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""MessageId"" INT NOT NULL,
+                    ""UserId"" INT NOT NULL,
+                    ""ReadAt"" TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                    CONSTRAINT ""FK_ReadStates_Messages_MessageId""
+                        FOREIGN KEY (""MessageId"") REFERENCES ""Messages""(""Id"")
+                        ON DELETE CASCADE
+                );
+            ";
+
+            using (var cmd = new NpgsqlCommand(createMessagingTablesSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création des tables Messagerie...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Tables Messagerie prêtes.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto des tables Messagerie : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -250,9 +347,16 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// ********** AJOUT : SESSION DANS LE PIPELINE **********
+app.UseSession();
+// ******************************************************
+
 app.UseAuthorization();
 
 app.MapRazorPages();
+
+// MAPPING DU HUB SIGNALR
+app.MapHub<Metier.Messagerie.ChatHub>("/chathub");
 
 // Lancer le navigateur automatiquement
 OpenBrowser(appUrl);

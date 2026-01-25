@@ -1,8 +1,10 @@
+// Fichier : Pages/Login.cshtml.cs
 using System.Threading.Tasks;
 using Donnees;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Http;
 
 namespace erp_pfc_20252026.Pages
 {
@@ -43,9 +45,10 @@ namespace erp_pfc_20252026.Pages
                 return Page();
             }
 
-            // TODO: gérer une vraie session / auth (cookies, claims, etc.)
+            // Connexion réussie : on garde l'ID utilisateur en session
+            HttpContext.Session.SetInt32("CurrentUserId", user.Id);
 
-            // Connexion réussie -> redirection vers la page d'accueil ERP
+            // Redirection vers la page d'accueil ERP
             return RedirectToPage("/Home");
         }
     }

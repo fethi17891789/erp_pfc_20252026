@@ -32,7 +32,7 @@
             </a>
             <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 1-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
                 <span>Profils</span>
@@ -77,11 +77,21 @@
 
     <!-- CONTENU PRINCIPAL -->
     <main class="erp-main">
-        @if (!string.IsNullOrWhiteSpace(Model.Message))
+        @* Toast succès *@
+        @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
         {
             <div id="product-success-toast" class="toast-success">
                 <div class="toast-success-icon">✔</div>
-                <span>@Model.Message</span>
+                <span>@Model.SuccessMessage</span>
+            </div>
+        }
+
+        @* Toast erreur *@
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div id="product-error-toast" class="toast-error">
+                <div class="toast-error-icon">!</div>
+                <span>@Model.ErrorMessage</span>
             </div>
         }
 
@@ -232,9 +242,19 @@
                         </div>
                     </div>
 
-                    <!-- LIGNE 4 -->
-                    <div class="form-row form-row-1">
+                    <!-- LIGNE 4 : quantité disponible + notes -->
+                    <div class="form-row form-row-3">
                         <div class="form-group">
+                            <label for="AvailableQuantity" class="form-label">Quantité disponible</label>
+                            <div class="input-group">
+                                <input id="AvailableQuantity" name="AvailableQuantity"
+                                       type="number" step="0.01" min="0"
+                                       class="form-input form-input-number"
+                                       value="@(Model.NouveauProduit.QuantiteDisponible)"
+                                       placeholder="0,00" />
+                            </div>
+                        </div>
+                        <div class="form-group form-row-span-2">
                             <label for="Comment" class="form-label">Notes internes</label>
                             <textarea id="Comment" name="Comment" class="form-input form-textarea"
                                       placeholder="Cette note est pour usage interne seulement." rows="4">@Model.NouveauProduit.Notes</textarea>
@@ -244,7 +264,6 @@
                     <div class="form-footer">
                         <button type="submit" class="btn-primary">Enregistrer</button>
 
-                        @* Annuler : si on vient de la BOM, on retourne à BOMCreate, sinon autre page *@
                         @if (Model.ReturnToBom)
                         {
                             <a asp-page="/BOMCreate"
@@ -339,10 +358,16 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        const toast = document.getElementById('product-success-toast');
-        if (toast) {
-            requestAnimationFrame(() => toast.classList.add('visible'));
-            setTimeout(() => toast.classList.remove('visible'), 3000);
+        const successToast = document.getElementById('product-success-toast');
+        const errorToast = document.getElementById('product-error-toast');
+
+        if (successToast) {
+            requestAnimationFrame(() => successToast.classList.add('visible'));
+            setTimeout(() => successToast.classList.remove('visible'), 3000);
+        }
+        if (errorToast) {
+            requestAnimationFrame(() => errorToast.classList.add('visible'));
+            setTimeout(() => errorToast.classList.remove('visible'), 4000);
         }
     });
 

@@ -22,6 +22,9 @@ namespace Donnees
 
         public decimal Cout { get; set; } = 0m;
 
+        // NOUVEAU : quantité disponible
+        public decimal QuantiteDisponible { get; set; } = 0m;
+
         public bool DisponibleVente { get; set; } = true;
 
         public bool SuiviInventaire { get; set; } = true;
