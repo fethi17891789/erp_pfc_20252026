@@ -36,12 +36,35 @@ namespace erp_pfc_20252026.Pages
         [BindProperty]
         public int? BomId { get; set; }
 
+        // Valeur de CoutBom pour affichage "gros" dans la vue
+        public decimal CoutBomCalcule { get; set; }
+
         public class ProduitViewModel
         {
             public int Id { get; set; }
             public string Nom { get; set; } = string.Empty;
             public string Reference { get; set; } = string.Empty;
             public decimal PrixVente { get; set; }
+            public decimal CoutBom { get; set; }
+
+            // Type technique réel de ton modèle
+            public TypeTechniqueProduit TypeTechnique { get; set; }
+
+            // Coût d'achat (MP)
+            public decimal CoutAchat { get; set; }
+
+            // Coût unitaire utilisé dans la BOM
+            public decimal CoutUnitairePourBom
+            {
+                get
+                {
+                    // MP -> CoutAchat
+                    // Semi-fini / Fini / SemiFiniEtFini -> CoutBom
+                    return TypeTechnique == TypeTechniqueProduit.MatierePremiere
+                        ? CoutAchat
+                        : CoutBom;
+                }
+            }
         }
 
         public class BomLigneInput
@@ -49,11 +72,12 @@ namespace erp_pfc_20252026.Pages
             public int Index { get; set; }
             public int? ComposantProduitId { get; set; }
             public string? ComposantNomSaisi { get; set; }
-            public decimal PrixUnitaire { get; set; }
-            public decimal Quantite { get; set; }
+
+            public decimal? PrixUnitaire { get; set; }
+            public decimal? Quantite { get; set; }
+            public decimal? AutresCharges { get; set; }
         }
 
-        // ====== modèle d'arbre ======
         public class BomTreeNode
         {
             public int ProduitId { get; set; }
@@ -65,7 +89,6 @@ namespace erp_pfc_20252026.Pages
 
         public BomTreeNode? BomTreeRoot { get; set; }
 
-        // fromProductId : produit principal, fromComponentId+rowIndex : ligne composant
         public async Task OnGetAsync(int? fromProductId, int? fromComponentId, int? rowIndex, int? bomId)
         {
             await ChargerProduitsAsync();
@@ -82,6 +105,8 @@ namespace erp_pfc_20252026.Pages
                     ProduitNomSaisi = string.IsNullOrEmpty(p.Reference)
                         ? p.Nom
                         : $"{p.Nom} ({p.Reference})";
+
+                    CoutBomCalcule = p.CoutBom;
                 }
 
                 if (!BomId.HasValue)
@@ -106,7 +131,8 @@ namespace erp_pfc_20252026.Pages
                                         ? l.ComposantProduit.Nom
                                         : $"{l.ComposantProduit.Nom} ({l.ComposantProduit.Reference})"),
                                 PrixUnitaire = l.PrixUnitaire,
-                                Quantite = l.Quantite
+                                Quantite = l.Quantite,
+                                AutresCharges = l.AutresCharges
                             })
                             .ToList();
                     }
@@ -124,90 +150,76 @@ namespace erp_pfc_20252026.Pages
                     {
                         Index = Lignes.Count,
                         Quantite = 1,
-                        PrixUnitaire = 0
+                        PrixUnitaire = 0,
+                        AutresCharges = 0
                     });
                 }
 
-                var comp = await _context.Produits
-                    .Where(p => p.Id == fromComponentId.Value)
-                    .Select(p => new ProduitViewModel
-                    {
-                        Id = p.Id,
-                        Nom = p.Nom,
-                        Reference = p.Reference ?? string.Empty,
-                        PrixVente = p.PrixVente
-                    })
-                    .FirstOrDefaultAsync();
-
-                if (comp != null)
+                var ligne = Lignes[rowIndex.Value];
+                var produit = Produits.FirstOrDefault(x => x.Id == fromComponentId.Value);
+                if (produit != null)
                 {
-                    var ligne = Lignes[rowIndex.Value];
-                    ligne.ComposantProduitId = comp.Id;
-                    ligne.ComposantNomSaisi = string.IsNullOrEmpty(comp.Reference)
-                        ? comp.Nom
-                        : $"{comp.Nom} ({comp.Reference})";
-                    ligne.PrixUnitaire = comp.PrixVente;
-                    if (ligne.Quantite <= 0) ligne.Quantite = 1;
+                    ligne.ComposantProduitId = produit.Id;
+                    ligne.ComposantNomSaisi = string.IsNullOrEmpty(produit.Reference)
+                        ? produit.Nom
+                        : $"{produit.Nom} ({produit.Reference})";
+
+                    // Application de la règle côté serveur
+                    ligne.PrixUnitaire = produit.CoutUnitairePourBom;
                 }
             }
 
+            CoutBomCalcule = CalculerCoutBomLocal(Lignes);
+
             if (SelectedProduitId.HasValue)
-                BomTreeRoot = await BuildBomTreeAsync(SelectedProduitId.Value, 1m, new HashSet<int>());
+            {
+                BomTreeRoot = await ConstruireBomTreeAsync(SelectedProduitId.Value);
+            }
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
             await ChargerProduitsAsync();
 
-            if (SelectedProduitId == null)
-            {
-                ModelState.AddModelError(nameof(SelectedProduitId),
-                    "Vous devez sélectionner un produit existant pour créer une nomenclature.");
-            }
-            else
-            {
-                var existe = await _context.Produits
-                    .AnyAsync(p => p.Id == SelectedProduitId.Value);
-
-                if (!existe)
+            Lignes = (Lignes ?? new List<BomLigneInput>())
+                .Where(l => l.ComposantProduitId.HasValue)
+                .Select((l, idx) =>
                 {
-                    ModelState.AddModelError(nameof(SelectedProduitId),
-                        "Le produit sélectionné n'existe plus dans la base.");
-                }
-            }
-
-            Lignes ??= new List<BomLigneInput>();
-
-            var lignesValides = Lignes
-                .Where(l =>
-                    l.ComposantProduitId.HasValue &&
-                    l.ComposantProduitId.Value > 0 &&
-                    l.Quantite > 0)
+                    l.Index = idx;
+                    return l;
+                })
                 .ToList();
 
-            if (!lignesValides.Any())
+            if (!SelectedProduitId.HasValue)
             {
-                ModelState.AddModelError(string.Empty,
-                    "Vous devez ajouter au moins une ligne composant avec une quantité > 0.");
-            }
-
-            if (SelectedProduitId.HasValue &&
-                lignesValides.Any(l => l.ComposantProduitId == SelectedProduitId.Value))
-            {
-                ModelState.AddModelError(string.Empty,
-                    "Un produit ne peut pas être son propre composant.");
+                ModelState.AddModelError(nameof(SelectedProduitId), "Vous devez sélectionner un produit principal.");
             }
 
             if (!ModelState.IsValid)
             {
+                CoutBomCalcule = CalculerCoutBomLocal(Lignes);
                 if (SelectedProduitId.HasValue)
-                    BomTreeRoot = await BuildBomTreeAsync(SelectedProduitId.Value, 1m, new HashSet<int>());
-
+                {
+                    BomTreeRoot = await ConstruireBomTreeAsync(SelectedProduitId.Value);
+                }
                 return Page();
             }
 
-            Bom? bom;
+            var produitPrincipal = await _context.Produits
+                .FirstOrDefaultAsync(p => p.Id == SelectedProduitId.Value);
 
+            if (produitPrincipal == null)
+            {
+                ModelState.AddModelError(string.Empty, "Produit principal introuvable.");
+                CoutBomCalcule = CalculerCoutBomLocal(Lignes);
+                if (SelectedProduitId.HasValue)
+                {
+                    BomTreeRoot = await ConstruireBomTreeAsync(SelectedProduitId.Value);
+                }
+                return Page();
+            }
+
+            Bom bom;
             if (BomId.HasValue)
             {
                 bom = await _context.Boms
@@ -218,7 +230,7 @@ namespace erp_pfc_20252026.Pages
                 {
                     bom = new Bom
                     {
-                        ProduitId = SelectedProduitId!.Value,
+                        ProduitId = produitPrincipal.Id,
                         Lignes = new List<BomLigne>()
                     };
                     _context.Boms.Add(bom);
@@ -227,92 +239,183 @@ namespace erp_pfc_20252026.Pages
                 {
                     _context.BomLignes.RemoveRange(bom.Lignes);
                     bom.Lignes.Clear();
-                    bom.ProduitId = SelectedProduitId!.Value;
                 }
             }
             else
             {
-                bom = new Bom
+                bom = await _context.Boms
+                    .Include(b => b.Lignes)
+                    .FirstOrDefaultAsync(b => b.ProduitId == produitPrincipal.Id);
+
+                if (bom == null)
                 {
-                    ProduitId = SelectedProduitId!.Value,
-                    Lignes = new List<BomLigne>()
-                };
-                _context.Boms.Add(bom);
+                    bom = new Bom
+                    {
+                        ProduitId = produitPrincipal.Id,
+                        Lignes = new List<BomLigne>()
+                    };
+                    _context.Boms.Add(bom);
+                }
+                else
+                {
+                    _context.BomLignes.RemoveRange(bom.Lignes);
+                    bom.Lignes.Clear();
+                }
             }
 
-            bom.Lignes = lignesValides.Select(l => new BomLigne
+            var lignesValides = Lignes
+                .Where(l => l.ComposantProduitId.HasValue)
+                .ToList();
+
+            foreach (var ligneInput in lignesValides)
             {
-                ComposantProduitId = l.ComposantProduitId!.Value,
-                Quantite = l.Quantite,
-                PrixUnitaire = l.PrixUnitaire
-            }).ToList();
+                var comp = await _context.Produits
+                    .FirstOrDefaultAsync(p => p.Id == ligneInput.ComposantProduitId.Value);
+
+                if (comp == null)
+                    continue;
+
+                var coutUnitaire = GetCoutUnitairePourBom(comp);
+
+                var ligne = new BomLigne
+                {
+                    ComposantProduitId = comp.Id,
+                    Quantite = ligneInput.Quantite ?? 0,
+                    PrixUnitaire = coutUnitaire,
+                    AutresCharges = ligneInput.AutresCharges ?? 0
+                };
+
+                bom.Lignes.Add(ligne);
+            }
 
             await _context.SaveChangesAsync();
 
-            return RedirectToPage("/Fabrication/BOM");
-        }
+            BomId = bom.Id;
 
-        public IActionResult OnPostLogout()
-        {
-            return RedirectToPage("/Index");
+            var coutBom = await CalculerCoutBomPourProduitAsync(produitPrincipal.Id);
+            produitPrincipal.CoutBom = coutBom;
+            await _context.SaveChangesAsync();
+
+            CoutBomCalcule = coutBom;
+            BomTreeRoot = await ConstruireBomTreeAsync(produitPrincipal.Id);
+
+            TempData["BomSaved"] = "La nomenclature a été enregistrée avec succès.";
+            return RedirectToPage("/BOM");
         }
 
         private async Task ChargerProduitsAsync()
         {
             Produits = await _context.Produits
-                .OrderBy(p => p.Nom)
+                .AsNoTracking()
                 .Select(p => new ProduitViewModel
                 {
                     Id = p.Id,
                     Nom = p.Nom,
                     Reference = p.Reference ?? string.Empty,
-                    PrixVente = p.PrixVente
+                    PrixVente = p.PrixVente,
+                    CoutBom = p.CoutBom,
+                    TypeTechnique = p.TypeTechnique,
+                    CoutAchat = p.CoutAchat
                 })
                 .ToListAsync();
         }
 
-        // ====== construction récursive de l'arbre ======
-        private async Task<BomTreeNode> BuildBomTreeAsync(int produitId, decimal quantite, HashSet<int> visited)
+        private decimal CalculerCoutBomLocal(List<BomLigneInput> lignes)
         {
-            if (visited.Contains(produitId))
+            if (lignes == null || lignes.Count == 0)
+                return 0m;
+
+            decimal total = 0m;
+            foreach (var l in lignes)
             {
-                return new BomTreeNode
-                {
-                    ProduitId = produitId,
-                    NomProduit = "[BOM récursive détectée]",
-                    Reference = "",
-                    QuantiteTotale = quantite,
-                    Enfants = new List<BomTreeNode>()
-                };
+                var prix = l.PrixUnitaire ?? 0m;
+                var qte = l.Quantite ?? 0m;
+                var chg = l.AutresCharges ?? 0m;
+                total += prix * qte + chg;
+            }
+            return total;
+        }
+
+        private decimal GetCoutUnitairePourBom(Produit produit)
+        {
+            return produit.TypeTechnique == TypeTechniqueProduit.MatierePremiere
+                ? produit.CoutAchat
+                : produit.CoutBom;
+        }
+
+        private async Task<decimal> CalculerCoutBomPourProduitAsync(int produitId)
+        {
+            var bom = await _context.Boms
+                .Include(b => b.Lignes)
+                .ThenInclude(l => l.ComposantProduit)
+                .FirstOrDefaultAsync(b => b.ProduitId == produitId);
+
+            if (bom == null || bom.Lignes == null || bom.Lignes.Count == 0)
+                return 0m;
+
+            decimal total = 0m;
+            foreach (var l in bom.Lignes)
+            {
+                var comp = l.ComposantProduit;
+                if (comp == null)
+                    continue;
+
+                var coutUnitaire = GetCoutUnitairePourBom(comp);
+                var qte = l.Quantite;
+                var chg = l.AutresCharges;
+                total += coutUnitaire * qte + chg;
             }
 
+            return total;
+        }
+
+        public IHtmlContent RenderBomTree()
+        {
+            if (BomTreeRoot == null)
+                return new HtmlString(string.Empty);
+
+            var sb = new StringBuilder();
+            RenderBomNodeInto(BomTreeRoot, 0, sb);
+            return new HtmlString(sb.ToString());
+        }
+
+        private async Task<BomTreeNode?> ConstruireBomTreeAsync(int produitId, decimal quantiteParent = 1m, HashSet<int>? visited = null)
+        {
+            visited ??= new HashSet<int>();
+            if (visited.Contains(produitId))
+            {
+                return null;
+            }
             visited.Add(produitId);
 
             var produit = await _context.Produits
                 .AsNoTracking()
                 .FirstOrDefaultAsync(p => p.Id == produitId);
 
+            if (produit == null)
+                return null;
+
             var node = new BomTreeNode
             {
-                ProduitId = produitId,
-                NomProduit = produit?.Nom ?? $"Produit #{produitId}",
-                Reference = produit?.Reference ?? string.Empty,
-                QuantiteTotale = quantite,
-                Enfants = new List<BomTreeNode>()
+                ProduitId = produit.Id,
+                NomProduit = produit.Nom,
+                Reference = produit.Reference ?? string.Empty,
+                QuantiteTotale = quantiteParent
             };
 
             var bom = await _context.Boms
                 .Include(b => b.Lignes)
-                .AsNoTracking()
                 .FirstOrDefaultAsync(b => b.ProduitId == produitId);
 
-            if (bom != null && bom.Lignes.Any())
+            if (bom != null && bom.Lignes != null && bom.Lignes.Count > 0)
             {
                 foreach (var ligne in bom.Lignes)
                 {
-                    var qteCumul = quantite * ligne.Quantite;
-                    var child = await BuildBomTreeAsync(ligne.ComposantProduitId, qteCumul, visited);
-                    node.Enfants.Add(child);
+                    var child = await ConstruireBomTreeAsync(ligne.ComposantProduitId, quantiteParent * ligne.Quantite, visited);
+                    if (child != null)
+                    {
+                        node.Enfants.Add(child);
+                    }
                 }
             }
 
@@ -320,34 +423,32 @@ namespace erp_pfc_20252026.Pages
             return node;
         }
 
-        // ====== rendu HTML de l'arbre pour la vue ======
-        public IHtmlContent RenderBomTree()
-        {
-            if (BomTreeRoot == null)
-                return HtmlString.Empty;
-
-            var sb = new StringBuilder();
-            RenderBomNodeInto(BomTreeRoot, 0, sb);
-            return new HtmlString(sb.ToString());
-        }
-
         private void RenderBomNodeInto(BomTreeNode node, int level, StringBuilder sb)
         {
-            var marginLeft = level * 18;
-            var nom = System.Net.WebUtility.HtmlEncode(node.NomProduit ?? "");
-            var reference = System.Net.WebUtility.HtmlEncode(node.Reference ?? "");
+            sb.Append("<div class=\"bom-tree-row\">");
+            sb.Append("<span class=\"bom-tree-qty\">");
+            sb.Append(node.QuantiteTotale.ToString("0.##"));
+            sb.Append("</span>");
 
-            sb.Append($@"
-<div class=""bom-tree-row"" style=""margin-left:{marginLeft}px;"">
-  <span class=""bom-tree-qty"">{node.QuantiteTotale} x</span>
-  <span class=""bom-tree-name"">{nom}");
-
-            if (!string.IsNullOrEmpty(reference))
+            sb.Append("<span style=\"margin-right:6px; color:#64748b;\">");
+            for (int i = 0; i < level; i++)
             {
-                sb.Append($@" <span class=""bom-tree-ref"">({reference})</span>");
+                sb.Append("• ");
+            }
+            sb.Append("</span>");
+
+            sb.Append("<span class=\"bom-tree-name\">");
+            sb.Append(node.NomProduit);
+            sb.Append("</span>");
+
+            if (!string.IsNullOrEmpty(node.Reference))
+            {
+                sb.Append("<span class=\"bom-tree-ref\">(");
+                sb.Append(node.Reference);
+                sb.Append(")</span>");
             }
 
-            sb.Append("</span></div>");
+            sb.Append("</div>");
 
             if (node.Enfants != null && node.Enfants.Count > 0)
             {

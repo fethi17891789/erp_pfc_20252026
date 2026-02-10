@@ -9,6 +9,107 @@
 <link rel="stylesheet" href="~/css/Common.css" />
 <link rel="stylesheet" href="~/css/Home.css" />
 
+<style>
+    /* Etat désactivé du coût d'achat, aligné sur la charte */
+    .cost-input-disabled {
+        background: linear-gradient(135deg, rgba(8, 11, 32, 0.9), rgba(18, 22, 54, 0.95));
+        color: rgba(226, 232, 240, 0.65);
+        cursor: not-allowed;
+        border-color: rgba(148, 163, 253, 0.55) !important;
+        box-shadow: 0 0 0 1px rgba(148, 163, 253, 0.45), 0 15px 35px rgba(15, 23, 42, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .cost-disabled-overlay {
+        position: relative;
+    }
+
+    .cost-disabled-label {
+        color: #a5b4fc;
+        text-shadow: 0 0 12px rgba(129, 140, 248, 0.55);
+    }
+
+    .cost-disabled-tooltip {
+        position: absolute;
+        bottom: 110%;
+        left: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: var(--radius-md);
+        background: radial-gradient(circle at top left, rgba(123, 94, 255, 0.35), transparent 60%), linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98));
+        border: 1px solid rgba(148, 163, 253, 0.6);
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.95);
+        color: #e5e7eb;
+        font-size: 0.78rem;
+        max-width: 280px;
+        opacity: 0;
+        transform: translateY(4px) scale(0.98);
+        pointer-events: none;
+        transition: opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 40;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+        .cost-disabled-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 16px;
+            border-width: 7px;
+            border-style: solid;
+            border-color: rgba(15, 23, 42, 0.98) transparent transparent transparent;
+            filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.8));
+        }
+
+    .cost-disabled-tooltip-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 30% 30%, #facc15, #eab308);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #111827;
+        font-size: 0.7rem;
+        font-weight: 800;
+        box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.35), 0 0 16px rgba(250, 204, 21, 0.8);
+        flex-shrink: 0;
+    }
+
+    .cost-disabled-tooltip-text {
+        line-height: 1.4;
+        color: #c7d2fe;
+    }
+
+        .cost-disabled-tooltip-text span {
+            display: block;
+        }
+
+        .cost-disabled-tooltip-text .tooltip-title {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #e5e7eb;
+            margin-bottom: 2px;
+        }
+
+        .cost-disabled-tooltip-text .tooltip-sub {
+            font-size: 0.78rem;
+            color: #a5b4fc;
+        }
+
+    .cost-disabled-overlay:hover .cost-disabled-tooltip {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    /* Reuse style for sale price messages */
+    .saleprice-tooltip {
+        bottom: 110%;
+    }
+</style>
+
 <div class="erp-shell">
     <!-- BARRE LATERALE GAUCHE -->
     <aside class="erp-sidebar">
@@ -19,10 +120,9 @@
         <nav class="erp-nav">
             <a asp-page="/Home" class="nav-item">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
                     <polyline points="9 22 9 12 15 12 15 22"></polyline>
                 </svg>
-                <span>Accueil</span>
             </a>
             <a asp-page="/Fabrication" class="nav-item nav-item-active">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -50,8 +150,7 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="1"></circle>
                     <path d="M12 1v6m6.07 6.07h-6.14M12 19v4m6.07-6.07v0"></path>
-                    <path d="M19 5l-4.24 4.24M5 19l4.24-4.24"></path>
-                    <path d="M19 19l-4.24-4.24M5 5l4.24 4.24"></path>
+                    <path d="M19 5l-4.24 4.24M5 19l4.24-4.24M19 19l-4.24-4.24M5 5l4.24 4.24"></path>
                 </svg>
                 <span>Paramètres</span>
             </button>
@@ -77,7 +176,6 @@
 
     <!-- CONTENU PRINCIPAL -->
     <main class="erp-main">
-        @* Toast succès *@
         @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
         {
             <div id="product-success-toast" class="toast-success">
@@ -86,7 +184,6 @@
             </div>
         }
 
-        @* Toast erreur *@
         @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
         {
             <div id="product-error-toast" class="toast-error">
@@ -126,8 +223,10 @@
                     <input type="hidden" name="Id" value="@Model.NouveauProduit.Id" />
                     <input type="hidden" name="ReturnToBom" value="@(Model.ReturnToBom ? "true" : "false")" />
                     <input type="hidden" name="InitialName" value="@Model.InitialName" />
+                    <!-- Champ caché pour Autres charges (toujours à 0) -->
+                    <input type="hidden" name="CoutAutresCharges" value="0" />
 
-                    <!-- LIGNE 1 -->
+                    <!-- LIGNE 1 : base -->
                     <div class="form-row form-row-3">
                         <div class="form-group">
                             <label for="ProductName" class="form-label">Nom du produit</label>
@@ -142,7 +241,7 @@
                                    placeholder="Code interne, SKU..." />
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Type de produit</label>
+                            <label class="form-label">Type commercial</label>
                             <div class="radio-group-horizontal">
                                 <label class="radio-label">
                                     <input type="radio" name="ProductType" value="Bien"
@@ -158,7 +257,7 @@
                         </div>
                     </div>
 
-                    <!-- LIGNE 2 -->
+                    <!-- LIGNE 2 : prix de vente + coût achat de base -->
                     <div class="form-row form-row-3">
                         <div class="form-group">
                             <label for="Barcode" class="form-label">Code-barres</label>
@@ -166,8 +265,9 @@
                                    value="@Model.NouveauProduit.CodeBarres"
                                    placeholder="EAN, UPC..." />
                         </div>
-                        <div class="form-group">
-                            <label for="SalePrice" class="form-label">Prix de vente</label>
+
+                        <div class="form-group cost-disabled-overlay" id="SalePriceContainer">
+                            <label id="SalePriceLabel" for="SalePrice" class="form-label">Prix de vente</label>
                             <div class="input-group">
                                 <input id="SalePrice" name="SalePrice" type="number" step="0.01" min="0"
                                        class="form-input form-input-number"
@@ -175,9 +275,32 @@
                                        placeholder="0,00" />
                                 <span class="input-suffix">DA</span>
                             </div>
+                            <!-- Tooltip : prix de vente non autorisé (MP ou SF) -->
+                            <div id="SalePriceForbiddenTooltip" class="cost-disabled-tooltip saleprice-tooltip">
+                                <div class="cost-disabled-tooltip-icon">!</div>
+                                <div class="cost-disabled-tooltip-text">
+                                    <span class="tooltip-title">Prix de vente non disponible</span>
+                                    <span class="tooltip-sub">
+                                        Le type technique sélectionné ne permet pas de saisir un prix de vente.
+                                        Ce produit est uniquement utilisé comme entrée de fabrication.
+                                    </span>
+                                </div>
+                            </div>
+                            <!-- Tooltip : prix pour la version finie -->
+                            <div id="SalePriceInfoTooltip" class="cost-disabled-tooltip saleprice-tooltip">
+                                <div class="cost-disabled-tooltip-icon">i</div>
+                                <div class="cost-disabled-tooltip-text">
+                                    <span class="tooltip-title">Prix de vente du produit fini</span>
+                                    <span class="tooltip-sub">
+                                        Ce prix s'applique uniquement à la version vendue du produit
+                                        (produit fini), pas à la partie utilisée comme semi-fini.
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="Cost" class="form-label">Coût</label>
+
+                        <div class="form-group cost-disabled-overlay">
+                            <label id="CostLabel" for="Cost" class="form-label">Coût d'achat de base</label>
                             <div class="input-group">
                                 <input id="Cost" name="Cost" type="number" step="0.01" min="0"
                                        class="form-input form-input-number"
@@ -185,11 +308,70 @@
                                        placeholder="0,00" />
                                 <span class="input-suffix">DA</span>
                             </div>
+                            <div id="CostNoneOverlay" class="cost-disabled-tooltip">
+                                <div class="cost-disabled-tooltip-icon">!</div>
+                                <div class="cost-disabled-tooltip-text">
+                                    <span class="tooltip-title">Coût d'achat non disponible</span>
+                                    <span class="tooltip-sub">
+                                        Le type de produit sélectionné (produit semi-fini ou produit fini)
+                                        ne peut pas avoir de coût d'achat saisi directement.
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- LIGNE 3 -->
+                    <!-- LIGNE 2 bis : type technique + coût BOM (Autres charges supprimé) -->
+                    <div class="form-row form-row-2">
+                        <div class="form-group">
+                            <label class="form-label">Type technique</label>
+                            <div class="radio-group-horizontal">
+                                <label class="radio-label">
+                                    <input type="radio" name="TypeTechnique" value="0"
+                                           @((int)Model.NouveauProduit.TypeTechnique == 0 ? "checked" : "") />
+                                    <span>Matière première</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="TypeTechnique" value="1"
+                                           @((int)Model.NouveauProduit.TypeTechnique == 1 ? "checked" : "") />
+                                    <span>Produit semi-fini</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="TypeTechnique" value="2"
+                                           @((int)Model.NouveauProduit.TypeTechnique == 2 ? "checked" : "") />
+                                    <span>Produit fini</span>
+                                </label>
+                                <label class="radio-label">
+                                    <input type="radio" name="TypeTechnique" value="3"
+                                           @((int)Model.NouveauProduit.TypeTechnique == 3 ? "checked" : "") />
+                                    <span>Semi-fini et fini</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Coût BOM (lecture seule)</label>
+                            <div class="input-group">
+                                <input id="CoutBom" name="CoutBom" type="number" step="0.01" min="0"
+                                       class="form-input form-input-number"
+                                       value="@(Model.NouveauProduit.CoutBom)"
+                                       placeholder="0,00" readonly />
+                                <span class="input-suffix">DA</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LIGNE 2 ter : coût total (EDITABLE) + flags -->
                     <div class="form-row form-row-3">
+                        <div class="form-group">
+                            <label class="form-label">Coût total</label>
+                            <div class="input-group">
+                                <input id="CoutTotal" name="CoutTotal" type="number" step="0.01" min="0"
+                                       class="form-input form-input-number"
+                                       value="@(Model.NouveauProduit.CoutTotal)"
+                                       placeholder="0,00" />
+                                <span class="input-suffix">DA</span>
+                            </div>
+                        </div>
                         <div class="form-group">
                             <label class="form-label">Disponible à la vente</label>
                             <label class="checkbox-inline">
@@ -206,6 +388,10 @@
                                 <span>Par quantité</span>
                             </label>
                         </div>
+                    </div>
+
+                    <!-- LIGNE 3 : image + quantité + notes -->
+                    <div class="form-row form-row-3">
                         <div class="form-group">
                             <label for="ProductImage" class="form-label">Image du produit</label>
 
@@ -240,10 +426,7 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <!-- LIGNE 4 : quantité disponible + notes -->
-                    <div class="form-row form-row-3">
                         <div class="form-group">
                             <label for="AvailableQuantity" class="form-label">Quantité disponible</label>
                             <div class="input-group">
@@ -263,7 +446,6 @@
 
                     <div class="form-footer">
                         <button type="submit" class="btn-primary">Enregistrer</button>
-
                         @if (Model.ReturnToBom)
                         {
                             <a asp-page="/BOMCreate"
@@ -321,6 +503,11 @@
     const imageModalOverlay = document.getElementById('image-modal-overlay');
     const imageModalImg = document.getElementById('image-modal-img');
 
+    const salePriceInput = document.getElementById('SalePrice');
+    const salePriceLabel = document.getElementById('SalePriceLabel');
+    const salePriceForbiddenTooltip = document.getElementById('SalePriceForbiddenTooltip');
+    const salePriceInfoTooltip = document.getElementById('SalePriceInfoTooltip');
+
     if (inputImage) {
         inputImage.addEventListener('change', function (e) {
             const file = e.target.files[0];
@@ -352,9 +539,11 @@
 
     function openLogoutModal() {
         document.getElementById('logout-overlay').style.display = 'flex';
+        document.body.classList.add('logout-blur-active');
     }
     function closeLogoutModal() {
         document.getElementById('logout-overlay').style.display = 'none';
+        document.body.classList.remove('logout-blur-active');
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -369,6 +558,10 @@
             requestAnimationFrame(() => errorToast.classList.add('visible'));
             setTimeout(() => errorToast.classList.remove('visible'), 4000);
         }
+
+        applyCostStateFromType();
+        wireTypeTechniqueChange();
+        wireMPCostSync(); // synchronisation coûts MP
     });
 
     document.addEventListener('click', function (e) {
@@ -376,4 +569,108 @@
             closeImageModal();
         }
     });
+
+    function wireTypeTechniqueChange() {
+        const radios = document.querySelectorAll('input[name="TypeTechnique"]');
+        radios.forEach(r => {
+            r.addEventListener('change', applyCostStateFromType);
+        });
+    }
+
+    function applyCostStateFromType() {
+        const selected = document.querySelector('input[name="TypeTechnique"]:checked');
+        const costInput = document.getElementById('Cost');
+        const costLabel = document.getElementById('CostLabel');
+        const tooltip = document.getElementById('CostNoneOverlay');
+
+        if (!selected || !costInput || !costLabel || !tooltip) return;
+
+        const typeValue = selected.value;
+
+        // Gestion coût d'achat MP vs SF/Finis
+        if (typeValue === "0") {
+            costInput.disabled = false;
+            costInput.classList.remove('cost-input-disabled');
+            costLabel.classList.remove('cost-disabled-label');
+
+            if (costInput.value === "none") {
+                costInput.value = "0";
+            }
+
+            tooltip.style.display = 'none';
+        } else {
+            costInput.disabled = true;
+            costInput.classList.add('cost-input-disabled');
+            costLabel.classList.add('cost-disabled-label');
+
+            costInput.value = "none";
+            tooltip.style.display = 'flex';
+        }
+
+        // Gestion prix de vente selon le type technique
+        if (!salePriceInput || !salePriceLabel || !salePriceForbiddenTooltip || !salePriceInfoTooltip) {
+            return;
+        }
+
+        // Reset
+        salePriceInput.disabled = false;
+        salePriceInput.classList.remove('cost-input-disabled');
+        salePriceLabel.classList.remove('cost-disabled-label');
+        salePriceForbiddenTooltip.style.display = 'none';
+        salePriceInfoTooltip.style.display = 'none';
+
+        // MP -> prix de vente interdit + tooltip
+        if (typeValue === "0") {
+            salePriceInput.disabled = true;
+            salePriceInput.classList.add('cost-input-disabled');
+            salePriceLabel.classList.add('cost-disabled-label');
+            salePriceInput.value = "0";
+            salePriceForbiddenTooltip.style.display = 'flex';
+        }
+        // Produit semi-fini uniquement -> prix de vente interdit + tooltip
+        else if (typeValue === "1") {
+            salePriceInput.disabled = true;
+            salePriceInput.classList.add('cost-input-disabled');
+            salePriceLabel.classList.add('cost-disabled-label');
+            salePriceInput.value = "0";
+            salePriceForbiddenTooltip.style.display = 'flex';
+        }
+        // Semi-fini + fini -> prix de vente autorisé mais message informatif
+        else if (typeValue === "3") {
+            salePriceInput.disabled = false;
+            salePriceInput.classList.remove('cost-input-disabled');
+            salePriceLabel.classList.remove('cost-disabled-label');
+            salePriceInfoTooltip.style.display = 'flex';
+        }
+        // Produit fini uniquement (2) -> champ normal, aucun tooltip
+    }
+
+    // Synchronisation des coûts pour matière première
+    function wireMPCostSync() {
+        const costInput = document.getElementById('Cost');
+        const bomInput = document.getElementById('CoutBom');
+        const totalInput = document.getElementById('CoutTotal');
+
+        if (!costInput || !bomInput || !totalInput) return;
+
+        // Quand on modifie le coût d'achat
+        costInput.addEventListener('input', function() {
+            const selected = document.querySelector('input[name="TypeTechnique"]:checked');
+            if (selected && selected.value === "0") {
+                const value = costInput.value || "0";
+                bomInput.value = value;
+                totalInput.value = value;
+            }
+        });
+
+        // Quand on modifie le coût total
+        totalInput.addEventListener('input', function() {
+            const selected = document.querySelector('input[name="TypeTechnique"]:checked');
+            if (selected && selected.value === "0") {
+                const value = totalInput.value || "0";
+                costInput.value = value;
+                bomInput.value = value;
+            }
+        });
+    }
 </script>

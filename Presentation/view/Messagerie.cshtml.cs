@@ -6,11 +6,11 @@ using System.Linq;
 using System.Threading.Tasks;
 using Donnees;
 using Metier.Messagerie;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Hosting;
 
 namespace erp_pfc_20252026.Pages
 {
@@ -33,6 +33,9 @@ namespace erp_pfc_20252026.Pages
             public string Login { get; set; } = string.Empty;
             public string Email { get; set; } = string.Empty;
             public string Poste { get; set; } = string.Empty;
+
+            // NOUVEAU : statut online initial (pour dessiner le point vert/rouge au chargement)
+            public bool IsOnline { get; set; }
         }
 
         public IList<ChatUserViewModel> Utilisateurs { get; set; } = new List<ChatUserViewModel>();
@@ -62,7 +65,8 @@ namespace erp_pfc_20252026.Pages
                     Id = u.Id,
                     Login = u.Login ?? string.Empty,
                     Email = u.Email ?? string.Empty,
-                    Poste = u.Poste ?? string.Empty
+                    Poste = u.Poste ?? string.Empty,
+                    IsOnline = u.IsOnline // récupéré de la BDD
                 })
                 .ToList();
 
@@ -136,6 +140,73 @@ namespace erp_pfc_20252026.Pages
                 conversationId,
                 sessionUserId.Value,
                 fileUrl
+            );
+
+            return new JsonResult(messageDto);
+        }
+
+        // Upload de fichier générique (images, PDF, docs...)
+        // POST /Messagerie?handler=UploadFile
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> OnPostUploadFileAsync()
+        {
+            var sessionUserId = HttpContext.Session.GetInt32("CurrentUserId");
+            if (sessionUserId == null || sessionUserId.Value <= 0)
+            {
+                return BadRequest("Utilisateur non connecté.");
+            }
+
+            var form = HttpContext.Request.Form;
+
+            if (!int.TryParse(form["conversationId"], out var conversationId) || conversationId <= 0)
+            {
+                return BadRequest("conversationId invalide.");
+            }
+
+            var file = form.Files["chatFile"];
+            if (file == null || file.Length == 0)
+            {
+                return BadRequest("Fichier manquant.");
+            }
+
+            // Dossier physique pour stocker les fichiers
+            var uploadsRoot = Path.Combine(_env.WebRootPath ?? "wwwroot", "uploads", "files");
+            if (!Directory.Exists(uploadsRoot))
+            {
+                Directory.CreateDirectory(uploadsRoot);
+            }
+
+            var ext = Path.GetExtension(file.FileName);
+            if (string.IsNullOrWhiteSpace(ext))
+            {
+                ext = ".bin";
+            }
+
+            var safeFileNamePart = Path.GetFileNameWithoutExtension(file.FileName);
+            if (string.IsNullOrWhiteSpace(safeFileNamePart))
+            {
+                safeFileNamePart = "file";
+            }
+
+            var fileName = $"file_{conversationId}_{DateTime.UtcNow:yyyyMMddHHmmssfff}_{safeFileNamePart}{ext}";
+            var filePath = Path.Combine(uploadsRoot, fileName);
+
+            await using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+
+            var fileUrl = $"/uploads/files/{fileName}";
+            var contentType = file.ContentType ?? "application/octet-stream";
+            long fileSize = file.Length;
+
+            var messageDto = await _messagerieService.SaveFileMessageAsync(
+                conversationId,
+                sessionUserId.Value,
+                fileUrl,
+                file.FileName,
+                contentType,
+                fileSize
             );
 
             return new JsonResult(messageDto);

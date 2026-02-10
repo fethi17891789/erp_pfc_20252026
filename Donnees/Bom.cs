@@ -67,5 +67,11 @@ namespace Donnees
         /// </summary>
         [Column(TypeName = "decimal(18,2)")]
         public decimal PrixUnitaire { get; set; }
+
+        /// <summary>
+        /// Autres charges spécifiques à cette ligne de BOM.
+        /// </summary>
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal AutresCharges { get; set; } = 0m;
     }
 }

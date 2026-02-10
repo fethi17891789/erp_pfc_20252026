@@ -37,7 +37,7 @@
 
             <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 1-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
                 <span>Profils</span>
@@ -114,6 +114,9 @@
         <section class="erp-content">
             <div class="bom-create-form">
                 <form method="post">
+                    <!-- Affichage global des erreurs -->
+                    <div asp-validation-summary="All" class="text-danger" style="margin-bottom:12px;"></div>
+
                     <!-- PRODUIT PRINCIPAL -->
                     <div class="form-section">
                         <h2>Produit principal</h2>
@@ -133,10 +136,11 @@
                                 <div class="job-dropdown" id="ProduitList">
                                     @foreach (var produit in Model.Produits)
                                     {
+                                        var label = $"{produit.Nom} {produit.Reference}".ToLower();
                                         <div class="job-option"
                                              data-id="@produit.Id"
-                                             data-prix="@produit.PrixVente"
-                                             data-label="@($"{produit.Nom} {produit.Reference}".ToLower())">
+                                             data-cout-unitaire="@produit.CoutUnitairePourBom"
+                                             data-label="@label">
                                             @produit.Nom
                                             @if (!string.IsNullOrEmpty(produit.Reference))
                                             {
@@ -160,10 +164,11 @@
                         <table class="erp-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 50%;">Composant</th>
-                                    <th style="width: 20%;">Prix unitaire</th>
-                                    <th style="width: 20%;">Quantité</th>
-                                    <th style="width: 10%;"></th>
+                                    <th style="width: 40%;">Composant</th>
+                                    <th style="width: 18%;">Cout unitaire</th>
+                                    <th style="width: 18%;">Quantité</th>
+                                    <th style="width: 18%;">Autres charges</th>
+                                    <th style="width: 6%;"></th>
                                 </tr>
                             </thead>
                             <tbody id="bom-rows">
@@ -186,7 +191,7 @@
                                                             var label = $"{produit.Nom} {produit.Reference}".ToLower();
                                                             <div class="job-option"
                                                                  data-id="@produit.Id"
-                                                                 data-prix="@produit.PrixVente"
+                                                                 data-cout-unitaire="@produit.CoutUnitairePourBom"
                                                                  data-label="@label">
                                                                 @produit.Nom
                                                                 @if (!string.IsNullOrEmpty(produit.Reference))
@@ -212,7 +217,8 @@
                                                            type="number"
                                                            step="0.01"
                                                            min="0"
-                                                           value="@ligne.PrixUnitaire" />
+                                                           value="@(ligne.PrixUnitaire ?? 0)"
+                                                           readonly />
                                                 </div>
                                             </td>
                                             <td>
@@ -220,9 +226,19 @@
                                                     <input class="form-input-number"
                                                            name="Lignes[@ligne.Index].Quantite"
                                                            type="number"
-                                                           step="1"
+                                                           step="0.01"
                                                            min="0"
-                                                           value="@ligne.Quantite" />
+                                                           value="@(ligne.Quantite ?? 1)" />
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="form-group bom-inline-group">
+                                                    <input class="form-input-number"
+                                                           name="Lignes[@ligne.Index].AutresCharges"
+                                                           type="number"
+                                                           step="0.01"
+                                                           min="0"
+                                                           value="@(ligne.AutresCharges ?? 0)" />
                                                 </div>
                                             </td>
                                             <td class="table-actions-cell">
@@ -237,6 +253,16 @@
                                 }
                             </tbody>
                         </table>
+
+                        <!-- Coût BOM affiché de façon mise en valeur -->
+                        <div class="bom-total-card">
+                            <div class="bom-total-label">Coût BOM total (composants + autres charges)</div>
+                            <div class="bom-total-value">
+                                <input id="CoutBomDisplay" class="bom-total-input" type="number" step="0.01"
+                                       value="@Model.CoutBomCalcule.ToString("0.00")" readonly />
+                                <span class="bom-total-unit">DA</span>
+                            </div>
+                        </div>
 
                         <div class="table-add-row-bar">
                             <button type="button" id="btnAddRow" class="btn-icon">
@@ -271,7 +297,6 @@
                     <p style="margin-top:4px; font-size:0.85rem; color:rgba(148, 163, 184, 0.9);">
                         Quantités cumulées en tenant compte des composants des composants.
                     </p>
-
                     <div class="bom-tree">
                         @Model.RenderBomTree()
                     </div>
@@ -295,12 +320,13 @@
 </div>
 
 <script src="~/js/Home.js"></script>
+
 <script>
-    // Combobox PRODUIT
+    // Combobox PRODUIT principal
     (function () {
         const input = document.getElementById('ProduitInput');
         const dropdown = document.getElementById('ProduitList');
-               const hiddenId = document.getElementById('SelectedProduitId');
+        const hiddenId = document.getElementById('SelectedProduitId');
 
         if (!input || !dropdown || !hiddenId) return;
 
@@ -336,7 +362,9 @@
             }
 
             openDropdown();
-            hiddenId.value = '';
+            if (!term) {
+                hiddenId.value = '';
+            }
         }
 
         function selectOption(opt) {
@@ -362,6 +390,24 @@
         });
     })();
 
+    // Recalcul du coût BOM (somme prix * qte + autres charges)
+    function recalcCoutBom() {
+        const rows = document.querySelectorAll('#bom-rows tr[data-row-index]');
+        let total = 0;
+        rows.forEach(r => {
+            const prixInput = r.querySelector('input[name$=".PrixUnitaire"]');
+            const qteInput = r.querySelector('input[name$=".Quantite"]');
+            const chgInput = r.querySelector('input[name$=".AutresCharges"]');
+            if (!prixInput || !qteInput) return;
+            const prix = parseFloat((prixInput.value || "0").replace(',', '.')) || 0;
+            const qte = parseFloat((qteInput.value || "0").replace(',', '.')) || 0;
+            const chg = parseFloat((chgInput?.value || "0").replace(',', '.')) || 0;
+            total += prix * qte + chg;
+        });
+        const coutInput = document.getElementById('CoutBomDisplay');
+        if (coutInput) coutInput.value = total.toFixed(2);
+    }
+
     // Tableau des composants
     (function () {
         const btnAddRow = document.getElementById('btnAddRow');
@@ -375,13 +421,12 @@
             id: item.getAttribute('data-id'),
             label: item.textContent.trim(),
             dataLabel: item.getAttribute('data-label') || item.textContent.toLowerCase(),
-            prix: item.getAttribute('data-prix') || '0'
+            coutUnitaire: item.getAttribute('data-cout-unitaire') || '0'
         }));
 
         function createRow(index) {
             const tr = document.createElement('tr');
             tr.setAttribute('data-row-index', index);
-
             tr.innerHTML = `
                 <td>
                     <div class="job-input-wrapper">
@@ -394,7 +439,7 @@
                             ${produits.map(p => `
                                 <div class="job-option"
                                      data-id="${p.id}"
-                                     data-prix="${p.prix}"
+                                     data-cout-unitaire="${p.coutUnitaire}"
                                      data-label="${p.dataLabel}">
                                     ${p.label}
                                 </div>`).join('')}
@@ -410,7 +455,8 @@
                                type="number"
                                step="0.01"
                                min="0"
-                               value="0" />
+                               value="0"
+                               readonly />
                     </div>
                 </td>
                 <td>
@@ -418,9 +464,19 @@
                         <input class="form-input-number"
                                name="Lignes[${index}].Quantite"
                                type="number"
-                               step="1"
+                               step="0.01"
                                min="0"
                                value="1" />
+                    </div>
+                </td>
+                <td>
+                    <div class="form-group bom-inline-group">
+                        <input class="form-input-number"
+                               name="Lignes[${index}].AutresCharges"
+                               type="number"
+                               step="0.01"
+                               min="0"
+                               value="0" />
                     </div>
                 </td>
                 <td class="table-actions-cell">
@@ -434,6 +490,7 @@
 
             initRowCombo(tr);
             initRowRemove(tr);
+            initRowRecalc(tr);
 
             return tr;
         }
@@ -443,7 +500,6 @@
             const dropdown = row.querySelector('.bom-comp-dropdown');
             const hiddenId = row.querySelector('input[name$=".ComposantProduitId"]');
             const prixInput = row.querySelector('input[name$=".PrixUnitaire"]');
-
             if (!input || !dropdown || !hiddenId || !prixInput) return;
 
             const options = Array.from(dropdown.querySelectorAll('.job-option'));
@@ -479,15 +535,18 @@
                 }
 
                 openDropdown();
-                hiddenId.value = '';
+                if (!term) {
+                    hiddenId.value = '';
+                }
             }
 
             function selectOption(opt) {
                 input.value = opt.textContent.trim();
                 hiddenId.value = opt.getAttribute('data-id');
-                const prix = opt.getAttribute('data-prix');
-                prixInput.value = prix || '0';
+                const cout = opt.getAttribute('data-cout-unitaire');
+                prixInput.value = cout || '0';
                 closeDropdown();
+                recalcCoutBom();
             }
 
             input.addEventListener('focus', filterOptions);
@@ -507,10 +566,37 @@
             });
         }
 
+        function initRowRecalc(row) {
+            const qteInput = row.querySelector('input[name$=".Quantite"]');
+            const chgInput = row.querySelector('input[name$=".AutresCharges"]');
+            if (qteInput) qteInput.addEventListener('input', recalcCoutBom);
+            if (chgInput) chgInput.addEventListener('input', recalcCoutBom);
+        }
+
         function initRowRemove(row) {
             const btnRemove = row.querySelector('.btn-remove-row');
             if (!btnRemove) return;
-            btnRemove.addEventListener('click', () => row.remove());
+            btnRemove.addEventListener('click', () => {
+                row.remove();
+                reindexRows();
+                recalcCoutBom();
+            });
+        }
+
+        function reindexRows() {
+            const rows = Array.from(tbody.querySelectorAll('tr[data-row-index]'));
+            rows.forEach((r, idx) => {
+                r.setAttribute('data-row-index', idx);
+                const inputs = r.querySelectorAll('input[name^="Lignes["]');
+                inputs.forEach(input => {
+                    const oldName = input.getAttribute('name');
+                    const newName = oldName.replace(/Lignes\[\d+\]/, `Lignes[${idx}]`);
+                    input.setAttribute('name', newName);
+                });
+                const hiddenIndex = r.querySelector('input[name$=".Index"]');
+                if (hiddenIndex) hiddenIndex.value = idx;
+            });
+            rowIndex = rows.length;
         }
 
         const existingRows = Array.from(tbody.querySelectorAll('tr[data-row-index]'));
@@ -522,12 +608,16 @@
                 }
                 initRowCombo(r);
                 initRowRemove(r);
+                initRowRecalc(r);
             });
         }
+
+        recalcCoutBom();
 
         btnAddRow.addEventListener('click', () => {
             const tr = createRow(rowIndex++);
             tbody.appendChild(tr);
+            recalcCoutBom();
         });
     })();
 </script>
@@ -542,6 +632,69 @@
         .form-group input::placeholder {
             color: rgba(164, 167, 200, 0.5);
         }
+
+    .job-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .job-input {
+        width: 100%;
+        border-radius: var(--radius-lg);
+        border: 1.2px solid var(--border);
+        background: linear-gradient(135deg, rgba(8, 11, 32, 0.98), rgba(18, 22, 54, 0.98));
+        padding-right: 30px;
+    }
+
+    .job-input-icon {
+        position: absolute;
+        right: 10px;
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.7rem;
+        pointer-events: none;
+    }
+
+    .job-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        max-height: 220px;
+        overflow-y: auto;
+        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(30, 64, 175, 0.96));
+        border: 1px solid rgba(129, 140, 248, 0.5);
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+        padding: 6px;
+        display: none;
+        z-index: 40;
+    }
+
+        .job-dropdown.visible {
+            display: block;
+        }
+
+    .job-option {
+        padding: 6px 10px;
+        border-radius: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        font-size: 0.88rem;
+        color: #e5e7eb;
+    }
+
+        .job-option:hover {
+            background: linear-gradient(120deg, rgba(59, 130, 246, 0.16), rgba(59, 130, 246, 0.22));
+        }
+
+    .job-option-muted {
+        font-size: 0.8rem;
+        color: rgba(148, 163, 184, 0.9);
+    }
 
     .job-option-create {
         border-top: 1px solid rgba(255,255,255,0.08);
@@ -658,5 +811,46 @@
         margin-left: 4px;
         font-size: 0.8rem;
         color: #9ca3af;
+    }
+
+    .bom-total-card {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: radial-gradient(circle at 0 0, rgba(34,197,94,0.12), rgba(15,23,42,0.96));
+        border: 1px solid rgba(34,197,94,0.35);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .bom-total-label {
+        font-size: 0.9rem;
+        color: rgba(226, 232, 240, 0.9);
+        font-weight: 500;
+    }
+
+    .bom-total-value {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .bom-total-input {
+        width: 140px;
+        text-align: right;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #bbf7d0;
+        background: transparent;
+        border: none;
+        outline: none;
+    }
+
+    .bom-total-unit {
+        font-size: 0.9rem;
+        color: #86efac;
+        font-weight: 600;
     }
 </style>

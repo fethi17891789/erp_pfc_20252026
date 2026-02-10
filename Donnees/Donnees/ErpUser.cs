@@ -17,5 +17,8 @@ namespace Donnees
 
         // Nouveau : poste occupé dans l'entreprise
         public string Poste { get; set; } = string.Empty;
+
+        // Nouveau : statut de connexion (en ligne / hors ligne)
+        public bool IsOnline { get; set; } = false;
     }
 }

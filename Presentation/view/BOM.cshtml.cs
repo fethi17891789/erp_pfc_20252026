@@ -30,16 +30,20 @@ namespace erp_pfc_20252026.Pages.Fabrication
             public string VersionBom { get; set; } = string.Empty;
             public string CodeBom { get; set; } = string.Empty;
 
-            // Optionnel : Id de la BOM si tu veux y accéder directement
             public int? BomId { get; set; }
+
+            // Pour filtrer/afficher si besoin
+            public TypeTechniqueProduit TypeTechnique { get; set; }
         }
 
         public List<BomCardItem> BomItems { get; set; } = new();
 
         public async Task OnGetAsync(string? searchTerm)
         {
-            // 1) Tous les produits
-            var productsQuery = _context.Produits.AsNoTracking();
+            // 1) Tous les produits SAUF matières premières
+            var productsQuery = _context.Produits
+                .AsNoTracking()
+                .Where(p => p.TypeTechnique != TypeTechniqueProduit.MatierePremiere);
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -79,10 +83,10 @@ namespace erp_pfc_20252026.Pages.Fabrication
                         Prix = p.PrixVente,
                         Image = p.Image,
                         HasBom = hasBom,
-                        // Pour l’instant "v1" pour tous les produits qui ont une BOM
                         VersionBom = hasBom ? "v1" : string.Empty,
                         CodeBom = string.Empty,
-                        BomId = bomId
+                        BomId = bomId,
+                        TypeTechnique = p.TypeTechnique
                     };
                 })
                 .ToList();

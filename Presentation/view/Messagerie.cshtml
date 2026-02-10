@@ -19,7 +19,7 @@
         <nav class="erp-nav">
             <a asp-page="/Home" class="nav-item">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
                     <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
                 <span>Accueil</span>
@@ -157,22 +157,33 @@
                                     ? char.ToUpper(displayName[0]).ToString()
                                     : "U";
 
+                                    var statusText = u.IsOnline ? "En ligne" : "Hors ligne";
+                                    var statusClass = u.IsOnline ? "online" : "offline";
+
                                     <button type="button"
                                             class="user-item"
                                             data-user-id="@u.Id"
                                             data-login="@u.Login"
                                             data-email="@u.Email"
                                             data-poste="@u.Poste"
+                                            data-isonline="@u.IsOnline"
                                             style="width:100%; text-align:left; border:none; background:transparent; padding:6px 8px; border-radius:10px; display:flex; gap:8px; align-items:center; cursor:pointer;">
                                         <div style="width:28px; height:28px; border-radius:999px; background:linear-gradient(135deg, var(--accent), var(--accent-hover)); display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:700;">
                                             @initial
                                         </div>
                                         <div style="flex:1; min-width:0;">
-                                            <div style="font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                                @displayName
+                                            <div style="display:flex; align-items:center; gap:6px;">
+                                                <div style="font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                    @displayName
+                                                </div>
+                                                <span class="chat-user-status @statusClass">
+                                                </span>
                                             </div>
                                             <div style="font-size:0.75rem; color:var(--text-muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                                 @u.Email (@u.Poste)
+                                            </div>
+                                            <div class="chat-user-status-text @statusClass">
+                                                @statusText
                                             </div>
                                         </div>
                                     </button>
@@ -197,8 +208,9 @@
                             </div>
                             <div>
                                 <div style="font-size:0.9rem; font-weight:600;" id="chatTargetName">Aucun destinataire</div>
-                                <div style="font-size:0.75rem; color:var(--text-muted-2);" id="chatHeaderSubtitle">
-                                    Sélectionnez un utilisateur à gauche pour démarrer une conversation.
+                                <div style="display:flex; align-items:center; gap:6px; font-size:0.75rem; color:var(--text-muted-2);" id="chatHeaderSubtitle">
+                                    <span id="chatHeaderStatusDot" class="chat-header-status-dot offline"></span>
+                                    <span id="chatHeaderStatusText">Sélectionnez un utilisateur à gauche pour démarrer une conversation.</span>
                                 </div>
                             </div>
                         </div>
@@ -217,19 +229,39 @@
                     <!-- INPUT MESSAGE -->
                     <footer style="display:grid; grid-template-columns:auto auto 1fr auto; align-items:center; gap:8px; padding:6px 8px 4px; border-top:1px solid rgba(255,255,255,0.08);">
                         <div>
-                            <button type="button" style="border:none; background:transparent; color:var(--text-muted-2); font-size:1rem;" title="Envoyer un fichier">
-                                📎
+                            <!-- Bouton trombone moderne (remplace 📎) -->
+                            <button type="button"
+                                    id="btnAttachFile"
+                                    style="border:none; background:transparent; color:var(--text-muted-2); font-size:1.4rem; cursor:pointer; transition:transform 0.15s ease, color 0.15s ease; padding:6px; display:flex; align-items:center; justify-content:center; width:32px; height:32px;"
+                                    title="Envoyer un fichier"
+                                    onclick="console.log('CLICK HTML btnAttachFile'); this.style.transform='scale(1.1)'; setTimeout(() => this.style.transform='scale(1)', 150);">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px; height:18px;">
+                                    <path d="M21.44 11.05l-8.19 8.19a6 6 0 0 1-8.49-8.49l8.19-8.19a4 4 0 0 1 5.66 5.66l-8.19 8.19a2 2 0 0 1-2.83-2.83l8.19-8.19a4 4 0 0 1 5.66 0 4 4 0 0 1 0 5.66z" />
+                                </svg>
                             </button>
+                            <!-- input fichier caché -->
+                            <input type="file"
+                                   id="chatFileInput"
+                                   name="chatFile"
+                                   multiple
+                                   style="display:none;" />
                         </div>
-                        <!-- bouton micro -->
+
+                        <!-- Bouton micro moderne (remplace 🎤) -->
                         <div>
                             <button type="button"
                                     id="btnRecordAudio"
-                                    style="border:none; background:transparent; color:var(--text-muted-2); font-size:1.1rem;"
+                                    style="border:none; background:transparent; color:var(--text-muted-2); font-size:1.1rem; padding:6px; display:flex; align-items:center; justify-content:center; width:32px; height:32px; border-radius:50%; transition: all 0.2s ease;"
                                     title="Enregistrer un message vocal">
-                                🎤
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px; height:18px;">
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                    <line x1="12" y1="19" x2="12" y2="23" />
+                                    <line x1="8" y1="23" x2="16" y2="23" />
+                                </svg>
                             </button>
                         </div>
+
                         <div>
                             <input type="text"
                                    id="chatInput"
@@ -266,10 +298,26 @@
         <form method="post" asp-page-handler="Logout">
             <div class="logout-modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
-                <button type="submit" class="btn-primary">Oui, se déconnecter</button>
+                <button type="submit" class="btn-primary">Oui</button>
             </div>
         </form>
     </div>
+</div>
+
+<!-- OVERLAY POUR L'IMAGE EN GRAND -->
+<div id="chatImageOverlay" style="
+     display:none;
+     position:fixed;
+     inset:0;
+     background:rgba(0,0,0,0.8);
+     z-index:1000;
+     justify-content:center;
+     align-items:center;
+     cursor:pointer;">
+    <img id="chatImageOverlayImg"
+         src=""
+         alt="Image"
+         style="max-width:90%; max-height:90%; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.8);" />
 </div>
 
 <script src="/js/Home.js"></script>

@@ -629,60 +629,75 @@ button[type="submit"] {
         width: 12px;
         height: 12px;
     }
-/* ====== Styles communs BOM (toolbar + table) ====== */
-.bom-toolbar {
+/* ====== Cartes produits : taille fixe + ellipsis ====== */
+
+.product-card {
+    height: 140px;
+    min-height: 140px;
+    max-height: 140px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
     justify-content: space-between;
-    margin-bottom: 24px;
 }
 
-.bom-toolbar-center {
-    flex: 1;
+.product-card-header {
     display: flex;
-    justify-content: center;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0; /* important pour ellipsis dans flex */
 }
 
-.bom-create-container {
-    margin-left: 16px;
+.product-card-text {
+    flex: 1;
+    min-width: 0; /* permet à text-overflow de fonctionner */
 }
 
-.bom-create-link {
-    display: inline-flex;
+.product-card-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+    color: var(--text);
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.product-card-subtitle {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.product-card-price {
+    display: flex;
     align-items: center;
-    gap: 6px;
-    padding-inline: 16px;
-    text-decoration: none;
-}
-
-.bom-card {
-    margin-top: 8px;
-    padding: 16px;
-    border-radius: 16px;
-    background: rgba(4, 6, 20, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.bom-table {
-    width: 100%;
-    border-collapse: collapse;
+    gap: 4px;
     font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--accent);
 }
 
-    .bom-table thead tr {
-        text-align: left;
-        color: var(--text-muted);
-        font-size: 0.75rem;
-    }
+.product-card-price-label {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.78rem;
+}
 
-    .bom-table th,
-    .bom-table td {
-        padding: 8px 6px;
+/* Responsive léger pour écrans bas */
+@media (max-height: 750px) {
+    .product-card {
+        height: 130px;
+        min-height: 130px;
+        max-height: 130px;
     }
+}
 
-    .bom-table tbody tr {
-        border-top: 1px solid rgba(255, 255, 255, 0.04);
-    }
 /* ====== Toast succès produit ====== */
 .toast-success {
     position: fixed;
@@ -725,6 +740,7 @@ button[type="submit"] {
     cursor: pointer;
     padding: 0 2px;
 }
+
 /* ====== Styles pour la zone drag & drop (ajoutés pour ton upload) ====== */
 .drop-zone {
     width: 100%;
@@ -799,71 +815,51 @@ button[type="submit"] {
     }
 }
 
-/* ====== Cartes produits : taille fixe + ellipsis ====== */
+/* ====== BADGES STATUT EN LIGNE / HORS LIGNE ====== */
 
-.product-card {
-    height: 140px;
-    min-height: 140px;
-    max-height: 140px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+.chat-user-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    display: inline-block;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35);
 }
 
-.product-card-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    min-width: 0; /* important pour ellipsis dans flex */
-}
-
-.product-card-text {
-    flex: 1;
-    min-width: 0; /* permet à text-overflow de fonctionner */
-}
-
-.product-card-title {
-    font-weight: 700;
-    font-size: 0.95rem;
-    margin-bottom: 4px;
-    color: var(--text);
-    line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-}
-
-.product-card-subtitle {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-    margin-bottom: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-}
-
-.product-card-price {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: var(--accent);
-}
-
-.product-card-price-label {
-    color: var(--text-muted);
-    font-weight: 500;
-    font-size: 0.78rem;
-}
-
-/* Responsive léger pour écrans bas */
-@media (max-height: 750px) {
-    .product-card {
-        height: 130px;
-        min-height: 130px;
-        max-height: 130px;
+    .chat-user-status.online {
+        background: #22c55e; /* vert */
+        box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.35), 0 0 8px rgba(34, 197, 94, 0.7);
     }
+
+    .chat-user-status.offline {
+        background: #6b7280; /* gris */
+    }
+
+.chat-user-status-text {
+    font-size: 0.7rem;
+    margin-top: 2px;
 }
+
+    .chat-user-status-text.online {
+        color: #86efac; /* vert clair */
+    }
+
+    .chat-user-status-text.offline {
+        color: var(--text-muted-2);
+    }
+
+/* Dot dans le header de la conversation */
+.chat-header-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    display: inline-block;
+}
+
+    .chat-header-status-dot.online {
+        background: #22c55e;
+        box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
+    }
+
+    .chat-header-status-dot.offline {
+        background: #6b7280;
+    }

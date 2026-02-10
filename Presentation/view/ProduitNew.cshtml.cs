@@ -1,3 +1,4 @@
+// Fichier : Presentation/view/ProduitNew.cshtml.cs
 using System;
 using System.Globalization;
 using System.IO;
@@ -62,9 +63,9 @@ namespace erp_pfc_20252026.Pages
                 Console.WriteLine("[DEBUG] ProduitNew.OnGetAsync - mode CREATION");
                 NouveauProduit = new Produit();
 
-                if (!string.IsNullOrWhiteSpace(InitialName))
+                if (!string.IsNullOrWhiteSpace(name))
                 {
-                    NouveauProduit.Nom = InitialName;
+                    NouveauProduit.Nom = name;
                 }
 
                 NouveauProduit.QuantiteDisponible = 0m;
@@ -97,23 +98,80 @@ namespace erp_pfc_20252026.Pages
             var barcodeValue = Request.Form["Barcode"].ToString();
             var productTypeValue = Request.Form["ProductType"].ToString();
             var salePriceValue = Request.Form["SalePrice"].ToString();
-            var costValue = Request.Form["Cost"].ToString();
+            var costValueRaw = Request.Form["Cost"].ToString();
             var commentValue = Request.Form["Comment"].ToString();
             var isSaleableValue = Request.Form["IsSaleable"].ToString();
             var trackInvValue = Request.Form["TrackInventory"].ToString();
             var availableQtyValue = Request.Form["AvailableQuantity"].ToString();
+
+            // Champs techniques
+            var typeTechniqueRaw = Request.Form["TypeTechnique"].ToString();
+            var coutAutresRaw = Request.Form["CoutAutresCharges"].ToString();
+            var coutBomRaw = Request.Form["CoutBom"].ToString();
+            var coutTotalRaw = Request.Form["CoutTotal"].ToString();
 
             NouveauProduit.Nom = productNameValue;
             NouveauProduit.Reference = referenceValue;
             NouveauProduit.CodeBarres = barcodeValue;
             NouveauProduit.Type = string.IsNullOrWhiteSpace(productTypeValue) ? "Bien" : productTypeValue;
 
-            NouveauProduit.PrixVente = ParseDecimalFromForm(salePriceValue);
-            NouveauProduit.Cout = ParseDecimalFromForm(costValue);
+            // Type technique (0=MP, 1=SemiFini, 2=Fini, 3=SemiFiniEtFini)
+            if (!int.TryParse(typeTechniqueRaw, out var typeTecInt))
+                typeTecInt = 0;
+            NouveauProduit.TypeTechnique = (TypeTechniqueProduit)typeTecInt;
+
+            // Prix de vente
+            var parsedSalePrice = ParseDecimalFromForm(salePriceValue);
+
+            // MP ou Semi-fini -> prix de vente forcé à 0
+            if (NouveauProduit.TypeTechnique == TypeTechniqueProduit.SemiFini
+                || NouveauProduit.TypeTechnique == TypeTechniqueProduit.MatierePremiere)
+            {
+                NouveauProduit.PrixVente = 0m;
+            }
+            else
+            {
+                NouveauProduit.PrixVente = parsedSalePrice;
+            }
+
+            // Coût d'achat de base :
+            // si le champ est "none" (SF / Fini / SF+Fini), on force à 0.
+            decimal parsedCost = 0m;
+            if (!string.IsNullOrWhiteSpace(costValueRaw) &&
+                !string.Equals(costValueRaw.Trim(), "none", StringComparison.OrdinalIgnoreCase))
+            {
+                parsedCost = ParseDecimalFromForm(costValueRaw);
+            }
+
+            // Coûts selon le type technique
+            if (NouveauProduit.TypeTechnique == TypeTechniqueProduit.MatierePremiere)
+            {
+                // Matière première : on garde le coût d'achat saisi
+                NouveauProduit.Cout = parsedCost;
+                NouveauProduit.CoutAchat = parsedCost;
+                // CoutBom vient du formulaire (souvent 0 pour MP)
+                NouveauProduit.CoutBom = ParseDecimalFromForm(coutBomRaw);
+            }
+            else
+            {
+                // Semi-fini, Fini ou les deux : CoutAchat et CoutBom forcés à 0
+                NouveauProduit.Cout = 0m;
+                NouveauProduit.CoutAchat = 0m;
+                NouveauProduit.CoutBom = 0m;
+            }
+
             NouveauProduit.QuantiteDisponible = ParseDecimalFromForm(availableQtyValue);
 
-            NouveauProduit.DisponibleVente = !string.IsNullOrEmpty(isSaleableValue) && (isSaleableValue == "on" || isSaleableValue == "true");
-            NouveauProduit.SuiviInventaire = !string.IsNullOrEmpty(trackInvValue) && (trackInvValue == "on" || trackInvValue == "true");
+            // Autres charges (toujours 0 via le champ caché)
+            NouveauProduit.CoutAutresCharges = ParseDecimalFromForm(coutAutresRaw);
+
+            // CoutTotal vient UNIQUEMENT du formulaire, pas de recalcul
+            NouveauProduit.CoutTotal = ParseDecimalFromForm(coutTotalRaw);
+
+            NouveauProduit.DisponibleVente = !string.IsNullOrEmpty(isSaleableValue) &&
+                                             (isSaleableValue == "on" || isSaleableValue == "true");
+            NouveauProduit.SuiviInventaire = !string.IsNullOrEmpty(trackInvValue) &&
+                                             (trackInvValue == "on" || trackInvValue == "true");
             NouveauProduit.Notes = string.IsNullOrWhiteSpace(commentValue) ? null : commentValue;
 
             if (string.IsNullOrWhiteSpace(NouveauProduit.Nom))
@@ -152,22 +210,27 @@ namespace erp_pfc_20252026.Pages
                     existing.Type = NouveauProduit.Type;
                     existing.PrixVente = NouveauProduit.PrixVente;
                     existing.Cout = NouveauProduit.Cout;
+                    existing.QuantiteDisponible = NouveauProduit.QuantiteDisponible;
                     existing.DisponibleVente = NouveauProduit.DisponibleVente;
                     existing.SuiviInventaire = NouveauProduit.SuiviInventaire;
                     existing.Notes = NouveauProduit.Notes;
-                    existing.QuantiteDisponible = NouveauProduit.QuantiteDisponible;
+
+                    existing.TypeTechnique = NouveauProduit.TypeTechnique;
+                    existing.CoutAchat = NouveauProduit.CoutAchat;
+                    existing.CoutAutresCharges = NouveauProduit.CoutAutresCharges;
+                    existing.CoutBom = NouveauProduit.CoutBom;
+                    existing.CoutTotal = NouveauProduit.CoutTotal;
 
                     if (ProductImage != null && ProductImage.Length > 0)
                     {
                         var fileName = await SaveProductImageAsync(ProductImage);
                         existing.Image = fileName;
-                        Console.WriteLine($"[DEBUG] ProduitNew.OnPost - nouvelle image enregistrée : {fileName}");
+                        Console.WriteLine($"[DEBUG] ProduitNew.OnPost - nouvelle image enregistrée {fileName}");
                     }
 
                     await _context.SaveChangesAsync();
-                    SuccessMessage = $"Produit '{existing.Nom}' mis à jour avec succès (ID = {existing.Id}).";
+                    SuccessMessage = $"Produit {existing.Nom} mis à jour avec succès (ID {existing.Id}).";
                     NouveauProduit = existing;
-
                     return Page();
                 }
                 else
@@ -190,7 +253,7 @@ namespace erp_pfc_20252026.Pages
                     {
                         var fileName = await SaveProductImageAsync(ProductImage);
                         NouveauProduit.Image = fileName;
-                        Console.WriteLine($"[DEBUG] ProduitNew.OnPost - image enregistrée : {fileName}");
+                        Console.WriteLine($"[DEBUG] ProduitNew.OnPost - image enregistrée {fileName}");
                     }
 
                     _context.Produits.Add(NouveauProduit);
@@ -204,19 +267,13 @@ namespace erp_pfc_20252026.Pages
                             BomTarget.Equals("row", StringComparison.OrdinalIgnoreCase) &&
                             BomRowIndex.HasValue)
                         {
-                            return RedirectToPage("/BOMCreate", new
-                            {
-                                fromComponentId = NouveauProduit.Id,
-                                rowIndex = BomRowIndex.Value
-                            });
+                            return RedirectToPage("BOMCreate", new { fromComponentId = NouveauProduit.Id, rowIndex = BomRowIndex.Value });
                         }
 
-                        return RedirectToPage("/BOMCreate", new { fromProductId = NouveauProduit.Id });
+                        return RedirectToPage("BOMCreate", new { fromProductId = NouveauProduit.Id });
                     }
 
-                    SuccessMessage = $"Produit '{NouveauProduit.Nom}' créé avec succès (ID = {NouveauProduit.Id}).";
-
-                    // RESTER sur la page après création pour voir la pastille verte de création
+                    SuccessMessage = $"Produit {NouveauProduit.Nom} créé avec succès (ID {NouveauProduit.Id}).";
                     return Page();
                 }
             }
@@ -224,9 +281,8 @@ namespace erp_pfc_20252026.Pages
             {
                 Console.WriteLine($"[DEBUG] Erreur lors de l'enregistrement : {ex}");
                 ErrorMessage = $"Erreur lors de l'enregistrement : {ex.Message}";
+                return Page();
             }
-
-            return Page();
         }
 
         private decimal ParseDecimalFromForm(string raw)
@@ -235,17 +291,10 @@ namespace erp_pfc_20252026.Pages
                 return 0m;
 
             var normalized = raw.Replace(',', '.').Trim();
-
-            if (decimal.TryParse(
-                    normalized,
-                    NumberStyles.Any,
-                    CultureInfo.InvariantCulture,
-                    out var value))
-            {
+            if (decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
                 return value;
-            }
 
-            Console.WriteLine($"[DEBUG] ParseDecimalFromForm - échec de parse pour valeur '{raw}' (normalisée '{normalized}'), valeur forcée à 0.");
+            Console.WriteLine($"[DEBUG] ParseDecimalFromForm - échec de parse pour valeur '{raw}', normalisée '{normalized}', valeur forcée à 0.");
             return 0m;
         }
 
@@ -253,21 +302,17 @@ namespace erp_pfc_20252026.Pages
         {
             var uploadsFolder = Path.Combine(_env.WebRootPath, "images", "produits");
             if (!Directory.Exists(uploadsFolder))
-            {
                 Directory.CreateDirectory(uploadsFolder);
-            }
 
             var ext = Path.GetExtension(file.FileName);
             if (string.IsNullOrWhiteSpace(ext))
                 ext = ".png";
 
-            var uniqueName = $"prod_{Guid.NewGuid():N}{ext}";
+            var uniqueName = "prod_" + Guid.NewGuid().ToString("N") + ext;
             var filePath = Path.Combine(uploadsFolder, uniqueName);
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
-            {
-                await file.CopyToAsync(stream);
-            }
+            using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
 
             return uniqueName;
         }

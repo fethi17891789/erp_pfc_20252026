@@ -5,7 +5,7 @@ using Donnees;
 using Metier;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using Microsoft.AspNetCore.Http; // pour SessionExtensions si besoin
+using Microsoft.AspNetCore.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +34,6 @@ builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
 
     if (string.IsNullOrWhiteSpace(conn))
     {
-        // Connexion neutre tant que l'utilisateur n'a pas configuré la BDD
         conn = "Host=localhost;Port=5432;Database=postgres;Username=openpg;Password=faux";
     }
 
@@ -44,13 +43,13 @@ builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
 // Service métier (Global)
 builder.Services.AddScoped<BDDService>();
 
-// --- Service de Messagerie ---
+// Messagerie
 builder.Services.AddScoped<Metier.Messagerie.MessagerieService>();
 
 // SignalR
 builder.Services.AddSignalR();
 
-// ********** AJOUT : SESSION **********
+// SESSION
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
 {
@@ -59,11 +58,10 @@ builder.Services.AddSession(options =>
     options.Cookie.HttpOnly = true;
     options.Cookie.IsEssential = true;
 });
-// **************************************
 
 var app = builder.Build();
 
-// ********** CHARGER LA CONFIG APRES Build(), AVEC LE VRAI ServiceProvider **********
+// Charger la config après Build()
 using (var scope = app.Services.CreateScope())
 {
     var sp = scope.ServiceProvider;
@@ -76,10 +74,8 @@ using (var scope = app.Services.CreateScope())
     var dynamicProvider = sp.GetRequiredService<DynamicConnectionProvider>();
     dynamicProvider.CurrentConnectionString = savedConfig.ConnectionString;
 }
-// *****************************************************************************
 
-
-// ---------- 1. CREATION AUTOMATIQUE DE LA TABLE "Produits" S'IL LE FAUT ----------
+// ---------- 1. CREATION / MISE À JOUR TABLE "Produits" ----------
 using (var scope = app.Services.CreateScope())
 {
     try
@@ -102,37 +98,104 @@ using (var scope = app.Services.CreateScope())
                       AND table_name = 'Produits'
                 );";
 
+            bool exists;
             using (var checkCmd = new NpgsqlCommand(checkSql, conn))
             {
                 var existsObj = checkCmd.ExecuteScalar();
-                var exists = existsObj is bool b && b;
+                exists = existsObj is bool b && b;
+            }
 
-                Console.WriteLine($"[DEBUG] Table Produits existe déjà ? {exists}");
+            Console.WriteLine($"[DEBUG] Table Produits existe déjà ? {exists}");
 
-                if (!exists)
-                {
-                    const string createSql = @"
-                        CREATE TABLE ""Produits"" (
-                            ""Id"" SERIAL PRIMARY KEY,
-                            ""Nom"" VARCHAR(100) NOT NULL,
-                            ""Reference"" VARCHAR(50),
-                            ""CodeBarres"" VARCHAR(50),
-                            ""Type"" VARCHAR(20) NOT NULL DEFAULT 'Bien',
-                            ""PrixVente"" NUMERIC(18,2) NOT NULL DEFAULT 0,
-                            ""Cout"" NUMERIC(18,2) NOT NULL DEFAULT 0,
-                            ""DisponibleVente"" BOOLEAN NOT NULL DEFAULT TRUE,
-                            ""SuiviInventaire"" BOOLEAN NOT NULL DEFAULT TRUE,
-                            ""Image"" VARCHAR(255),
-                            ""Notes"" VARCHAR(500),
-                            ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
-                            CONSTRAINT ""UQ_Produits_Reference"" UNIQUE (""Reference"")
-                        );";
+            if (!exists)
+            {
+                const string createSql = @"
+                    CREATE TABLE ""Produits"" (
+                        ""Id"" SERIAL PRIMARY KEY,
+                        ""Nom"" VARCHAR(100) NOT NULL,
+                        ""Reference"" VARCHAR(50),
+                        ""CodeBarres"" VARCHAR(50),
+                        ""Type"" VARCHAR(20) NOT NULL DEFAULT 'Bien',
+                        ""PrixVente"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        ""Cout"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        ""QuantiteDisponible"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        ""DisponibleVente"" BOOLEAN NOT NULL DEFAULT TRUE,
+                        ""SuiviInventaire"" BOOLEAN NOT NULL DEFAULT TRUE,
+                        ""Image"" VARCHAR(255),
+                        ""Notes"" VARCHAR(500),
+                        ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                        ""TypeTechnique"" INT NOT NULL DEFAULT 0,
+                        ""CoutAchat"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        ""CoutAutresCharges"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        ""CoutBom"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        ""CoutTotal"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        CONSTRAINT ""UQ_Produits_Reference"" UNIQUE (""Reference"")
+                    );";
 
-                    Console.WriteLine("[DEBUG] Création de la table Produits...");
-                    using var createTableCmd = new NpgsqlCommand(createSql, conn);
-                    createTableCmd.ExecuteNonQuery();
-                    Console.WriteLine("[DEBUG] Table Produits créée.");
-                }
+                Console.WriteLine("[DEBUG] Création de la table Produits...");
+                using var createTableCmd = new NpgsqlCommand(createSql, conn);
+                createTableCmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Table Produits créée.");
+            }
+            else
+            {
+                // ALTER TABLE pour ajouter les colonnes manquantes
+                const string alterSql = @"
+DO $$
+BEGIN
+    -- QuantiteDisponible
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Produits' AND column_name = 'QuantiteDisponible'
+    ) THEN
+        ALTER TABLE ""Produits"" ADD COLUMN ""QuantiteDisponible"" NUMERIC(18,2) NOT NULL DEFAULT 0;
+    END IF;
+
+    -- TypeTechnique
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Produits' AND column_name = 'TypeTechnique'
+    ) THEN
+        ALTER TABLE ""Produits"" ADD COLUMN ""TypeTechnique"" INT NOT NULL DEFAULT 0;
+    END IF;
+
+    -- CoutAchat
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Produits' AND column_name = 'CoutAchat'
+    ) THEN
+        ALTER TABLE ""Produits"" ADD COLUMN ""CoutAchat"" NUMERIC(18,2) NOT NULL DEFAULT 0;
+    END IF;
+
+    -- CoutAutresCharges
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Produits' AND column_name = 'CoutAutresCharges'
+    ) THEN
+        ALTER TABLE ""Produits"" ADD COLUMN ""CoutAutresCharges"" NUMERIC(18,2) NOT NULL DEFAULT 0;
+    END IF;
+
+    -- CoutBom
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Produits' AND column_name = 'CoutBom'
+    ) THEN
+        ALTER TABLE ""Produits"" ADD COLUMN ""CoutBom"" NUMERIC(18,2) NOT NULL DEFAULT 0;
+    END IF;
+
+    -- CoutTotal
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Produits' AND column_name = 'CoutTotal'
+    ) THEN
+        ALTER TABLE ""Produits"" ADD COLUMN ""CoutTotal"" NUMERIC(18,2) NOT NULL DEFAULT 0;
+    END IF;
+END $$;";
+
+                Console.WriteLine("[DEBUG] ALTER TABLE Produits pour colonnes de coût...");
+                using var alterCmd = new NpgsqlCommand(alterSql, conn);
+                alterCmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Colonnes de coût Produits OK.");
             }
         }
         else
@@ -142,7 +205,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"Erreur lors de la création auto de la table Produits : {ex}");
+        Console.WriteLine($"Erreur lors de la création/MAJ auto de la table Produits : {ex}");
     }
 }
 // ------------------------------------------------------------------------------
@@ -226,6 +289,7 @@ using (var scope2 = app.Services.CreateScope())
                         ""ComposantProduitId"" INT NOT NULL,
                         ""Quantite"" NUMERIC(18,4) NOT NULL DEFAULT 1,
                         ""PrixUnitaire"" NUMERIC(18,2) NOT NULL DEFAULT 0,
+                        ""AutresCharges"" NUMERIC(18,2) NOT NULL DEFAULT 0,
                         CONSTRAINT ""FK_BomLignes_Boms_BomId""
                             FOREIGN KEY (""BomId"") REFERENCES ""Boms""(""Id"")
                             ON DELETE CASCADE,
@@ -240,6 +304,26 @@ using (var scope2 = app.Services.CreateScope())
                     createCmd.ExecuteNonQuery();
                     Console.WriteLine("[DEBUG] Table BomLignes créée.");
                 }
+            }
+            else
+            {
+                // Ajout de la colonne AutresCharges si elle manque
+                const string alterBomLignesSql = @"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'BomLignes'
+          AND column_name = 'AutresCharges'
+    ) THEN
+        ALTER TABLE ""BomLignes""
+        ADD COLUMN ""AutresCharges"" NUMERIC(18,2) NOT NULL DEFAULT 0;
+    END IF;
+END $$;";
+                using var alterBomLignesCmd = new NpgsqlCommand(alterBomLignesSql, conn);
+                alterBomLignesCmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Colonne AutresCharges BomLignes OK.");
             }
         }
         else
@@ -347,18 +431,14 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// ********** AJOUT : SESSION DANS LE PIPELINE **********
 app.UseSession();
-// ******************************************************
 
 app.UseAuthorization();
 
 app.MapRazorPages();
 
-// MAPPING DU HUB SIGNALR
 app.MapHub<Metier.Messagerie.ChatHub>("/chathub");
 
-// Lancer le navigateur automatiquement
 OpenBrowser(appUrl);
 
 app.Run();
@@ -376,6 +456,5 @@ static void OpenBrowser(string url)
     }
     catch
     {
-        // On ignore les erreurs de lancement du navigateur
     }
 }

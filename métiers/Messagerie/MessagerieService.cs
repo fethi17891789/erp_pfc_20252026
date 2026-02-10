@@ -34,7 +34,7 @@ namespace Metier.Messagerie
 
         /// <summary>
         /// Crée ou récupère une conversation DIRECTE entre deux utilisateurs,
-        /// puis retourne l'historique (N derniers messages).
+        /// puis retourne l'historique (N derniers messages), avec le statut de lecture.
         /// </summary>
         public async Task<ConversationDto> GetOrCreateDirectConversationAsync(
             int currentUserId,
@@ -120,12 +120,25 @@ namespace Metier.Messagerie
                 conversationId = (int)(newIdObj ?? 0);
             }
 
-            // 4) Charger les derniers messages (texte + audio)
+            // 4) Charger les derniers messages (texte + audio + fichiers)
+            //    avec calcul du statut de lecture par l'autre utilisateur
             var messages = new List<ChatMessageDto>();
 
             const string getMsgSql = @"
-                SELECT m.""Id"", m.""SenderId"", m.""Content"", m.""Timestamp"", m.""MessageType"",
-                       a.""FileUrl""
+                SELECT
+                    m.""Id"",
+                    m.""SenderId"",
+                    m.""Content"",
+                    m.""Timestamp"",
+                    m.""MessageType"",
+                    a.""FileUrl"",
+                    -- TRUE si l'autre utilisateur (otherUserId) a lu ce message
+                    EXISTS (
+                        SELECT 1
+                        FROM ""MessageReadStates"" r
+                        WHERE r.""MessageId"" = m.""Id""
+                          AND r.""UserId"" = @otherUserId
+                    ) AS ""IsReadByOther""
                 FROM ""Messages"" m
                 LEFT JOIN ""MessageAttachments"" a ON a.""MessageId"" = m.""Id""
                 WHERE m.""ConversationId"" = @convId
@@ -136,6 +149,7 @@ namespace Metier.Messagerie
             {
                 msgCmd.Parameters.AddWithValue("convId", conversationId);
                 msgCmd.Parameters.AddWithValue("limit", maxMessages);
+                msgCmd.Parameters.AddWithValue("otherUserId", otherUserId);
 
                 await using var reader = await msgCmd.ExecuteReaderAsync();
                 var temp = new List<ChatMessageDto>();
@@ -148,20 +162,22 @@ namespace Metier.Messagerie
                     var ts = reader.GetDateTime(3);
                     var messageType = reader.IsDBNull(4) ? "text" : reader.GetString(4);
                     var attachmentUrl = reader.IsDBNull(5) ? null : reader.GetString(5);
+                    var isReadByOther = reader.GetBoolean(6);
 
                     temp.Add(new ChatMessageDto
                     {
+                        Id = messageId,
                         ConversationId = conversationId,
                         SenderId = senderId,
                         SenderName = GetUserName(senderId),
                         Content = content,
                         Timestamp = ts,
                         MessageType = messageType,
-                        AttachmentUrl = attachmentUrl
+                        AttachmentUrl = attachmentUrl,
+                        IsReadByOther = isReadByOther
                     });
                 }
 
-                // Inverser pour avoir ancien -> récent
                 temp.Reverse();
                 messages = temp;
             }
@@ -234,8 +250,9 @@ namespace Metier.Messagerie
                     (""ConversationId"", ""SenderId"", ""Content"", ""Timestamp"", ""MessageType"", ""IsEdited"", ""IsDeleted"")
                 VALUES
                     (@convId, @senderId, @content, NOW(), 'text', FALSE, FALSE)
-                RETURNING ""Timestamp"";";
+                RETURNING ""Id"", ""Timestamp"";";
 
+            int messageId;
             DateTime ts;
             await using (var cmd = new NpgsqlCommand(insertSql, conn))
             {
@@ -243,19 +260,29 @@ namespace Metier.Messagerie
                 cmd.Parameters.AddWithValue("senderId", senderId);
                 cmd.Parameters.AddWithValue("content", content);
 
-                var obj = await cmd.ExecuteScalarAsync();
-                ts = (DateTime)(obj ?? DateTime.UtcNow);
+                await using var readerMsg = await cmd.ExecuteReaderAsync();
+                if (await readerMsg.ReadAsync())
+                {
+                    messageId = readerMsg.GetInt32(0);
+                    ts = readerMsg.GetDateTime(1);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Échec d'insertion du message texte.");
+                }
             }
 
             return new ChatMessageDto
             {
+                Id = messageId,
                 ConversationId = conversationId,
                 SenderId = senderId,
                 SenderName = senderName,
                 Content = content,
                 Timestamp = ts,
                 MessageType = "text",
-                AttachmentUrl = null
+                AttachmentUrl = null,
+                IsReadByOther = false
             };
         }
 
@@ -358,14 +385,179 @@ namespace Metier.Messagerie
 
             return new ChatMessageDto
             {
+                Id = messageId,
                 ConversationId = conversationId,
                 SenderId = senderId,
                 SenderName = senderName,
                 Content = "[message audio]",
                 Timestamp = ts,
                 MessageType = "audio",
-                AttachmentUrl = fileUrl
+                AttachmentUrl = fileUrl,
+                IsReadByOther = false
             };
+        }
+
+        /// <summary>
+        /// Enregistre un message avec pièce jointe (MessageType = 'file' ou 'image').
+        /// </summary>
+        public async Task<ChatMessageDto> SaveFileMessageAsync(
+            int conversationId,
+            int senderId,
+            string fileUrl,
+            string originalFileName,
+            string contentType,
+            long fileSizeBytes)
+        {
+            if (conversationId <= 0) throw new ArgumentException("conversationId invalide");
+            if (senderId <= 0) throw new ArgumentException("senderId invalide");
+            if (string.IsNullOrWhiteSpace(fileUrl)) throw new ArgumentException("fileUrl vide");
+
+            var connString = GetConnectionString();
+            await using var conn = new NpgsqlConnection(connString);
+            await conn.OpenAsync();
+
+            // Vérifier que la conversation existe
+            const string checkConvSql = @"SELECT COUNT(1) FROM ""Conversations"" WHERE ""Id"" = @cid;";
+            await using (var checkCmd = new NpgsqlCommand(checkConvSql, conn))
+            {
+                checkCmd.Parameters.AddWithValue("cid", conversationId);
+                var countObj = await checkCmd.ExecuteScalarAsync();
+                var count = (long)(countObj ?? 0);
+                if (count == 0)
+                    throw new InvalidOperationException("Conversation introuvable.");
+            }
+
+            // Récupérer le nom de l'utilisateur
+            string senderName;
+            const string userSql = @"
+                SELECT ""Login"", ""Email""
+                FROM ""ErpUsers""
+                WHERE ""Id"" = @sid;";
+
+            await using (var userCmd = new NpgsqlCommand(userSql, conn))
+            {
+                userCmd.Parameters.AddWithValue("sid", senderId);
+
+                await using var reader = await userCmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    var login = reader.IsDBNull(0) ? string.Empty : reader.GetString(0);
+                    var email = reader.IsDBNull(1) ? string.Empty : reader.GetString(1);
+                    if (!string.IsNullOrWhiteSpace(login))
+                        senderName = login;
+                    else if (!string.IsNullOrWhiteSpace(email))
+                        senderName = email;
+                    else
+                        senderName = $"User {senderId}";
+                }
+                else
+                {
+                    senderName = $"User {senderId}";
+                }
+            }
+
+            var lowerContentType = (contentType ?? "").ToLowerInvariant();
+            string messageType;
+            if (lowerContentType.StartsWith("image/"))
+            {
+                messageType = "image";
+            }
+            else
+            {
+                messageType = "file";
+            }
+
+            var displayContent = messageType == "image"
+                ? "[image]"
+                : originalFileName ?? "[fichier]";
+
+            // 1) Insérer le message
+            const string insertMsgSql = @"
+                INSERT INTO ""Messages""
+                    (""ConversationId"", ""SenderId"", ""Content"", ""Timestamp"", ""MessageType"", ""IsEdited"", ""IsDeleted"")
+                VALUES
+                    (@convId, @senderId, @content, NOW(), @msgType, FALSE, FALSE)
+                RETURNING ""Id"", ""Timestamp"";";
+
+            int messageId;
+            DateTime ts;
+            await using (var cmd = new NpgsqlCommand(insertMsgSql, conn))
+            {
+                cmd.Parameters.AddWithValue("convId", conversationId);
+                cmd.Parameters.AddWithValue("senderId", senderId);
+                cmd.Parameters.AddWithValue("content", displayContent);
+                cmd.Parameters.AddWithValue("msgType", messageType);
+
+                await using var readerMsg = await cmd.ExecuteReaderAsync();
+                if (await readerMsg.ReadAsync())
+                {
+                    messageId = readerMsg.GetInt32(0);
+                    ts = readerMsg.GetDateTime(1);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Échec d'insertion du message fichier.");
+                }
+            }
+
+            // 2) Insérer l'attachement dans MessageAttachments
+            const string insertAttachSql = @"
+                INSERT INTO ""MessageAttachments""
+                    (""MessageId"", ""AttachmentType"", ""FileName"", ""FileUrl"", ""FileSizeBytes"")
+                VALUES
+                    (@mid, @type, @fname, @furl, @fsize);";
+
+            await using (var attachCmd = new NpgsqlCommand(insertAttachSql, conn))
+            {
+                attachCmd.Parameters.AddWithValue("mid", messageId);
+                attachCmd.Parameters.AddWithValue("type", messageType);
+                attachCmd.Parameters.AddWithValue("fname", originalFileName ?? System.IO.Path.GetFileName(fileUrl));
+                attachCmd.Parameters.AddWithValue("furl", fileUrl);
+                attachCmd.Parameters.AddWithValue("fsize", fileSizeBytes);
+                await attachCmd.ExecuteNonQueryAsync();
+            }
+
+            return new ChatMessageDto
+            {
+                Id = messageId,
+                ConversationId = conversationId,
+                SenderId = senderId,
+                SenderName = senderName,
+                Content = displayContent,
+                Timestamp = ts,
+                MessageType = messageType,
+                AttachmentUrl = fileUrl,
+                IsReadByOther = false
+            };
+        }
+
+        /// <summary>
+        /// Marque tous les messages de la conversation comme lus par un utilisateur.
+        /// </summary>
+        public async Task MarkMessagesAsReadAsync(int conversationId, int readerUserId)
+        {
+            if (conversationId <= 0) throw new ArgumentException("conversationId invalide");
+            if (readerUserId <= 0) throw new ArgumentException("readerUserId invalide");
+
+            var connString = GetConnectionString();
+            await using var conn = new NpgsqlConnection(connString);
+            await conn.OpenAsync();
+
+            const string insertSql = @"
+                INSERT INTO ""MessageReadStates"" (""MessageId"", ""UserId"", ""ReadAt"")
+                SELECT m.""Id"", @uid, NOW()
+                FROM ""Messages"" m
+                LEFT JOIN ""MessageReadStates"" r
+                    ON r.""MessageId"" = m.""Id"" AND r.""UserId"" = @uid
+                WHERE m.""ConversationId"" = @convId
+                  AND m.""SenderId"" <> @uid
+                  AND r.""Id"" IS NULL;";
+
+            await using var cmd = new NpgsqlCommand(insertSql, conn);
+            cmd.Parameters.AddWithValue("uid", readerUserId);
+            cmd.Parameters.AddWithValue("convId", conversationId);
+
+            await cmd.ExecuteNonQueryAsync();
         }
     }
 }

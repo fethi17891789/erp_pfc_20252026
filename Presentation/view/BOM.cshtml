@@ -18,7 +18,7 @@
         <nav class="erp-nav">
             <a asp-page="/Home" class="nav-item">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
                     <polyline points="9 22 9 12 15 12 15 22" />
                 </svg>
                 <span>Accueil</span>
@@ -135,27 +135,29 @@
                  style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; max-height:70vh; overflow-y:auto; padding-right:8px;">
                 @if (Model.BomItems != null && Model.BomItems.Any())
                 {
+                    @* Les matières premières sont déjà exclues côté C#, mais on pourrait re-filtrer par sécurité :
+                      @foreach (var item in Model.BomItems.Where(x => x.TypeTechnique != Donnees.TypeTechniqueProduit.MatierePremiere))
+                    *@
                     @foreach (var item in Model.BomItems)
                     {
-                        <!-- On envoie toujours le produit, et éventuellement bomId si tu l’ajoutes plus tard -->
                         <a asp-page="/BOMCreate"
                            asp-route-fromProductId="@item.ProduitId"
                            style="text-decoration:none; color:inherit;">
                             <div class="form-group product-item" style="margin:0; position:relative; cursor:pointer;">
                                 <div class="product-card"
                                      style="
-                                                padding:12px 12px;
-                                                background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
-                                                border:1px solid var(--border-soft);
-                                                border-radius:var(--radius-sm);
-                                                display:flex;
-                                                flex-direction:column;
-                                                gap:8px;
-                                                transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                                           box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                                           transform 80ms ease-out,
-                                                           background 140ms cubic-bezier(0.2,0.8,0.2,1);
-                                             "
+                                                        padding:12px 12px;
+                                                        background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
+                                                        border:1px solid var(--border-soft);
+                                                        border-radius:var(--radius-sm);
+                                                        display:flex;
+                                                        flex-direction:column;
+                                                        gap:8px;
+                                                        transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1),
+                                                                   box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1),
+                                                                   transform 80ms ease-out,
+                                                                   background 140ms cubic-bezier(0.2,0.8,0.2,1);
+                                                     "
                                      onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                                      onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
 
@@ -191,11 +193,11 @@
                                                 @if (item.HasBom)
                                                 {
                                                     <span style="
-                                                                    display:inline-flex; align-items:center; gap:4px;
-                                                                    padding:4px 8px; border-radius:99px;
-                                                                    background:rgba(16, 185, 129, 0.15);
-                                                                    border:1px solid rgba(16, 185, 129, 0.3);
-                                                                    color:#34d399; font-size:0.7rem; font-weight:700; text-transform:uppercase;">
+                                                                                display:inline-flex; align-items:center; gap:4px;
+                                                                                padding:4px 8px; border-radius:99px;
+                                                                                background:rgba(16, 185, 129, 0.15);
+                                                                                border:1px solid rgba(16, 185, 129, 0.3);
+                                                                                color:#34d399; font-size:0.7rem; font-weight:700; text-transform:uppercase;">
                                                         <span style="width:6px; height:6px; border-radius:50%; background:#34d399; box-shadow:0 0 8px #34d399;"></span>
                                                         Active @item.VersionBom
                                                     </span>
@@ -203,11 +205,11 @@
                                                 else
                                                 {
                                                     <span style="
-                                                                    display:inline-flex; align-items:center; gap:4px;
-                                                                    padding:4px 8px; border-radius:99px;
-                                                                    background:rgba(239, 68, 68, 0.15);
-                                                                    border:1px solid rgba(239, 68, 68, 0.3);
-                                                                    color:#f87171; font-size:0.7rem; font-weight:700; text-transform:uppercase;">
+                                                                                display:inline-flex; align-items:center; gap:4px;
+                                                                                padding:4px 8px; border-radius:99px;
+                                                                                background:rgba(239, 68, 68, 0.15);
+                                                                                border:1px solid rgba(239, 68, 68, 0.3);
+                                                                                color:#f87171; font-size:0.7rem; font-weight:700; text-transform:uppercase;">
                                                         <span style="width:6px; height:6px; border-radius:50%; background:#f87171;"></span>
                                                         Pas de BOM
                                                     </span>
@@ -224,7 +226,7 @@
                 {
                     <div style="grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text-muted);">
                         <div style="font-size:1.1rem; font-weight:600;">Aucun produit trouvé</div>
-                        <p>Ajoutez des produits avant de créer des nomenclatures.</p>
+                        <p>Ajoutez des produits (hors matières premières) avant de créer des nomenclatures.</p>
                     </div>
                 }
             </div>
