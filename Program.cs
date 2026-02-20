@@ -46,6 +46,9 @@ builder.Services.AddScoped<BDDService>();
 // Messagerie
 builder.Services.AddScoped<Metier.Messagerie.MessagerieService>();
 
+// MRP
+builder.Services.AddScoped<Metier.MRP.MRPConfigService>();
+
 // SignalR
 builder.Services.AddSignalR();
 
@@ -416,6 +419,50 @@ using (var scope3 = app.Services.CreateScope())
     catch (Exception ex)
     {
         Console.WriteLine($"Erreur lors de la création auto des tables Messagerie : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
+// ---------- 4. CREATION AUTOMATIQUE TABLE MRP CONFIG MODULE ----------
+using (var scope4 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope4.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        Console.WriteLine($"[DEBUG] Connexion utilisée pour MRPConfigModules : {connString}");
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createMrpConfigTableSql = @"
+                CREATE TABLE IF NOT EXISTS ""MRPConfigModules"" (
+                    ""IdConfig""                SERIAL PRIMARY KEY,
+                    ""HorizonParDefautJours""   INT NOT NULL,
+                    ""DateCreation""            TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                    ""DateDerniereModification"" TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                    ""CreeParUserId""           INT NULL,
+                    ""ModifieParUserId""        INT NULL
+                );";
+
+            using (var cmd = new NpgsqlCommand(createMrpConfigTableSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création de la table MRPConfigModules...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Table MRPConfigModules prête.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("[DEBUG] Connexion vide, aucune création de table MRPConfigModules.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto de la table MRPConfigModules : {ex}");
     }
 }
 // --------------------------------------------------------------------
