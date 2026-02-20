@@ -467,6 +467,117 @@ using (var scope4 = app.Services.CreateScope())
 }
 // --------------------------------------------------------------------
 
+// ---------- 5. CREATION AUTOMATIQUE TABLES MRPPLAN / MRPPLANLIGNES ----------
+using (var scope5 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope5.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        Console.WriteLine($"[DEBUG] Connexion utilisée pour MRPPlans : {connString}");
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            // Table MRPPlans
+            const string checkMrpPlansSql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'MRPPlans'
+                );";
+
+            bool mrpPlansExists;
+            using (var checkCmd = new NpgsqlCommand(checkMrpPlansSql, conn))
+            {
+                var existsObj = checkCmd.ExecuteScalar();
+                mrpPlansExists = existsObj is bool b && b;
+            }
+
+            Console.WriteLine($"[DEBUG] Table MRPPlans existe déjà ? {mrpPlansExists}");
+
+            if (!mrpPlansExists)
+            {
+                const string createMrpPlansSql = @"
+                    CREATE TABLE ""MRPPlans"" (
+                        ""Id"" SERIAL PRIMARY KEY,
+                        ""Reference"" VARCHAR(50) NOT NULL,
+                        ""DateCreation"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+                        ""DateDebutHorizon"" TIMESTAMP WITH TIME ZONE NOT NULL,
+                        ""DateFinHorizon"" TIMESTAMP WITH TIME ZONE NOT NULL,
+                        ""HorizonJours"" INT NOT NULL,
+                        ""Statut"" VARCHAR(30) NOT NULL DEFAULT 'Brouillon',
+                        ""TypePlan"" VARCHAR(30),
+                        ""Commentaire"" VARCHAR(500),
+                        CONSTRAINT ""UQ_MRPPlans_Reference"" UNIQUE (""Reference"")
+                    );";
+
+                Console.WriteLine("[DEBUG] Création de la table MRPPlans...");
+                using var createTableCmd = new NpgsqlCommand(createMrpPlansSql, conn);
+                createTableCmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Table MRPPlans créée.");
+            }
+
+            // Table MRPPlanLignes
+            const string checkMrpPlanLignesSql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'MRPPlanLignes'
+                );";
+
+            bool mrpPlanLignesExists;
+            using (var checkCmd = new NpgsqlCommand(checkMrpPlanLignesSql, conn))
+            {
+                var existsObj = checkCmd.ExecuteScalar();
+                mrpPlanLignesExists = existsObj is bool b && b;
+            }
+
+            Console.WriteLine($"[DEBUG] Table MRPPlanLignes existe déjà ? {mrpPlanLignesExists}");
+
+            if (!mrpPlanLignesExists)
+            {
+                const string createMrpPlanLignesSql = @"
+                    CREATE TABLE ""MRPPlanLignes"" (
+                        ""Id"" SERIAL PRIMARY KEY,
+                        ""MRPPlanId"" INT NOT NULL,
+                        ""ProduitId"" INT NOT NULL,
+                        ""TypeProduit"" VARCHAR(20) NOT NULL,
+                        ""DateBesoin"" TIMESTAMP WITH TIME ZONE NOT NULL,
+                        ""QuantiteBesoin"" NUMERIC(18,2) NOT NULL,
+                        ""StockDisponible"" NUMERIC(18,2) NOT NULL,
+                        ""QuantiteALancer"" NUMERIC(18,2) NOT NULL,
+                        CONSTRAINT ""FK_MRPPlanLignes_MRPPlans_MRPPlanId""
+                            FOREIGN KEY (""MRPPlanId"") REFERENCES ""MRPPlans""(""Id"")
+                            ON DELETE CASCADE,
+                        CONSTRAINT ""FK_MRPPlanLignes_Produits_ProduitId""
+                            FOREIGN KEY (""ProduitId"") REFERENCES ""Produits""(""Id"")
+                            ON DELETE RESTRICT
+                    );";
+
+                Console.WriteLine("[DEBUG] Création de la table MRPPlanLignes...");
+                using var createTableCmd2 = new NpgsqlCommand(createMrpPlanLignesSql, conn);
+                createTableCmd2.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Table MRPPlanLignes créée.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("[DEBUG] Connexion vide, aucune création de tables MRPPlans.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto des tables MRPPlans : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");

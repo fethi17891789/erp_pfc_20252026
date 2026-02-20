@@ -11,8 +11,133 @@
 <link rel="stylesheet" href="~/css/Fabrication.css" />
 <link rel="stylesheet" href="~/css/Common.css" />
 
+<style>
+    .mrp-ref-tooltip {
+        position: absolute;
+        left: 0;
+        bottom: 110%;
+        padding: 6px 10px;
+        border-radius: var(--radius-md);
+        background: radial-gradient(circle at top left, rgba(123, 94, 255, 0.35), transparent 60%), linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98));
+        border: 1px solid rgba(148, 163, 253, 0.6);
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.95);
+        color: #e5e7eb;
+        font-size: 0.78rem;
+        white-space: nowrap;
+        opacity: 0;
+        transform: translateY(4px) scale(0.98);
+        pointer-events: none;
+        transition: opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 40;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+        .mrp-ref-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 12px;
+            border-width: 6px;
+            border-style: solid;
+            border-color: rgba(15, 23, 42, 0.98) transparent transparent transparent;
+            filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.8));
+        }
+
+    .mrp-ref-wrapper {
+        position: relative;
+        max-width: 90px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--accent);
+    }
+
+        .mrp-ref-wrapper span {
+            cursor: default;
+        }
+
+        .mrp-ref-wrapper:hover .mrp-ref-tooltip {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+    /* Tooltip style repris de ProduitNew */
+    .cost-disabled-tooltip {
+        position: absolute;
+        bottom: 110%;
+        left: 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: var(--radius-md);
+        background: radial-gradient(circle at top left, rgba(123, 94, 255, 0.35), transparent 60%), linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98));
+        border: 1px solid rgba(148, 163, 253, 0.6);
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.95);
+        color: #e5e7eb;
+        font-size: 0.78rem;
+        max-width: 280px;
+        opacity: 0;
+        transform: translateY(4px) scale(0.98);
+        pointer-events: none;
+        transition: opacity 0.16s cubic-bezier(0.16, 1, 0.3, 1), transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+        z-index: 40;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+    }
+
+        .cost-disabled-tooltip::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 16px;
+            border-width: 7px;
+            border-style: solid;
+            border-color: rgba(15, 23, 42, 0.98) transparent transparent transparent;
+            filter: drop-shadow(0 4px 6px rgba(15, 23, 42, 0.8));
+        }
+
+    .cost-disabled-tooltip-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        background: radial-gradient(circle at 30% 30%, #facc15, #eab308);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #111827;
+        font-size: 0.7rem;
+        font-weight: 800;
+        box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.35), 0 0 16px rgba(250, 204, 21, 0.8);
+        flex-shrink: 0;
+    }
+
+    .cost-disabled-tooltip-text {
+        line-height: 1.4;
+        color: #c7d2fe;
+    }
+
+        .cost-disabled-tooltip-text span {
+            display: block;
+        }
+
+        .cost-disabled-tooltip-text .tooltip-title {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #e5e7eb;
+            margin-bottom: 2px;
+        }
+
+        .cost-disabled-tooltip-text .tooltip-sub {
+            font-size: 0.78rem;
+            color: #a5b4fc;
+        }
+</style>
+
 <div class="erp-shell">
-    <!-- BARRE LATERALE GAUCHE -->
     <aside class="erp-sidebar">
         <div class="erp-logo">
             <span class="erp-logo-mark">E</span>
@@ -22,7 +147,7 @@
         <nav class="erp-nav">
             <a asp-page="/Home" class="nav-item">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
                     <polyline points="9 22 9 12 15 12 15 22"></polyline>
                 </svg>
                 <span>Accueil</span>
@@ -35,7 +160,7 @@
             </button>
             <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 1-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
                 </svg>
                 <span>Profils</span>
@@ -56,7 +181,7 @@
                     <path d="M19 5l-4.24 4.24M5 19l4.24-4.24"></path>
                     <path d="M19 19l-4.24-4.24M5 5l4.24 4.24"></path>
                 </svg>
-                <span>Paramètres</span>
+                <span>Parametres</span>
             </button>
         </nav>
 
@@ -74,18 +199,16 @@
                     <polyline points="16 3 16 10 13 7"></polyline>
                     <path d="M16 10v7a2 2 0 0 1-2 2h-2"></path>
                 </svg>
-                Déconnexion
+                Deconnexion
             </button>
         </div>
     </aside>
 
-    <!-- CONTENU PRINCIPAL -->
     <main class="erp-main">
-        <!-- HEADER GLOBAL -->
         <header class="erp-header">
             <div class="header-left">
                 <h1>Module MRP</h1>
-                <p>Planification des besoins matières (MRP).</p>
+                <p>Planification des besoins matieres (MRP).</p>
             </div>
 
             <div class="header-right">
@@ -94,11 +217,10 @@
                     <span class="header-db-name">erp_db</span>
                 </div>
 
-                <!-- Bouton Config MRP -->
                 <a asp-page="/MRPConfig" class="header-btn" title="Configurer le module MRP" style="margin-right: 8px;">
                     <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1 1 0 0 0 .2 1.1l0 0a2 2 0 1 1-2.83 2.83l0 0a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v0a1 1 0 0 0-.7-.9 1 1 0 0 0-1.1.2l0 0a2 2 0 1 1-2.83-2.83l0 0a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h0a1 1 0 0 0 .9-.7 1 1 0 0 0-.2-1.1l0 0A2 2 0 1 1 7.53 5.4l0 0a1 1 0 0 0 1.1.2H9a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v0a1 1 0 0 0 .7.9 1 1 0 0 0 1.1-.2l0 0A2 2 0 1 1 18.6 8.2l0 0a1 1 0 0 0-.2 1.1V9a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h0a1 1 0 0 0-.9.6z"></path>
+                        <path d="M19.4 15a1 1 0 0 0 .2 1.1l0 0a2 2 0 1 1-2.83 2.83l0 0a1 1 0 0 0-1.1-.2 1 1 0 0 0-.6.9V20a2 2 0 0 1-4 0v0a1 1 0 0 0-.7-.9 1 1 0 0 0-1.1.2l0 0a2 2 0 1 1-2.83-2.83l0 0a1 1 0 0 0 .2-1.1 1 1 0 0 0-.9-.6H4a2 2 0 0 1 0-4h0a1 1 0 0 0 .9-.7 1 1 0 0 1-.2-1.1l0 0A2 2 0 1 1 7.53 5.4l0 0a1 1 0 0 0 1.1.2H9a1 1 0 0 0 .6-.9V4a2 2 0 0 1 4 0v0a1 1 0 0 0 .7.9 1 1 0 0 0 1.1-.2l0 0A2 2 0 1 1 18.6 8.2l0 0a1 1 0 0 0-.2 1.1V9a1 1 0 0 0 .9.6H20a2 2 0 0 1 0 4h0a1 1 0 0 0-.9.6z"></path>
                     </svg>
                     Config MRP
                 </a>
@@ -118,9 +240,7 @@
             </div>
         </header>
 
-        <!-- CONTENU MRP -->
         <section class="erp-content">
-            <!-- Toolbar -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
                 <div style="flex:1; display:flex; justify-content:center;">
                     <div class="job-input-wrapper" style="max-width:420px; width:100%;">
@@ -147,11 +267,9 @@
                 </div>
             </div>
 
-            <!-- GRILLE DES PLANIFICATIONS -->
             <div id="mrpPlansContainer"
                  style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:16px; max-height:70vh; overflow-y:auto; padding-right:8px;">
 
-                <!-- EMPTY STATE -->
                 <div style="grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text-muted);">
                     <div style="display:inline-flex; align-items:center; justify-content:center; width:72px; height:72px; border-radius:24px; background:rgba(15,23,42,0.9); border:1px solid rgba(148,163,184,0.35); margin-bottom:20px; box-shadow:0 18px 40px rgba(15,23,42,0.7);">
                         <svg viewBox="0 0 24 24"
@@ -170,7 +288,7 @@
                         Aucune planification
                     </div>
                     <div style="font-size:0.95rem; margin-bottom:24px;">
-                        Commence par créer une nouvelle planification MRP.
+                        Commence par creer une nouvelle planification MRP.
                     </div>
                     <button type="button"
                             class="btn-secondary"
@@ -180,24 +298,10 @@
                     </button>
                 </div>
 
-                <!-- CARTES FACTICES DE PLANIFICATIONS -->
-                <!-- Planif 1 -->
-                <div class="mrp-plan-item" data-ref="MRP-0001" data-status="Brouillon" style="margin:0;">
+                <div class="mrp-plan-item" data-ref="MRP-0001" data-status="Brouillon" style="margin:0%;">
                     <a asp-page="/MRPDetail" asp-route-id="1" style="text-decoration:none; color:inherit;">
                         <div class="product-card"
-                             style="
-                                 padding:12px 12px;
-                                 background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
-                                 border:1px solid var(--border-soft);
-                                 border-radius:var(--radius-sm);
-                                 display:flex;
-                                 flex-direction:column;
-                                 gap:6px;
-                                 transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                            box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                            transform 80ms ease-out,
-                                            background 140ms cubic-bezier(0.2,0.8,0.2,1);
-                             "
+                             style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
                              onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                              onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -205,7 +309,7 @@
                                     MRP-0001
                                 </div>
                                 <div style="font-size:0.75rem; color:var(--text-muted);">
-                                    13/02/2026 → 14/03/2026
+                                    13/02/2026 -> 14/03/2026
                                 </div>
                             </div>
                             <div style="font-size:0.9rem; font-weight:600; color:var(--text);">
@@ -223,23 +327,10 @@
                     </a>
                 </div>
 
-                <!-- Planif 2 -->
-                <div class="mrp-plan-item" data-ref="MRP-0002" data-status="Sauvegardee" style="margin:0;">
+                <div class="mrp-plan-item" data-ref="MRP-0002" data-status="Sauvegardee" style="margin:0%;">
                     <a asp-page="/MRPDetail" asp-route-id="2" style="text-decoration:none; color:inherit;">
                         <div class="product-card"
-                             style="
-                                 padding:12px 12px;
-                                 background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
-                                 border:1px solid var(--border-soft);
-                                 border-radius:var(--radius-sm);
-                                 display:flex;
-                                 flex-direction:column;
-                                 gap:6px;
-                                 transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                            box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                            transform 80ms ease-out,
-                                            background 140ms cubic-bezier(0.2,0.8,0.2,1);
-                             "
+                             style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
                              onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                              onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -247,7 +338,7 @@
                                     MRP-0002
                                 </div>
                                 <div style="font-size:0.75rem; color:var(--text-muted);">
-                                    10/02/2026 → 24/02/2026
+                                    10/02/2026 -> 24/02/2026
                                 </div>
                             </div>
                             <div style="font-size:0.9rem; font-weight:600; color:var(--text);">
@@ -258,30 +349,17 @@
                             </div>
                             <div style="margin-top:4px;">
                                 <span style="font-size:0.75rem; padding:3px 8px; border-radius:999px; background:rgba(34,197,94,0.15); color:#22c55e;">
-                                    Sauvegardée
+                                    Sauvegardee
                                 </span>
                             </div>
                         </div>
                     </a>
                 </div>
 
-                <!-- Planif 3 -->
-                <div class="mrp-plan-item" data-ref="MRP-TEST" data-status="Annulee" style="margin:0;">
+                <div class="mrp-plan-item" data-ref="MRP-TEST" data-status="Annulee" style="margin:0%;">
                     <a asp-page="/MRPDetail" asp-route-id="3" style="text-decoration:none; color:inherit;">
                         <div class="product-card"
-                             style="
-                                 padding:12px 12px;
-                                 background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
-                                 border:1px solid var(--border-soft);
-                                 border-radius:var(--radius-sm);
-                                 display:flex;
-                                 flex-direction:column;
-                                 gap:6px;
-                                 transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                            box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                            transform 80ms ease-out,
-                                            background 140ms cubic-bezier(0.2,0.8,0.2,1);
-                             "
+                             style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
                              onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                              onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -289,7 +367,7 @@
                                     MRP-TEST
                                 </div>
                                 <div style="font-size:0.75rem; color:var(--text-muted);">
-                                    05/02/2026 → 12/02/2026
+                                    05/02/2026 -> 12/02/2026
                                 </div>
                             </div>
                             <div style="font-size:0.9rem; font-weight:600; color:var(--text);">
@@ -300,28 +378,137 @@
                             </div>
                             <div style="margin-top:4px;">
                                 <span style="font-size:0.75rem; padding:3px 8px; border-radius:999px; background:rgba(248,113,113,0.15); color:#f97373;">
-                                    Annulée (test)
+                                    Annulee (test)
                                 </span>
                             </div>
                         </div>
                     </a>
                 </div>
 
+                @* Cartes reelles venant de la base *@
+                @foreach (var plan in Model.Plans)
+                {
+                    var statusAttr = (Model.GetPlanStatusLabel(plan.Statut) ?? "Brouillon");
+                    var fullRef = plan.Reference ?? "";
+                    var shortRef = fullRef.Length > 8 ? (fullRef.Substring(0, 8) + "...") : fullRef;
+                    <div class="mrp-plan-item"
+                         data-ref="@plan.Reference"
+                         data-status="@statusAttr"
+                         style="margin:0%;">
+                        <a asp-page="/MRPDetail"
+                           asp-route-id="@plan.Id"
+                           style="text-decoration:none; color:inherit;">
+                            <div class="product-card"
+                                 style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
+                                 onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
+                                 onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div class="mrp-ref-wrapper">
+                                        <span>@shortRef</span>
+                                        @if (fullRef.Length > 8)
+                                        {
+                                            <span class="mrp-ref-tooltip">
+                                                @fullRef
+                                            </span>
+                                        }
+                                    </div>
+                                    <div style="font-size:0.75rem; color:var(--text-muted);">
+                                        @Model.FormatDateRange(plan.DateDebutHorizon, plan.DateFinHorizon)
+                                    </div>
+                                </div>
+                                <div style="font-size:0.9rem; font-weight:600; color:var(--text);">
+                                    Horizon @plan.HorizonJours jours
+                                </div>
+                                <div style="font-size:0.8rem; color:var(--text-muted);">
+                                    Plan MRP sauvegarde
+                                </div>
+                                <div style="margin-top:4px;">
+                                    <span style="font-size:0.75rem; padding:3px 8px; border-radius:999px; background:rgba(56,189,248,0.15); color:#38bdf8;">
+                                        @statusAttr
+                                    </span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                }
+
             </div>
         </section>
     </main>
 </div>
 
-<!-- POPUP DE NOUVELLE PLANIFICATION MRP -->
 <div id="mrp-plan-overlay" class="logout-overlay" style="display:none;">
-    <div class="logout-modal" style="max-width: 520px;">
+    <div class="logout-modal" style="max-width: 620px;">
         <h3>Nouvelle planification MRP</h3>
-        <p>Choisis l’horizon de planification et continue vers l’écran de planification.</p>
+        <p>Choisis l'horizon de planification et les produits a inclure.</p>
+
+        <!-- Message d'erreur MRP style ProduitNew -->
+        <div id="mrp-product-error-tooltip-wrapper" style="position:relative; margin-bottom:4px; display:none;">
+            <div id="mrp-product-error-tooltip"
+                 class="cost-disabled-tooltip"
+                 style="position:relative; bottom:auto; left:auto; opacity:1; transform:none; pointer-events:auto; max-width:none;">
+                <div class="cost-disabled-tooltip-icon">!</div>
+                <div class="cost-disabled-tooltip-text">
+                    <span class="tooltip-title" id="mrp-product-error-title">
+                        Produit non planifiable
+                    </span>
+                    <span class="tooltip-sub" id="mrp-product-error-sub">
+                        Ce produit ne peut pas etre ajoute a la planification MRP.
+                    </span>
+                </div>
+            </div>
+        </div>
 
         <form method="get" asp-page="/MRPDetail" class="logout-modal-actions" style="flex-direction:column; gap:16px; align-items:stretch;">
             <div class="form-group">
                 <label for="horizonJours">Horizon de planification (jours)</label>
                 <input id="horizonJours" name="horizonJours" type="number" min="1" max="365" class="input-primary" value="30" />
+            </div>
+
+            <div class="form-group">
+                <label for="productSearch">Produits a planifier</label>
+
+                <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px;">
+                    Seuls les <span style="color:#38bdf8;">produits finis</span> (types techniques 2, 3 ou 4) peuvent etre selectionnes directement.
+                    Les semi-finis et matieres premieres seront planifies automatiquement via les nomenclatures.
+                </div>
+
+                <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+                    <div class="job-input-wrapper" style="flex:1;">
+                        <input type="text"
+                               id="productSearch"
+                               class="job-input"
+                               placeholder="Rechercher un produit par nom ou reference..."
+                               onkeyup="filterProductSuggestions(this.value)" />
+                        <span class="job-input-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;">
+                                <circle cx="11" cy="11" r="6"></circle>
+                                <line x1="16" y1="16" x2="20" y2="20"></line>
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+
+                <div id="productSuggestions"
+                     style="max-height:160px; overflow-y:auto; border:1px solid var(--border-soft); border-radius:8px; padding:4px 0; background:rgba(15,23,42,0.98); margin-bottom:8px;">
+                    <div id="productSuggestionsEmptyGlobal"
+                         style="padding:4px 10px; font-size:0.8rem; color:var(--text-muted); display:none;">
+                        Aucun produit n'a encore ete cree dans le systeme.
+                    </div>
+                    <div id="productSuggestionsEmptySearch"
+                         style="padding:4px 10px; font-size:0.8rem; color:var(--text-muted); display:none;">
+                        Aucun produit ne correspond a ta recherche.
+                    </div>
+                </div>
+
+                <div id="selectedProductsContainer"
+                     style="display:flex; flex-wrap:wrap; gap:6px; padding:8px; border-radius:8px; border:1px dashed var(--border-soft); background:rgba(15,23,42,0.7);">
+                    <span style="font-size:0.8rem; color:var(--text-muted);" id="selectedProductsPlaceholder">
+                        Aucun produit selectionne pour l'instant.
+                    </span>
+                </div>
+
+                <input type="hidden" id="selectedProductIds" name="selectedProductIds" />
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:8px;">
@@ -332,22 +519,49 @@
     </div>
 </div>
 
-<!-- POPUP DE DÉCONNEXION -->
 <div id="logout-overlay" class="logout-overlay" style="display:none;">
     <div class="logout-modal">
-        <h3>Confirmer la déconnexion</h3>
-        <p>Voulez-vous vraiment vous déconnecter et revenir à l'écran de choix du profil&nbsp;?</p>
+        <h3>Confirmer la deconnexion</h3>
+        <p>Voulez-vous vraiment vous deconnecter et revenir a l'ecran de choix du profil&nbsp;?</p>
 
         <form method="post" asp-page-handler="Logout" class="logout-modal-actions">
             <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
-            <button type="submit" class="btn-primary">Oui, se déconnecter</button>
+            <button type="submit" class="btn-primary">Oui, se deconnecter</button>
         </form>
     </div>
 </div>
 
 <script>
-    function openNewMrpPlanModal() {
+    let allProducts = @Html.Raw(Model.ProductsJson ?? "[]");
+    let selectedProductIds = [];
+
+    async function openNewMrpPlanModal() {
         document.getElementById('mrp-plan-overlay').style.display = 'flex';
+        hideMrpProductError();
+        await refreshProductsFromServer();
+        selectedProductIds = [];
+        updateSelectedProductsUI();
+
+        const input = document.getElementById('productSearch');
+        if (input) {
+            input.value = "";
+            input.focus();
+        }
+        renderProductSuggestions("");
+    }
+
+    async function refreshProductsFromServer() {
+        try {
+            const response = await fetch('?handler=RefreshProducts');
+            if (!response.ok) {
+                console.error('Erreur lors du chargement des produits:', response.statusText);
+                return;
+            }
+            const products = await response.json();
+            allProducts = products;
+        } catch (error) {
+            console.error('Erreur lors du rafraichissement des produits:', error);
+        }
     }
 
     function closeNewMrpPlanModal() {
@@ -368,6 +582,311 @@
                 item.style.display = 'none';
             }
         });
+    }
+
+    function filterProductSuggestions(term) {
+        hideMrpProductError();
+        renderProductSuggestions(term || "");
+    }
+
+    function renderProductSuggestions(term) {
+        const container = document.getElementById('productSuggestions');
+        const emptyGlobal = document.getElementById('productSuggestionsEmptyGlobal');
+        const emptySearch = document.getElementById('productSuggestionsEmptySearch');
+
+        container.querySelectorAll('button[data-product-id]').forEach(btn => btn.remove());
+
+        const hasProducts = allProducts && allProducts.length > 0;
+        const lower = (term || "").toLowerCase();
+
+        if (!hasProducts) {
+            if (emptyGlobal) emptyGlobal.style.display = "";
+            if (emptySearch) emptySearch.style.display = "none";
+            return;
+        }
+
+        const currentSelected = selectedProductIds.map(x => Number(x));
+
+        const filtered = allProducts
+            .filter(p => !currentSelected.includes(Number(p.id)))
+            .filter(p =>
+                !lower ||
+                (p.nom && p.nom.toLowerCase().includes(lower)) ||
+                (p.reference && p.reference.toLowerCase().includes(lower))
+            )
+            .slice(0, 30);
+
+        if (!lower) {
+            if (emptyGlobal) emptyGlobal.style.display = "none";
+            if (emptySearch) emptySearch.style.display = "none";
+            return;
+        }
+
+        if (filtered.length === 0) {
+            if (emptyGlobal) emptyGlobal.style.display = "none";
+            if (emptySearch) emptySearch.style.display = "";
+            return;
+        }
+
+        if (emptyGlobal) emptyGlobal.style.display = "none";
+        if (emptySearch) emptySearch.style.display = "none";
+
+        filtered.forEach(p => {
+            const idNum = Number(p.id);
+            const isFinished = (p.type === 2 || p.type === 3 || p.type === 4);
+            const isRaw = (p.type === 0);
+            const isSemi = (p.type === 1);
+            const hasBom = !!p.hasBom;
+
+            const item = document.createElement('button');
+            item.type = "button";
+            item.setAttribute("data-product-id", idNum.toString());
+            item.style.display = "flex";
+            item.style.width = "100%";
+            item.style.justifyContent = "space-between";
+            item.style.alignItems = "center";
+            item.style.textAlign = "left";
+            item.style.padding = "6px 10px";
+            item.style.border = "none";
+            item.style.background = "transparent";
+            item.style.fontSize = "0.85rem";
+            item.style.cursor = "pointer";
+            item.style.color = "var(--text)";
+
+            item.onmouseover = () => { item.style.background = "rgba(148,163,184,0.15)"; };
+            item.onmouseout = () => { item.style.background = "transparent"; };
+
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = p.nom;
+
+            const iconWrapper = document.createElement('span');
+            iconWrapper.style.display = "inline-flex";
+            iconWrapper.style.alignItems = "center";
+            iconWrapper.style.gap = "6px";
+
+            const tooltip = document.createElement('span');
+            tooltip.style.position = "relative";
+            tooltip.style.display = "inline-block";
+
+            const tooltipIcon = document.createElement('span');
+            tooltipIcon.style.display = "inline-flex";
+            tooltipIcon.style.width = "18px";
+            tooltipIcon.style.height = "18px";
+            tooltipIcon.style.borderRadius = "999px";
+            tooltipIcon.style.alignItems = "center";
+            tooltipIcon.style.justifyContent = "center";
+            tooltipIcon.style.fontSize = "0.8rem";
+            tooltipIcon.style.fontWeight = "700";
+
+            const tooltipText = document.createElement('span');
+            tooltipText.style.visibility = "hidden";
+            tooltipText.style.opacity = "0";
+            tooltipText.style.transition = "opacity 120ms ease-out";
+            tooltipText.style.position = "absolute";
+            tooltipText.style.right = "0";
+            tooltipText.style.bottom = "125%";
+            tooltipText.style.background = "rgba(15,23,42,0.98)";
+            tooltipText.style.color = "#e5e7eb";
+            tooltipText.style.padding = "6px 10px";
+            tooltipText.style.borderRadius = "8px";
+            tooltipText.style.fontSize = "0.75rem";
+            tooltipText.style.whiteSpace = "nowrap";
+            tooltipText.style.boxShadow = "0 10px 30px rgba(15,23,42,0.8)";
+            tooltipText.style.border = "1px solid rgba(148,163,184,0.4)";
+            tooltipText.style.zIndex = "10";
+
+            if (isRaw || isSemi) {
+                tooltipIcon.textContent = "x";
+                tooltipIcon.style.background = "rgba(248,113,113,0.15)";
+                tooltipIcon.style.color = "#f97373";
+                tooltipText.textContent = isRaw
+                    ? "Une matiere premiere ne peut pas etre planifiee directement."
+                    : "Un produit semi-fini ne peut pas etre planifie directement.";
+
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    showMrpProductError(
+                        "Produit non planifiable",
+                        "On ne peut pas planifier une matiere premiere ou un semi-fini directement. Ils sont planifies via la demande des produits finis."
+                    );
+                };
+            }
+            else if (isFinished && !hasBom) {
+                tooltipIcon.textContent = "!";
+                tooltipIcon.style.background = "rgba(248,113,113,0.2)";
+                tooltipIcon.style.color = "#f97373";
+                tooltipText.textContent = "Ce produit n'a pas de nomenclature. Cree une BOM avant de le planifier.";
+
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    showMrpProductError(
+                        "Nomenclature requise",
+                        "Ce produit n'a pas de nomenclature. Cree une BOM avant de le planifier en MRP."
+                    );
+                };
+            }
+            else if (isFinished && hasBom) {
+                tooltipIcon.textContent = "+";
+                tooltipIcon.style.background = "rgba(129,140,248,0.25)";
+                tooltipIcon.style.color = "#a855f7";
+                tooltipText.textContent = "Ajouter ce produit fini a la planification.";
+
+                item.onclick = () => {
+                    hideMrpProductError();
+                    addSelectedProduct(idNum, p.nom);
+                };
+            }
+            else {
+                tooltipIcon.textContent = "x";
+                tooltipIcon.style.background = "rgba(248,113,113,0.15)";
+                tooltipIcon.style.color = "#f97373";
+                tooltipText.textContent = "Ce produit n'est pas planifiable directement.";
+
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    showMrpProductError(
+                        "Produit non planifiable",
+                        "Ce produit ne peut pas etre ajoute directement a la planification MRP."
+                    );
+                };
+            }
+
+            tooltip.onmouseover = () => {
+                tooltipText.style.visibility = "visible";
+                tooltipText.style.opacity = "1";
+            };
+            tooltip.onmouseout = () => {
+                tooltipText.style.visibility = "hidden";
+                tooltipText.style.opacity = "0";
+            };
+
+            tooltip.appendChild(tooltipIcon);
+            tooltip.appendChild(tooltipText);
+            iconWrapper.appendChild(tooltip);
+
+            item.appendChild(labelSpan);
+            item.appendChild(iconWrapper);
+
+            container.appendChild(item);
+        });
+    }
+
+    function addSelectedProduct(id, label) {
+        const idNum = Number(id);
+        if (selectedProductIds.map(x => Number(x)).includes(idNum)) {
+            return;
+        }
+
+        selectedProductIds = [...selectedProductIds, idNum];
+        updateSelectedProductsUI();
+
+        const input = document.getElementById('productSearch');
+        const term = input ? input.value : "";
+        renderProductSuggestions(term || "");
+    }
+
+    function removeSelectedProduct(id) {
+        const idNum = Number(id);
+        selectedProductIds = selectedProductIds
+            .map(x => Number(x))
+            .filter(x => x !== idNum);
+
+        updateSelectedProductsUI();
+
+        const input = document.getElementById('productSearch');
+        const term = input ? input.value : "";
+        renderProductSuggestions(term || "");
+    }
+
+    function updateSelectedProductsUI() {
+        const container = document.getElementById('selectedProductsContainer');
+        const placeholder = document.getElementById('selectedProductsPlaceholder');
+        const hiddenInput = document.getElementById('selectedProductIds');
+
+        container.innerHTML = "";
+
+        if (!selectedProductIds || selectedProductIds.length === 0) {
+            if (placeholder) {
+                placeholder.style.display = "";
+                container.appendChild(placeholder);
+            }
+            hiddenInput.value = "";
+            return;
+        }
+
+        if (placeholder) {
+            placeholder.style.display = "none";
+        }
+
+        const currentSelected = selectedProductIds.map(x => Number(x));
+
+        currentSelected.forEach(idNum => {
+            const product = allProducts.find(p => Number(p.id) === idNum);
+            const label = product ? product.nom : ("Produit #" + idNum);
+
+            const tag = document.createElement('div');
+            tag.style.display = "inline-flex";
+            tag.style.alignItems = "center";
+            tag.style.gap = "4px";
+            tag.style.padding = "4px 8px";
+            tag.style.borderRadius = "999px";
+            tag.style.background = "rgba(37,99,235,0.15)";
+            tag.style.color = "#bfdbfe";
+            tag.style.fontSize = "0.8rem";
+
+            const spanLabel = document.createElement('span');
+            spanLabel.textContent = label;
+
+            const btnRemove = document.createElement('button');
+            btnRemove.type = "button";
+            btnRemove.textContent = "x";
+            btnRemove.style.border = "none";
+            btnRemove.style.background = "transparent";
+            btnRemove.style.color = "#bfdbfe";
+            btnRemove.style.cursor = "pointer";
+            btnRemove.style.fontSize = "0.9rem";
+            btnRemove.onclick = () => removeSelectedProduct(idNum);
+
+            tag.appendChild(spanLabel);
+            tag.appendChild(btnRemove);
+
+            container.appendChild(tag);
+        });
+
+        hiddenInput.value = currentSelected.join(",");
+    }
+
+    function showMrpProductError(messageTitle, messageSub) {
+        const wrapper = document.getElementById('mrp-product-error-tooltip-wrapper');
+        const titleEl = document.getElementById('mrp-product-error-title');
+        const subEl = document.getElementById('mrp-product-error-sub');
+
+        if (!wrapper || !titleEl || !subEl) return;
+
+        titleEl.textContent = messageTitle || "Produit non planifiable";
+        subEl.textContent = messageSub || "Ce produit ne peut pas etre ajoute a la planification MRP.";
+
+        wrapper.style.display = 'block';
+
+        setTimeout(() => {
+            wrapper.style.display = 'none';
+        }, 5000);
+    }
+
+    function hideMrpProductError() {
+        const wrapper = document.getElementById('mrp-product-error-tooltip-wrapper');
+        if (!wrapper) return;
+        wrapper.style.display = 'none';
+    }
+
+    function openLogoutModal() {
+        document.getElementById('logout-overlay').style.display = 'flex';
+        document.body.classList.add('logout-blur-active');
+    }
+
+    function closeLogoutModal() {
+        document.getElementById('logout-overlay').style.display = 'none';
+        document.body.classList.remove('logout-blur-active');
     }
 </script>
 

@@ -26,6 +26,10 @@ namespace Donnees
         // MRP CONFIG
         public DbSet<MRPConfigModule> MRPConfigModules { get; set; }
 
+        // MRP PLAN
+        public DbSet<MRPPlan> MRPPlans { get; set; }
+        public DbSet<MRPPlanLigne> MRPPlanLignes { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -100,7 +104,6 @@ namespace Donnees
             });
 
             // --- CONFIG MESSAGERIE ---
-
             modelBuilder.Entity<Conversation>(entity =>
             {
                 entity.ToTable("Conversations");
@@ -160,6 +163,83 @@ namespace Donnees
 
                 entity.Property(c => c.CreeParUserId);
                 entity.Property(c => c.ModifieParUserId);
+            });
+
+            // --- CONFIG MRP PLAN / LIGNES ---
+            modelBuilder.Entity<MRPPlan>(entity =>
+            {
+                entity.ToTable("MRPPlans");
+                entity.HasKey(p => p.Id);
+
+                entity.Property(p => p.Reference)
+                      .IsRequired()
+                      .HasMaxLength(50);
+
+                entity.Property(p => p.DateCreation)
+                      .HasColumnType("timestamp with time zone")
+                      .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+
+                entity.Property(p => p.DateDebutHorizon)
+                      .HasColumnType("timestamp with time zone");
+
+                entity.Property(p => p.DateFinHorizon)
+                      .HasColumnType("timestamp with time zone");
+
+                entity.Property(p => p.HorizonJours)
+                      .IsRequired();
+
+                entity.Property(p => p.Statut)
+                      .IsRequired()
+                      .HasMaxLength(30)
+                      .HasDefaultValue("Brouillon");
+
+                entity.Property(p => p.TypePlan)
+                      .HasMaxLength(30);
+
+                entity.Property(p => p.Commentaire)
+                      .HasMaxLength(500);
+
+                entity.HasIndex(p => p.Reference)
+                      .IsUnique()
+                      .HasDatabaseName("UQ_MRPPlans_Reference");
+            });
+
+            modelBuilder.Entity<MRPPlanLigne>(entity =>
+            {
+                entity.ToTable("MRPPlanLignes");
+                entity.HasKey(l => l.Id);
+
+                entity.Property(l => l.TypeProduit)
+                      .IsRequired()
+                      .HasMaxLength(20);
+
+                entity.Property(l => l.DateBesoin)
+                      .HasColumnType("timestamp with time zone");
+
+                entity.Property(l => l.QuantiteBesoin)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.Property(l => l.StockDisponible)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.Property(l => l.QuantiteALancer)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.HasOne(l => l.MRPPlan)
+                      .WithMany(p => p.Lignes)
+                      .HasForeignKey(l => l.MRPPlanId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(l => l.Produit)
+                      .WithMany()
+                      .HasForeignKey(l => l.ProduitId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(l => l.MRPPlanId)
+                      .HasDatabaseName("IX_MRPPlanLignes_MRPPlanId");
+
+                entity.HasIndex(l => l.ProduitId)
+                      .HasDatabaseName("IX_MRPPlanLignes_ProduitId");
             });
         }
     }
