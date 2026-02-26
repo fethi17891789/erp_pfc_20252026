@@ -330,7 +330,7 @@
                 <div class="mrp-plan-item" data-ref="MRP-0002" data-status="Sauvegardee" style="margin:0%;">
                     <a asp-page="/MRPDetail" asp-route-id="2" style="text-decoration:none; color:inherit;">
                         <div class="product-card"
-                             style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
+                             style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms.ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
                              onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                              onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -359,7 +359,7 @@
                 <div class="mrp-plan-item" data-ref="MRP-TEST" data-status="Annulee" style="margin:0%;">
                     <a asp-page="/MRPDetail" asp-route-id="3" style="text-decoration:none; color:inherit;">
                         <div class="product-card"
-                             style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
+                             style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms.ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
                              onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                              onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -388,18 +388,49 @@
                 @* Cartes reelles venant de la base *@
                 @foreach (var plan in Model.Plans)
                 {
-                    var statusAttr = (Model.GetPlanStatusLabel(plan.Statut) ?? "Brouillon");
+                    // Normalisation du statut (Brouillon / Sauvegardee / Annulee / Terminee)
+                    var normalizedStatus = Model.GetPlanStatusLabel(plan.Statut) ?? "Brouillon";
                     var fullRef = plan.Reference ?? "";
                     var shortRef = fullRef.Length > 8 ? (fullRef.Substring(0, 8) + "...") : fullRef;
+
+                    // Badge couleur + texte descriptif en fonction du statut
+                    string badgeBackground;
+                    string badgeColor;
+                    string subtitleText;
+
+                    switch (normalizedStatus)
+                    {
+                        case "Sauvegardee":
+                            badgeBackground = "rgba(34,197,94,0.15)";
+                            badgeColor = "#22c55e";
+                            subtitleText = "Plan MRP sauvegarde";
+                            break;
+                        case "Annulee":
+                            badgeBackground = "rgba(248,113,113,0.15)";
+                            badgeColor = "#f97373";
+                            subtitleText = "Plan MRP annule";
+                            break;
+                        case "Terminee":
+                            badgeBackground = "rgba(192,132,252,0.15)";
+                            badgeColor = "#c084fc";
+                            subtitleText = "Plan MRP termine";
+                            break;
+                        default: // Brouillon + cas inconnus
+                            badgeBackground = "rgba(56,189,248,0.15)";
+                            badgeColor = "#38bdf8";
+                            subtitleText = "Plan MRP brouillon";
+                            break;
+                    }
+
                     <div class="mrp-plan-item"
                          data-ref="@plan.Reference"
-                         data-status="@statusAttr"
+                         data-status="@normalizedStatus"
                          style="margin:0%;">
                         <a asp-page="/MRPDetail"
                            asp-route-id="@plan.Id"
                            style="text-decoration:none; color:inherit;">
                             <div class="product-card"
-                                 style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
+                                 style="padding:12px 12px; background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96)); border:1px solid var(--border-soft); border-radius:var(--radius-sm); display:flex; flex-direction:column; gap:6px; transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1), box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1), transform 80ms.ease-out, background 140ms cubic-bezier(0.2,0.8,0.2,1);"
                                  onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                                  onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
                                 <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -420,11 +451,11 @@
                                     Horizon @plan.HorizonJours jours
                                 </div>
                                 <div style="font-size:0.8rem; color:var(--text-muted);">
-                                    Plan MRP sauvegarde
+                                    @subtitleText
                                 </div>
                                 <div style="margin-top:4px;">
-                                    <span style="font-size:0.75rem; padding:3px 8px; border-radius:999px; background:rgba(56,189,248,0.15); color:#38bdf8;">
-                                        @statusAttr
+                                    <span style="font-size:0.75rem; padding:3px 8px; border-radius:999px; background:@badgeBackground; color:@badgeColor;">
+                                        @normalizedStatus
                                     </span>
                                 </div>
                             </div>
@@ -681,7 +712,7 @@
             const tooltipText = document.createElement('span');
             tooltipText.style.visibility = "hidden";
             tooltipText.style.opacity = "0";
-            tooltipText.style.transition = "opacity 120ms ease-out";
+            tooltipText.style.transition = "opacity 120ms.ease-out";
             tooltipText.style.position = "absolute";
             tooltipText.style.right = "0";
             tooltipText.style.bottom = "125%";

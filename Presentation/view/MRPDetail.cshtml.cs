@@ -19,8 +19,7 @@ namespace erp_pfc_20252026.Pages
             _db = db;
         }
 
-        // ---------- VIEWMODELS POUR L'AFFICHAGE ----------
-
+        // VIEWMODELS POUR L AFFICHAGE
         public class PlanificationVm
         {
             public int Id { get; set; }
@@ -28,15 +27,16 @@ namespace erp_pfc_20252026.Pages
             public int HorizonJours { get; set; }
             public DateTime DateDebut { get; set; }
             public DateTime DateFin { get; set; }
-            public string Statut { get; set; } = "Sauvegardée"; // Annulée / Sauvegardée / Terminée
+            public string Statut { get; set; } = "Brouillon";
         }
 
         public class LigneMrpVm
         {
             public int Niveau { get; set; }
             public string CodeArticle { get; set; } = string.Empty;
+            public string? ParentCodeArticle { get; set; }
             public string LibelleArticle { get; set; } = string.Empty;
-            public string TypeProduit { get; set; } = "PF";
+            public string TypeProduit { get; set; } = "PF"; // PF / SF / MP / PF+SF
             public string Unite { get; set; } = "PCS";
 
             public DateTime DateBesoin { get; set; }
@@ -51,45 +51,53 @@ namespace erp_pfc_20252026.Pages
             public bool EstOrdreAchat => TypeProduit == "MP";
         }
 
-        /// <summary>
-        /// Une période dans le tableau MRP (ici 1 jour = 1 colonne).
-        /// </summary>
         public class PeriodeMrpVm
         {
-            public int Index { get; set; }          // 1, 2, 3, ...
-            public DateTime Date { get; set; }      // Date de la période
-            public string LabelCourt { get; set; } = "";   // ex : "P1", "P2" ou "01/03"
-            public string LabelLong { get; set; } = "";    // ex : "01/03/2026"
+            public int Index { get; set; }
+            public DateTime Date { get; set; }
+            public string LabelCourt { get; set; } = "";
+            public string LabelLong { get; set; } = "";
         }
 
-        /// <summary>
-        /// Info BOM minimale envoyée au JS pour construire les tableaux du popup.
-        /// </summary>
         public class BomInfoVm
         {
             public string CodeArticlePF { get; set; } = string.Empty;
             public string NomPF { get; set; } = string.Empty;
-            public int ComponentCount { get; set; }  // nombre de composants dans la BOM
+            public int ComponentCount { get; set; }
         }
 
-        // ---------- PROPRIÉTÉS POUR LA VUE ----------
+        public class StockMrpVm
+        {
+            public string CodeArticle { get; set; } = string.Empty;
+            public decimal StockDisponible { get; set; }
+        }
 
+        public class BomDetailVm
+        {
+            public string CodeArticlePF { get; set; } = string.Empty;
+            public List<BomDetailComponentVm> Composants { get; set; } = new();
+        }
+
+        public class BomDetailComponentVm
+        {
+            public string CodeArticle { get; set; } = string.Empty;
+            public string Nom { get; set; } = string.Empty;
+        }
+
+        // PROPRIETES POUR LA VUE
         public PlanificationVm? Planification { get; set; }
         public List<LigneMrpVm> Lignes { get; set; } = new List<LigneMrpVm>();
-
-        // Périodes (colonnes du tableau MRP produit)
         public List<PeriodeMrpVm> Periodes { get; set; } = new List<PeriodeMrpVm>();
 
-        // Infos BOM sérialisées pour le JS (popup)
         public string BomInfosJson { get; set; } = "[]";
+        public string StockMrpJson { get; set; } = "[]";
+        public string BomDetailsJson { get; set; } = "[]";
 
-        // Compteurs pour le bandeau
         public int NbProduitsPlanifies => Lignes.Count(l => l.Niveau == 0);
         public int NbPropositionsOF => Lignes.Count(l => l.EstOrdreFabrication && l.QuantiteALancer > 0);
         public int NbPropositionsOA => Lignes.Count(l => l.EstOrdreAchat && l.QuantiteALancer > 0);
 
-        // ---------- HANDLER GET PRINCIPAL ----------
-
+        // HANDLER GET PRINCIPAL
         public async Task<IActionResult> OnGetAsync(
             int? id,
             int? horizonJours,
@@ -148,8 +156,42 @@ namespace erp_pfc_20252026.Pages
             return Page();
         }
 
-        // ---------- MÉTHODES PRIVÉES (MAPPING & CREATION) ----------
+        // HANDLERS POST
+        public async Task<IActionResult> OnPostEnregistrerAsync(int planId)
+        {
+            return await ModifierStatutPlanAsync(planId, "Sauvegardee");
+        }
 
+        public async Task<IActionResult> OnPostAnnulerAsync(int planId)
+        {
+            return await ModifierStatutPlanAsync(planId, "Annulee");
+        }
+
+        private async Task<IActionResult> ModifierStatutPlanAsync(int planId, string nouveauStatut)
+        {
+            var plan = await _db.MRPPlans.FirstOrDefaultAsync(p => p.Id == planId);
+
+            if (plan == null)
+            {
+                TempData["Erreur"] = "Planification introuvable.";
+                return RedirectToPage("/MRP");
+            }
+
+            if (plan.Statut == "Terminee")
+            {
+                TempData["Erreur"] = "Impossible de modifier une planification terminee.";
+                return RedirectToPage("/MRP");
+            }
+
+            plan.Statut = nouveauStatut;
+
+            await _db.SaveChangesAsync();
+
+            TempData["Succes"] = $"Planification {nouveauStatut.ToLower()} avec succes.";
+            return RedirectToPage("/MRP");
+        }
+
+        // CREATION DU PLAN
         private async Task<MRPPlan> CreerNouveauPlanAvecLignesAsync(
             List<int> idsProduits,
             int horizonJours)
@@ -195,6 +237,19 @@ namespace erp_pfc_20252026.Pages
             return plan;
         }
 
+        private string MapTypeTechniqueToMrpType(TypeTechniqueProduit typeTech)
+        {
+            return typeTech switch
+            {
+                TypeTechniqueProduit.MatierePremiere => "MP",
+                TypeTechniqueProduit.SemiFini => "SF",
+                TypeTechniqueProduit.Fini => "PF",
+                TypeTechniqueProduit.SemiFiniEtFini => "PF+SF",
+                _ => "PF"
+            };
+        }
+
+        // MAPPING ENTITE -> VIEWMODEL
         private async Task MapFromEntityAsync(MRPPlan plan)
         {
             Planification = new PlanificationVm
@@ -209,35 +264,114 @@ namespace erp_pfc_20252026.Pages
 
             Lignes = new List<LigneMrpVm>();
 
-            // Lignes niveau 0 (produits planifiés)
+            var produitIds = plan.Lignes.Select(l => l.ProduitId).Distinct().ToList();
+
+            var produits = await _db.Produits
+                .Where(p => produitIds.Contains(p.Id))
+                .ToListAsync();
+
+            var planProduitsDict = produits.ToDictionary(p => p.Id, p => p);
+
+            var bomsCache = await _db.Boms
+                .Include(b => b.Lignes)
+                    .ThenInclude(bl => bl.ComposantProduit)
+                .ToListAsync();
+
             foreach (var l in plan.Lignes)
             {
-                var prod = l.Produit;
+                if (!planProduitsDict.TryGetValue(l.ProduitId, out var prod))
+                    continue;
 
-                var vm = new LigneMrpVm
+                var codePf = prod.Reference;
+                var libPf = prod.Nom;
+                var typePf = MapTypeTechniqueToMrpType(prod.TypeTechnique);
+                var stockPfActuel = prod.QuantiteDisponible;
+
+                var vmPf = new LigneMrpVm
                 {
                     Niveau = 0,
-                    CodeArticle = prod?.Reference ?? ("PROD-" + l.ProduitId),
-                    LibelleArticle = prod?.Nom ?? "Produit " + l.ProduitId,
-                    TypeProduit = "PF",
-                    Unite = "PCS", // pas de propriété Unite dans Produit, on fixe à PCS
+                    CodeArticle = codePf,
+                    ParentCodeArticle = null,
+                    LibelleArticle = libPf,
+                    TypeProduit = typePf,
+                    Unite = "PCS",
                     DateBesoin = l.DateBesoin,
                     QuantiteBesoin = l.QuantiteBesoin,
-                    StockDisponible = l.StockDisponible,
+                    StockDisponible = stockPfActuel,
                     QuantiteALancer = l.QuantiteALancer,
-                    Prix = prod?.PrixVente ?? 0m
+                    Prix = prod.PrixVente
                 };
 
-                Lignes.Add(vm);
+                Lignes.Add(vmPf);
+
+                await AjouterComposantsRecursifsAsync(
+                    produitParent: prod,
+                    niveauParent: 0,
+                    codeParent: codePf,
+                    dateBesoin: l.DateBesoin,
+                    bomsCache: bomsCache);
             }
 
-            // Construire les infos BOM (pour le popup)
             await ConstruireInfosBomAsync();
+            ConstruireStockMrp();
+            ConstruireBomDetails();
         }
 
-        /// <summary>
-        /// Construit la liste des périodes (1 jour = 1 colonne) sur l'horizon.
-        /// </summary>
+        // Ajoute recursivement les composants (SF/MP) d un produit parent
+        private async Task AjouterComposantsRecursifsAsync(
+            Produit produitParent,
+            int niveauParent,
+            string codeParent,
+            DateTime dateBesoin,
+            List<Bom> bomsCache)
+        {
+            var bom = bomsCache.FirstOrDefault(b => b.ProduitId == produitParent.Id);
+            if (bom == null || bom.Lignes == null || bom.Lignes.Count == 0)
+                return;
+
+            foreach (var bl in bom.Lignes)
+            {
+                var comp = bl.ComposantProduit;
+                if (comp == null)
+                {
+                    comp = await _db.Produits.FirstOrDefaultAsync(p => p.Id == bl.ComposantProduitId);
+                    if (comp == null) continue;
+                }
+
+                var codeComp = comp.Reference;
+                var libComp = comp.Nom;
+                var typeComp = MapTypeTechniqueToMrpType(comp.TypeTechnique);
+
+                var vmComp = new LigneMrpVm
+                {
+                    Niveau = niveauParent + 1,
+                    CodeArticle = codeComp,
+                    ParentCodeArticle = codeParent,
+                    LibelleArticle = libComp,
+                    TypeProduit = typeComp,
+                    Unite = "PCS",
+                    DateBesoin = dateBesoin,
+                    QuantiteBesoin = 0,
+                    StockDisponible = comp.QuantiteDisponible,
+                    QuantiteALancer = 0,
+                    Prix = comp.PrixVente
+                };
+
+                Lignes.Add(vmComp);
+
+                if (typeComp == "SF" || typeComp == "PF+SF")
+                {
+                    await AjouterComposantsRecursifsAsync(
+                        produitParent: comp,
+                        niveauParent: niveauParent + 1,
+                        codeParent: codeComp,
+                        dateBesoin: dateBesoin,
+                        bomsCache: bomsCache);
+                }
+            }
+        }
+
+        // PERIODES
         private void ConstruirePeriodesDepuisPlanification()
         {
             Periodes = new List<PeriodeMrpVm>();
@@ -247,7 +381,6 @@ namespace erp_pfc_20252026.Pages
 
             var debut = Planification.DateDebut;
             var horizon = Planification.HorizonJours;
-
             if (horizon <= 0) horizon = 1;
 
             for (int i = 0; i < horizon; i++)
@@ -263,15 +396,11 @@ namespace erp_pfc_20252026.Pages
             }
         }
 
-        /// <summary>
-        /// Pour chaque produit fini planifié (niveau 0), récupère le nombre de composants dans sa BOM
-        /// et sérialise ça en JSON pour le JS du popup.
-        /// </summary>
+        // INFOS BOM POUR POPUP
         private async Task ConstruireInfosBomAsync()
         {
             var infos = new List<BomInfoVm>();
 
-            // Codes articles PF (niveau 0)
             var codesPf = Lignes
                 .Where(l => l.Niveau == 0)
                 .Select(l => l.CodeArticle)
@@ -284,43 +413,84 @@ namespace erp_pfc_20252026.Pages
                 return;
             }
 
-            // Récupérer les produits associés
             var produitsPf = await _db.Produits
                 .Where(p => codesPf.Contains(p.Reference))
                 .ToListAsync();
 
-            var idsPf = produitsPf.Select(p => p.Id).ToList();
-
-            // Charger les BOM pour ces produits
-            var boms = await _db.Boms
-                .Include(b => b.Lignes)
-                .Where(b => idsPf.Contains(b.ProduitId))
-                .ToListAsync();
-
             foreach (var prod in produitsPf)
             {
-                var bom = boms.FirstOrDefault(b => b.ProduitId == prod.Id);
-                var count = bom?.Lignes?.Count ?? 0;
+                var codePf = prod.Reference;
 
-                if (count < 0) count = 0;
+                var composantsDistincts = Lignes
+                    .Where(l => l.CodeArticle != codePf)
+                    .Select(l => l.CodeArticle)
+                    .Distinct()
+                    .Count();
 
                 infos.Add(new BomInfoVm
                 {
-                    CodeArticlePF = prod.Reference,
+                    CodeArticlePF = codePf,
                     NomPF = prod.Nom,
-                    ComponentCount = count
+                    ComponentCount = composantsDistincts
                 });
             }
 
             BomInfosJson = JsonSerializer.Serialize(infos);
         }
 
-        // ---------- LOGIQUE UI EXISTANTE ----------
+        private void ConstruireStockMrp()
+        {
+            var stocks = Lignes
+                .GroupBy(l => l.CodeArticle)
+                .Select(g => new StockMrpVm
+                {
+                    CodeArticle = g.Key,
+                    StockDisponible = g.First().StockDisponible
+                })
+                .ToList();
 
+            StockMrpJson = JsonSerializer.Serialize(stocks);
+        }
+
+        private void ConstruireBomDetails()
+        {
+            var pfCodes = Lignes
+                .Where(l => l.Niveau == 0)
+                .Select(l => l.CodeArticle)
+                .Distinct()
+                .ToList();
+
+            var details = new List<BomDetailVm>();
+
+            foreach (var codePf in pfCodes)
+            {
+                var pf = new BomDetailVm
+                {
+                    CodeArticlePF = codePf
+                };
+
+                var composants = Lignes
+                    .Where(l => l.CodeArticle != codePf)
+                    .Select(l => new BomDetailComponentVm
+                    {
+                        CodeArticle = l.CodeArticle,
+                        Nom = l.LibelleArticle
+                    })
+                    .DistinctBy(c => c.CodeArticle)
+                    .ToList();
+
+                pf.Composants = composants;
+                details.Add(pf);
+            }
+
+            BomDetailsJson = JsonSerializer.Serialize(details);
+        }
+
+        // LOGIQUE UI EXISTANTE
         public bool PlanifAutoriseLancement()
         {
             if (Planification == null) return false;
-            return string.Equals(Planification.Statut, "Sauvegardée", StringComparison.OrdinalIgnoreCase);
+            return string.Equals(Planification.Statut, "Sauvegardee", StringComparison.OrdinalIgnoreCase);
         }
 
         public string GetStatutBadgeCss()
@@ -330,10 +500,8 @@ namespace erp_pfc_20252026.Pages
             return Planification.Statut switch
             {
                 "Annulee" => "badge-status badge-annulee",
-                "Annulée" => "badge-status badge-annulee",
                 "Terminee" => "badge-status badge-terminee",
-                "Terminée" => "badge-status badge-terminee",
-                "Sauvegardée" => "badge-status badge-sauvegardee",
+                "Sauvegardee" => "badge-status badge-sauvegardee",
                 _ => "badge-status badge-neutral"
             };
         }
@@ -342,6 +510,21 @@ namespace erp_pfc_20252026.Pages
         {
             HttpContext.Session.Clear();
             return RedirectToPage("/BDDView");
+        }
+    }
+
+    public static class EnumerableExtensions
+    {
+        public static IEnumerable<T> DistinctBy<T, TKey>(
+            this IEnumerable<T> source,
+            Func<T, TKey> keySelector)
+        {
+            var seen = new HashSet<TKey>();
+            foreach (var element in source)
+            {
+                if (seen.Add(keySelector(element)))
+                    yield return element;
+            }
         }
     }
 }

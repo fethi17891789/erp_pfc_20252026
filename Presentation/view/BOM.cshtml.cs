@@ -55,9 +55,10 @@ namespace erp_pfc_20252026.Pages.Fabrication
 
             var products = await productsQuery.ToListAsync();
 
-            // 2) Boms par produit (on prend la première pour l’instant)
+            // 2) Boms par produit, mais UNIQUEMENT celles qui ont au moins une ligne
             var bomsByProduct = await _context.Boms
                 .AsNoTracking()
+                .Where(b => _context.BomLignes.Any(bl => bl.BomId == b.Id)) // BOM avec composants
                 .GroupBy(b => b.ProduitId)
                 .Select(g => new
                 {

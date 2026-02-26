@@ -101,6 +101,20 @@
         </header>
 
         <section class="erp-content">
+            @* Messages succès / erreur suppression *@
+            @if (TempData["Error"] is string err && !string.IsNullOrEmpty(err))
+            {
+                <div class="alert-box" style="margin-bottom:12px; background:rgba(248,113,113,0.1); border:1px solid #f97373; color:#fecaca;">
+                    @err
+                </div>
+            }
+            @if (TempData["Success"] is string ok && !string.IsNullOrEmpty(ok))
+            {
+                <div class="alert-box" style="margin-bottom:12px; background:rgba(34,197,94,0.1); border:1px solid #22c55e; color:#bbf7d0;">
+                    @ok
+                </div>
+            }
+
             <!-- Toolbar -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
                 <div style="flex:1; display:flex; justify-content:center;">

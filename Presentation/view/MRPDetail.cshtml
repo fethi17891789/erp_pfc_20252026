@@ -156,18 +156,24 @@
                 </div>
 
                 <div class="mrp-plan-resume-actions">
-                    <button type="button"
-                            class="btn-secondary"
-                            style="min-width:170px;"
-                            onclick="alert('TODO: Sauvegarder la planification');">
-                        Sauvegarder la planif
-                    </button>
-                    <button type="button"
-                            class="btn-secondary"
-                            style="min-width:170px;"
-                            onclick="alert('TODO: Terminer la planification');">
-                        Terminer la planif
-                    </button>
+                    <form method="post" asp-page-handler="Enregistrer" style="display:inline;">
+                        <input type="hidden" name="planId" value="@Model.Planification?.Id" />
+                        <button type="submit"
+                                class="btn-secondary"
+                                style="min-width:170px;"
+                                @(Model.Planification?.Statut == "Terminée" ? "disabled" : "")>
+                            Enregistrer
+                        </button>
+                    </form>
+                    <form method="post" asp-page-handler="Annuler" style="display:inline;">
+                        <input type="hidden" name="planId" value="@Model.Planification?.Id" />
+                        <button type="submit"
+                                class="btn-secondary"
+                                style="min-width:170px;"
+                                @(Model.Planification?.Statut == "Terminée" ? "disabled" : "")>
+                            Annuler
+                        </button>
+                    </form>
                 </div>
             </div>
 
@@ -189,7 +195,6 @@
                                 <th style="width:130px;">Référence</th>
                                 <th>Nom produit</th>
                                 <th style="width:120px;">Type</th>
-                                <th style="width:80px;">Unité</th>
                                 <th style="width:110px;">Stock dispo</th>
                                 <th style="width:110px;">Qté à lancer</th>
                                 <th style="width:120px;">Prix</th>
@@ -205,7 +210,7 @@
                                 if (!racines.Any())
                                 {
                                     <tr>
-                                        <td colspan="10" style="text-align:center; padding:32px; color:var(--text-muted);">
+                                        <td colspan="9" style="text-align:center; padding:32px; color:var(--text-muted);">
                                             Aucune ligne MRP à afficher pour le moment.
                                         </td>
                                     </tr>
@@ -244,7 +249,6 @@
                                             <td>@root.CodeArticle</td>
                                             <td>@root.LibelleArticle</td>
                                             <td>@root.TypeProduit</td>
-                                            <td>@root.Unite</td>
                                             <td>@root.StockDisponible</td>
                                             <td>@root.QuantiteALancer</td>
                                             <td>@root.Prix.ToString("N2")</td>
@@ -263,8 +267,7 @@
                                             </td>
                                         </tr>
 
-                                        @* Ici tu pourras filtrer par parent si tu ajoutes une relation, pour l'instant on affiche tous les niveaux > 0 *@
-                                        @foreach (var c in Model.Lignes.Where(l => l.Niveau > 0))
+                                        @foreach (var c in Model.Lignes.Where(l => l.Niveau > 0 && l.ParentCodeArticle == root.CodeArticle))
                                         {
                                             var isOF = c.EstOrdreFabrication;
                                             var isOA = c.EstOrdreAchat;
@@ -282,13 +285,12 @@
                                             }
 
                                             <tr class="mrp-row mrp-row-child"
-                                                data-parent="@root.CodeArticle">
+                                                data-parent="@c.ParentCodeArticle">
                                                 <td></td>
                                                 <td>@c.Niveau</td>
                                                 <td>@c.CodeArticle</td>
                                                 <td>@c.LibelleArticle</td>
                                                 <td>@c.TypeProduit</td>
-                                                <td>@c.Unite</td>
                                                 <td>@c.StockDisponible</td>
                                                 <td>@c.QuantiteALancer</td>
                                                 <td>@c.Prix.ToString("N2")</td>
@@ -313,7 +315,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="10" style="text-align:center; padding:32px; color:var(--text-muted);">
+                                    <td colspan="9" style="text-align:center; padding:32px; color:var(--text-muted);">
                                         Aucune ligne MRP à afficher pour le moment.
                                     </td>
                                 </tr>
@@ -346,7 +348,7 @@
 
         <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">
             Les colonnes représentent les périodes (jours) selon la configuration de la planification.
-            Seule la ligne <strong>Besoin brut (BB)</strong> et la ligne <strong>Délai</strong> sont modifiables pour l'instant.
+            La ligne <strong>Besoin brut (BB)</strong> est saisissable uniquement pour le produit fini, et la ligne <strong>Délai</strong> est saisissable pour tous.
         </div>
 
         <div class="mrp-grid-wrapper" id="mrp-grid-wrapper">
@@ -380,8 +382,22 @@
 <script src="~/js/Home.js"></script>
 
 <script>
-    // Infos BOM envoyées depuis le backend : [{ codeArticlePF, nomPF, componentCount }, ...]
+    // Infos BOM envoyées depuis le backend : [{ codeArticlePF, nomPF, componentCount }]
     const mrpBomInfos = @Html.Raw(Model.BomInfosJson ?? "[]");
+
+    // Stocks envoyés depuis le backend : [{ codeArticle, stockDisponible }]
+    const stockMrpByArticle = @Html.Raw(Model.StockMrpJson ?? "[]");
+
+    // Détails BOM (PF -> liste de composants avec codes) pour lier chaque tableau à son bon article
+    const mrpBomDetails = @Html.Raw(Model.BomDetailsJson ?? "[]");
+
+    function findStockForArticle(codeArticle) {
+        if (!codeArticle) return 0;
+        const item = stockMrpByArticle.find(x =>
+            x.codeArticle === codeArticle ||
+            x.CodeArticle === codeArticle);
+        return item ? (item.stockDisponible ?? item.StockDisponible ?? 0) : 0;
+    }
 
     function toggleBom(code) {
         const chevron = document.getElementById('chevron-' + code);
@@ -412,7 +428,6 @@
         if (refSpan) refSpan.textContent = codeArticle || '';
         if (nameSpan) nameSpan.textContent = libelleArticle || '';
 
-        // Construire dynamiquement les tableaux en fonction de la BOM
         buildMrpTablesForProduct(codeArticle);
 
         overlay.style.display = 'flex';
@@ -430,16 +445,17 @@
         const wrapper = document.getElementById('mrp-grid-wrapper');
         if (!wrapper) return;
 
-        // Nettoyer l'ancien contenu
         wrapper.innerHTML = "";
 
-        // Trouver les infos BOM pour ce produit fini
         const info = mrpBomInfos.find(x => x.codeArticlePF === codeArticle || x.CodeArticlePF === codeArticle);
-
-        // Par sécurité : si pas trouvé, on fait quand même 1 tableau
         const componentCount = info ? info.componentCount ?? info.ComponentCount : 0;
 
-        // Nombre total de tableaux = 1 (produit fini) + nb composants
+        // Détails BOM pour retrouver le code des composants
+        const detail = mrpBomDetails.find(x => x.codeArticlePF === codeArticle || x.CodeArticlePF === codeArticle);
+        const composants = detail && Array.isArray(detail.composants ?? detail.Composants)
+            ? (detail.composants ?? detail.Composants)
+            : [];
+
         const totalTables = 1 + componentCount;
 
         for (let i = 0; i < totalTables; i++) {
@@ -451,10 +467,22 @@
             title.style.color = "var(--text-muted)";
             title.style.marginBottom = "4px";
 
+            let articleForThisTable = codeArticle; // par défaut PF
+            let isProductFini = (i === 0);        // premier tableau = produit fini
+
             if (i === 0) {
                 title.textContent = "Produit fini";
             } else {
-                title.textContent = "Composant " + i;
+                const compIndex = i - 1;
+                if (composants[compIndex]) {
+                    const comp = composants[compIndex];
+                    const compCode = comp.codeArticle || comp.CodeArticle || codeArticle;
+                    const compNom = comp.nom || comp.Nom || ("Composant " + i);
+                    articleForThisTable = compCode;
+                    title.textContent = compCode + " - " + compNom;
+                } else {
+                    title.textContent = "Composant " + i;
+                }
             }
 
             const table = document.createElement('table');
@@ -463,7 +491,6 @@
             table.style.width = "max-content";
             table.style.minWidth = "700px";
 
-            // Construire l'en-tête
             const thead = document.createElement('thead');
             const trHead = document.createElement('tr');
 
@@ -475,45 +502,48 @@
 
             @if (Model.Periodes != null && Model.Periodes.Any())
             {
-                foreach (var p in Model.Periodes)
-                {
-            @:    {
-            @:        const th = document.createElement('th');
-            @:        th.style.minWidth = "90px";
-            @:        th.style.width = "90px";
-            @:        th.title = "@p.LabelLong";
-            @:        th.textContent = "@p.LabelCourt";
-            @:        trHead.appendChild(th);
-            @:    }
-                }
+                        foreach (var p in Model.Periodes)
+                        {
+                                    @:    {
+                                    @:        const th = document.createElement('th');
+                                    @:        th.style.minWidth = "90px";
+                                    @:        th.style.width = "90px";
+                                    @:        th.title = "@p.LabelLong";
+                                    @:        th.textContent = "@p.LabelCourt";
+                                    @:        trHead.appendChild(th);
+                                    @:    }
+                        }
             }
             else
             {
-            @:    {
-            @:        const th = document.createElement('th');
-            @:        th.style.minWidth = "90px";
-            @:        th.style.width = "90px";
-            @:        th.textContent = "—";
-            @:        trHead.appendChild(th);
-            @:    }
+                        @:    {
+                        @:        const th = document.createElement('th');
+                        @:        th.style.minWidth = "90px";
+                        @:        th.style.width = "90px";
+                        @:        th.textContent = "—";
+                        @:        trHead.appendChild(th);
+                        @:    }
             }
 
             thead.appendChild(trHead);
             table.appendChild(thead);
 
-            // Corps du tableau : mêmes 6 lignes que ta version statique
             const tbody = document.createElement('tbody');
 
-            const rowLabels = [
-                { label: "Besoin brut (BB)", editable: true },
-                { label: "Stock prévisionnel (SP)", editable: false },
-                { label: "Besoin net (BN)", editable: false },
-                { label: "Fin ordre (réceptions)", editable: false },
-                { label: "Début ordre (lancements)", editable: false },
-                { label: "Délai (jours)", editable: true }
+            // PF : BB éditable, DEL éditable
+            // Composants : BB non éditable, DEL éditable
+            const rowDefs = [
+                { key: "BB", label: "Besoin brut (BB)", editable: isProductFini },
+                { key: "SP", label: "Stock prévisionnel (SP)", editable: false },
+                { key: "BN", label: "Besoin net (BN)", editable: false },
+                { key: "FIN", label: "Fin ordre (réceptions)", editable: false },
+                { key: "DEB", label: "Début ordre (lancements)", editable: false },
+                { key: "DEL", label: "Délai (jours)", editable: true }
             ];
 
-            rowLabels.forEach(r => {
+            const stockInitial = findStockForArticle(articleForThisTable);
+
+            rowDefs.forEach(r => {
                 const tr = document.createElement('tr');
 
                 const tdLabel = document.createElement('td');
@@ -524,44 +554,60 @@
 
                 @if (Model.Periodes != null && Model.Periodes.Any())
                 {
-                    for (int iPer = 0; iPer < Model.Periodes.Count; iPer++)
-                    {
-            @:      {
-            @:          const td = document.createElement('td');
-            @:          td.style.minWidth = "90px";
-            @:          td.style.width = "90px";
-            @:          const input = document.createElement('input');
-            @:          input.type = "number";
-            @:          input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
-            @:          input.style.width = "100%";
-            @:          input.style.minWidth = "70px";
-            @:          input.min = "0";
-            @:          input.step = "1";
-            @:          input.placeholder = r.editable ? "0" : "-";
-            @:          if (!r.editable) { input.disabled = true; }
-            @:          td.appendChild(input);
-            @:          tr.appendChild(td);
-            @:      }
-                    }
+                            for (int iPer = 0; iPer < Model.Periodes.Count; iPer++)
+                            {
+                                        @:      {
+                                        @:          const td = document.createElement('td');
+                                        @:          td.style.minWidth = "90px";
+                                        @:          td.style.width = "90px";
+                                        @:          const input = document.createElement('input');
+                                        @:          input.type = "number";
+                                        @:          input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
+                                        @:          input.style.width = "100%";
+                                        @:          input.style.minWidth = "70px";
+                                        @:          input.min = "0";
+                                        @:          input.step = "1";
+                                        @:          input.dataset.rowKey = r.key;
+                                        @:          input.dataset.periodIndex = "@iPer";
+                                        @:          if (r.key === "SP") {
+                                        @:              input.value = stockInitial.toString();
+                                        @:              input.disabled = true;
+                                        @:              input.className = "mrp-grid-input mrp-grid-input-disabled";
+                                        @:          } else {
+                                        @:              input.placeholder = r.editable ? "0" : "-";
+                                        @:              if (!r.editable) { input.disabled = true; }
+                                        @:          }
+                                        @:          td.appendChild(input);
+                                        @:          tr.appendChild(td);
+                                        @:      }
+                            }
                 }
                 else
                 {
-            @:      {
-            @:          const td = document.createElement('td');
-            @:          td.style.minWidth = "90px";
-            @:          td.style.width = "90px";
-            @:          const input = document.createElement('input');
-            @:          input.type = "number";
-            @:          input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
-            @:          input.style.width = "100%";
-            @:          input.style.minWidth = "70px";
-            @:          input.min = "0";
-            @:          input.step = "1";
-            @:          input.placeholder = r.editable ? "0" : "-";
-            @:          if (!r.editable) { input.disabled = true; }
-            @:          td.appendChild(input);
-            @:          tr.appendChild(td);
-            @:      }
+                            @:      {
+                            @:          const td = document.createElement('td');
+                            @:          td.style.minWidth = "90px";
+                            @:          td.style.width = "90px";
+                            @:          const input = document.createElement('input');
+                            @:          input.type = "number";
+                            @:          input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
+                            @:          input.style.width = "100%";
+                            @:          input.style.minWidth = "70px";
+                            @:          input.min = "0";
+                            @:          input.step = "1";
+                            @:          input.dataset.rowKey = r.key;
+                            @:          input.dataset.periodIndex = "0";
+                            @:          if (r.key === "SP") {
+                            @:              input.value = stockInitial.toString();
+                            @:              input.disabled = true;
+                            @:              input.className = "mrp-grid-input mrp-grid-input-disabled";
+                            @:          } else {
+                            @:              input.placeholder = r.editable ? "0" : "-";
+                            @:              if (!r.editable) { input.disabled = true; }
+                            @:          }
+                            @:          td.appendChild(input);
+                            @:          tr.appendChild(td);
+                            @:      }
                 }
 
                 tbody.appendChild(tr);
@@ -571,7 +617,82 @@
             block.appendChild(title);
             block.appendChild(table);
             wrapper.appendChild(block);
+
+            // --------- LOGIQUE MRP : écoute des changements BB/DEL et recalcul BN/FIN/DEB/SP ---------
+            attachMrpLogicToTable(table, stockInitial);
         }
+    }
+
+    function attachMrpLogicToTable(table, stockInitial) {
+        const inputs = table.querySelectorAll('input.mrp-grid-input');
+
+        const recalc = () => {
+            const perCount = table.querySelectorAll('thead th').length - 1; // -1 pour le libellé
+            const BB = new Array(perCount).fill(0);
+            const SP = new Array(perCount).fill(0);
+            const BN = new Array(perCount).fill(0);
+            const FIN = new Array(perCount).fill(0);
+            const DEB = new Array(perCount).fill(0);
+            const DEL = new Array(perCount).fill(0);
+
+            // lire les valeurs BB et DEL
+            inputs.forEach(inp => {
+                const rowKey = inp.dataset.rowKey;
+                const idx = parseInt(inp.dataset.periodIndex || "0", 10);
+                if (isNaN(idx)) return;
+                const val = inp.value === "" ? 0 : parseFloat(inp.value);
+                if (rowKey === "BB") BB[idx] = isNaN(val) ? 0 : val;
+                if (rowKey === "DEL") DEL[idx] = isNaN(val) ? 0 : val;
+            });
+
+            // calcul SP/BN/FIN
+            SP[0] = stockInitial - BB[0];
+            if (SP[0] < 0) {
+                BN[0] = -SP[0];
+                FIN[0] = BN[0];
+                SP[0] = 0;
+            }
+            for (let t = 1; t < perCount; t++) {
+                SP[t] = SP[t - 1] + FIN[t] - BB[t];
+                if (SP[t] < 0) {
+                    BN[t] = -SP[t];
+                    FIN[t] = BN[t];
+                    SP[t] = 0;
+                }
+            }
+
+            // calcul DEB à partir de FIN et DEL (backward planning simple)
+            for (let t = 0; t < perCount; t++) {
+                if (FIN[t] > 0) {
+                    const d = DEL[t] || 0;
+                    const startIdx = t - d;
+                    if (startIdx >= 0) {
+                        DEB[startIdx] += FIN[t];
+                    }
+                }
+            }
+
+            // injection dans les inputs
+            inputs.forEach(inp => {
+                const rowKey = inp.dataset.rowKey;
+                const idx = parseInt(inp.dataset.periodIndex || "0", 10);
+                if (isNaN(idx)) return;
+                if (rowKey === "SP") inp.value = SP[idx] || 0;
+                if (rowKey === "BN") inp.value = BN[idx] || 0;
+                if (rowKey === "FIN") inp.value = FIN[idx] || 0;
+                if (rowKey === "DEB") inp.value = DEB[idx] || 0;
+            });
+        };
+
+        inputs.forEach(inp => {
+            const rowKey = inp.dataset.rowKey;
+            if (rowKey === "BB" || rowKey === "DEL") {
+                inp.addEventListener('input', recalc);
+            }
+        });
+
+        // premier calcul avec stock initial & BB par défaut = 0
+        recalc();
     }
 
     function openLogoutModal() {
@@ -615,119 +736,119 @@
     }
 
     .mrp-plan-resume {
-        display:flex;
-        align-items:flex-start;
-        justify-content:space-between;
-        padding:14px 16px;
-        border-radius:var(--radius-md);
-        background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
-        border:1px solid var(--glass-border);
-        box-shadow:var(--shadow-lg);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 14px 16px;
+        border-radius: var(--radius-md);
+        background: linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-lg);
     }
 
     .mrp-plan-resume-left {
-        display:flex;
-        flex-direction:column;
-        gap:6px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
     }
 
     .mrp-plan-resume-header {
-        display:flex;
-        align-items:center;
-        gap:10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
 
     .mrp-plan-chip {
-        font-size:0.8rem;
-        font-weight:600;
-        letter-spacing:0.08em;
-        text-transform:uppercase;
-        color:var(--text-muted);
-        padding:3px 8px;
-        border-radius:999px;
-        border:1px solid var(--border-soft);
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border-soft);
     }
 
     .mrp-plan-ref {
-        font-size:0.95rem;
-        color:var(--text-muted);
+        font-size: 0.95rem;
+        color: var(--text-muted);
     }
 
     .mrp-plan-resume-infos {
-        display:flex;
-        flex-wrap:wrap;
-        gap:12px;
-        font-size:0.9rem;
-        color:var(--text-muted);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 0.9rem;
+        color: var(--text-muted);
     }
 
     .mrp-plan-resume-actions {
-        display:flex;
-        flex-direction:column;
-        gap:6px;
-        align-items:flex-end;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        align-items: flex-end;
     }
 
     .mrp-table-card {
-        border-radius:var(--radius-md);
-        background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
-        border:1px solid var(--glass-border);
-        box-shadow:var(--shadow-md);
-        padding:0;
+        border-radius: var(--radius-md);
+        background: linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
+        border: 1px solid var(--glass-border);
+        box-shadow: var(--shadow-md);
+        padding: 0;
     }
 
     .mrp-table-wrapper {
-        max-height:62vh;
-        overflow:auto;
+        max-height: 62vh;
+        overflow: auto;
     }
 
     .mrp-table th,
     .mrp-table td {
-        border-bottom:1px solid var(--border-soft);
+        border-bottom: 1px solid var(--border-soft);
     }
 
     .mrp-table thead tr {
-        background:rgba(18,22,54,0.95);
+        background: rgba(18,22,54,0.95);
     }
 
     .mrp-row {
-        background:rgba(9,11,30,0.96);
-        transition:background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
-        cursor:pointer;
+        background: rgba(9,11,30,0.96);
+        transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+        cursor: pointer;
     }
 
     .mrp-row-root:hover {
-        background:rgba(18,22,54,0.98);
-        transform:translateY(-1px);
-        box-shadow:0 4px 10px rgba(0,0,0,0.35);
+        background: rgba(18,22,54,0.98);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.35);
     }
 
     .mrp-row-child {
-        background:rgba(6,8,24,0.96);
-        cursor:default;
+        background: rgba(6,8,24,0.96);
+        cursor: default;
     }
 
     .mrp-chevron-btn {
-        width:24px;
-        height:24px;
-        border-radius:999px;
-        border:1px solid var(--border-soft);
-        background:rgba(10,12,30,0.9);
-        color:var(--text-muted);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        font-size:0.7rem;
-        cursor:pointer;
-        padding:0;
-        transition:background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        border: 1px solid var(--border-soft);
+        background: rgba(10,12,30,0.9);
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        cursor: pointer;
+        padding: 0;
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
     }
 
-    .mrp-chevron-btn:hover {
-        border-color:var(--accent);
-        color:var(--accent-light);
-        transform:translateY(-1px);
-    }
+        .mrp-chevron-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent-light);
+            transform: translateY(-1px);
+        }
 
     #mrp-product-overlay.logout-overlay {
         z-index: 60;
@@ -736,13 +857,13 @@
     }
 
     .mrp-grid-wrapper {
-        flex:1;
-        overflow:auto;
-        border-radius:var(--radius-md);
-        border:1px solid var(--glass-border);
-        background:linear-gradient(135deg, rgba(8,11,32,0.98), rgba(18,22,54,0.98));
-        padding:8px;
-        box-shadow:var(--shadow-md);
+        flex: 1;
+        overflow: auto;
+        border-radius: var(--radius-md);
+        border: 1px solid var(--glass-border);
+        background: linear-gradient(135deg, rgba(8,11,32,0.98), rgba(18,22,54,0.98));
+        padding: 8px;
+        box-shadow: var(--shadow-md);
     }
 
     .mrp-grid-table {
@@ -751,77 +872,77 @@
         width: 100%;
     }
 
-    .mrp-grid-table th,
-    .mrp-grid-table td {
-        border-bottom:1px solid var(--border-soft);
-        font-size:0.75rem;
-        text-align:center;
-        padding:4px 6px;
-    }
+        .mrp-grid-table th,
+        .mrp-grid-table td {
+            border-bottom: 1px solid var(--border-soft);
+            font-size: 0.75rem;
+            text-align: center;
+            padding: 4px 6px;
+        }
 
-    .mrp-grid-table thead tr {
-        background:rgba(15,23,42,0.98);
-    }
+        .mrp-grid-table thead tr {
+            background: rgba(15,23,42,0.98);
+        }
 
     .mrp-grid-row-label {
-        text-align:left;
-        font-weight:600;
-        font-size:0.8rem;
-        color:var(--text-muted);
-        background:rgba(15,23,42,0.95);
-        position:sticky;
-        left:0;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        background: rgba(15,23,42,0.95);
+        position: sticky;
+        left: 0;
     }
 
     .mrp-grid-input {
-        width:100%;
-        padding:4px 6px;
-        font-size:0.75rem;
-        text-align:right;
-        border-radius:8px;
-        border:1px solid rgba(148,163,184,0.4);
-        background:linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,23,42,0.98));
-        color:#e5e7eb;
-        outline:none;
-        transition:border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        width: 100%;
+        padding: 4px 6px;
+        font-size: 0.75rem;
+        text-align: right;
+        border-radius: 8px;
+        border: 1px solid rgba(148,163,184,0.4);
+        background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,23,42,0.98));
+        color: #e5e7eb;
+        outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
     }
 
-    .mrp-grid-input:focus {
-        border-color:rgba(129,140,248,0.9);
-        box-shadow:0 0 0 1px rgba(129,140,248,0.7), 0 10px 25px rgba(15,23,42,0.9);
-        background:linear-gradient(135deg, rgba(15,23,42,1), rgba(17,24,39,1));
-    }
+        .mrp-grid-input:focus {
+            border-color: rgba(129,140,248,0.9);
+            box-shadow: 0 0 0 1px rgba(129,140,248,0.7), 0 10px 25px rgba(15,23,42,0.9);
+            background: linear-gradient(135deg, rgba(15,23,42,1), rgba(17,24,39,1));
+        }
 
-    .mrp-grid-input::placeholder {
-        color:rgba(148,163,184,0.5);
-    }
+        .mrp-grid-input::placeholder {
+            color: rgba(148,163,184,0.5);
+        }
 
     .mrp-grid-input-disabled {
-        background:linear-gradient(135deg, rgba(8,11,32,0.9), rgba(18,22,54,0.95));
-        color:rgba(226,232,240,0.65);
-        cursor:not-allowed;
-        border-color:rgba(148,163,253,0.55);
-        box-shadow:0 0 0 1px rgba(148,163,253,0.35), 0 10px 25px rgba(15,23,42,0.9), inset 0 1px 0 rgba(255,255,255,0.05);
+        background: linear-gradient(135deg, rgba(8,11,32,0.9), rgba(18,22,54,0.95));
+        color: rgba(226,232,240,0.65);
+        cursor: not-allowed;
+        border-color: rgba(148,163,253,0.55);
+        box-shadow: 0 0 0 1px rgba(148,163,253,0.35), 0 10px 25px rgba(15,23,42,0.9), inset 0 1px 0 rgba(255,255,255,0.05);
     }
 
     .mrp-close-btn {
-        width:28px;
-        height:28px;
-        border-radius:999px;
-        border:1px solid var(--border-soft);
-        background:rgba(10,12,30,0.9);
-        color:var(--text-muted);
-        display:flex;
-        align-items:center;
-        justify-content:center;
-        cursor:pointer;
-        font-size:0.85rem;
-        transition:background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid var(--border-soft);
+        background: rgba(10,12,30,0.9);
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 0.85rem;
+        transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
     }
 
-    .mrp-close-btn:hover {
-        border-color:var(--accent);
-        color:var(--accent-light);
-        transform:translateY(-1px);
-    }
+        .mrp-close-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent-light);
+            transform: translateY(-1px);
+        }
 </style>
