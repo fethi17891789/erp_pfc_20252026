@@ -1,20 +1,41 @@
 ﻿// Fichier : Metier/MRP/OrdreFabricationService.cs
+using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Donnees;
 using erp_pfc_20252026.Data.Entities;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Text;
-using System.Threading.Tasks;
+using Metier; // pour IPdfService
 
 namespace Metier.MRP
 {
     public class OrdreFabricationService
     {
         private readonly ErpDbContext _db;
+        private readonly IPdfService _pdfService;
 
-        public OrdreFabricationService(ErpDbContext db)
+        public OrdreFabricationService(ErpDbContext db, IPdfService pdfService)
         {
             _db = db;
+            _pdfService = pdfService;
+        }
+
+        public class OrdreFabricationPdfModel
+        {
+            public string ReferenceOF { get; set; } = string.Empty;
+            public string ReferencePlan { get; set; } = string.Empty;
+            public DateTime DateOrdre { get; set; }
+
+            public string CodeArticle { get; set; } = string.Empty;
+            public string NomArticle { get; set; } = string.Empty;
+            public string TypeProduit { get; set; } = string.Empty;
+
+            public decimal Quantite { get; set; }
+            public DateTime DateHorizonDebut { get; set; }
+            public DateTime DateHorizonFin { get; set; }
+
+            public decimal CoutBom { get; set; }
+            public decimal CoutTotalTheorique { get; set; }
         }
 
         public async Task<MRPFichier> GenererOrdreFabricationAsync(
@@ -45,35 +66,37 @@ namespace Metier.MRP
                 throw new InvalidOperationException("Produit introuvable pour cet article.");
 
             var referenceOf = $"OF-{plan.Id:D4}-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            var dateOrdre = DateTime.UtcNow;
 
-            // Contenu texte « pseudo-PDF » (tu pourras le remplacer plus tard par une vraie génération PDF)
-            var sb = new StringBuilder();
-            sb.AppendLine("ORDRE DE FABRICATION");
-            sb.AppendLine("=====================");
-            sb.AppendLine($"Référence OF : {referenceOf}");
-            sb.AppendLine($"Plan MRP     : {plan.Reference}");
-            sb.AppendLine();
-            sb.AppendLine($"Article      : {produit.Reference} - {produit.Nom}");
-            sb.AppendLine($"Type         : {lignePlan.TypeProduit}");
-            sb.AppendLine();
-            sb.AppendLine($"Quantité OF  : {quantite}");
-            sb.AppendLine($"Date ordre   : {DateTime.UtcNow:dd/MM/yyyy HH:mm}");
-            sb.AppendLine();
-            sb.AppendLine("Ce document est un exemple de contenu pour le PDF d'ordre de fabrication.");
+            var model = new OrdreFabricationPdfModel
+            {
+                ReferenceOF = referenceOf,
+                ReferencePlan = plan.Reference,
+                DateOrdre = dateOrdre,
+                CodeArticle = produit.Reference,
+                NomArticle = produit.Nom,
+                TypeProduit = lignePlan.TypeProduit,
+                Quantite = quantite,
+                DateHorizonDebut = plan.DateDebutHorizon,
+                DateHorizonFin = plan.DateFinHorizon,
+                CoutBom = produit.CoutBom,
+                CoutTotalTheorique = produit.CoutBom * quantite
+            };
 
-            var pdfBytes = Encoding.UTF8.GetBytes(sb.ToString());
+            // Génération du PDF via la vue Razor Pages/MRP/OFTemplate.cshtml
+            var pdfBytes = await _pdfService.GeneratePdfFromViewAsync("MRP/OFTemplate", model);
 
             var fichier = new MRPFichier
             {
                 PlanificationId = plan.Id,
                 CodeArticle = codeArticle,
                 ReferenceOF = referenceOf,
-                DateOrdre = DateTime.UtcNow,
+                DateOrdre = dateOrdre,
                 FichierNom = referenceOf + ".pdf",
                 ContentType = "application/pdf",
                 TailleOctets = pdfBytes.LongLength,
                 FichierBlob = pdfBytes,
-                CreeLe = DateTime.UtcNow
+                CreeLe = dateOrdre
             };
 
             _db.MRPFichiers.Add(fichier);

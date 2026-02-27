@@ -11,6 +11,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="Haukcode.WkHtmlToPdfDotNet" Version="1.5.95" />
 		<PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.1" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.1">
 		  <PrivateAssets>all</PrivateAssets>

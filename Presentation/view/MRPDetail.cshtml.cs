@@ -208,6 +208,8 @@ namespace erp_pfc_20252026.Pages
 
         public async Task<IActionResult> OnPostLancerOFAsync(int planId, string codeArticle, decimal quantite)
         {
+            Console.WriteLine($"[DEBUG] OnPostLancerOFAsync - planId={planId}, codeArticle={codeArticle}, quantite={quantite}");
+
             if (planId <= 0 || string.IsNullOrWhiteSpace(codeArticle) || quantite <= 0)
             {
                 TempData["Erreur"] = "Paramètres de lancement d'OF invalides.";
@@ -217,10 +219,12 @@ namespace erp_pfc_20252026.Pages
             try
             {
                 var fichier = await _ofService.GenererOrdreFabricationAsync(planId, codeArticle, quantite);
+                Console.WriteLine($"[DEBUG] OF généré Id={fichier.Id}, Ref={fichier.ReferenceOF}");
                 TempData["Succes"] = $"Ordre de fabrication {fichier.ReferenceOF} généré pour l'article {codeArticle}.";
             }
             catch (Exception ex)
             {
+                Console.WriteLine("[DEBUG] Erreur OF : " + ex);
                 TempData["Erreur"] = "Erreur lors de la génération de l'ordre de fabrication : " + ex.Message;
             }
 

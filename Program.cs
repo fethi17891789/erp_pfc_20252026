@@ -1,11 +1,13 @@
 ﻿// Fichier : Program.cs
-using System;
-using System.Diagnostics;
 using Donnees;
 using Metier;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using Microsoft.AspNetCore.Http;
+using System;
+using System.Diagnostics;
+using WkHtmlToPdfDotNet;
+using WkHtmlToPdfDotNet.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,6 +23,12 @@ builder.Services
         options.RootDirectory = "/Presentation/view";
         options.Conventions.AddPageRoute("/BDDView", "");
     });
+
+// === wkhtmltopdf / PDF ===
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+builder.Services.AddScoped<IPdfService, PdfService>();
+// ==========================
 
 // Services singletons
 builder.Services.AddSingleton<DynamicConnectionProvider>();

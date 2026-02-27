@@ -1,0 +1,135 @@
+﻿@model Metier.MRP.OrdreFabricationService.OrdreFabricationPdfModel
+@{
+    Layout = null; // PDF autonome
+}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <title>Ordre de fabrication @Model.ReferenceOF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #333;
+        }
+
+        h1 {
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        h2 {
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 5px;
+        }
+
+        .header-info, .article-info, .quantite-info {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+            .header-info td,
+            .article-info td,
+            .quantite-info td {
+                padding: 4px 6px;
+                border: 1px solid #ccc;
+            }
+
+        .label {
+            font-weight: bold;
+            background-color: #f5f5f5;
+            width: 30%;
+        }
+
+        .value {
+            width: 70%;
+        }
+
+        .small {
+            font-size: 10px;
+            color: #777;
+        }
+
+        .footer {
+            margin-top: 30px;
+            font-size: 10px;
+            text-align: center;
+            color: #999;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ordre de fabrication</h1>
+    <p style="text-align:center; margin-top:0;">
+        Référence OF : <strong>@Model.ReferenceOF</strong>
+    </p>
+
+    <h2>Planification</h2>
+    <table class="header-info">
+        <tr>
+            <td class="label">Plan MRP</td>
+            <td class="value">@Model.ReferencePlan</td>
+        </tr>
+        <tr>
+            <td class="label">Date de l'ordre</td>
+            <td class="value">@Model.DateOrdre.ToString("dd/MM/yyyy HH:mm")</td>
+        </tr>
+        <tr>
+            <td class="label">Horizon de planification</td>
+            <td class="value">
+                Du @Model.DateHorizonDebut.ToString("dd/MM/yyyy")
+                au @Model.DateHorizonFin.ToString("dd/MM/yyyy")
+            </td>
+        </tr>
+    </table>
+
+    <h2>Article à fabriquer</h2>
+    <table class="article-info">
+        <tr>
+            <td class="label">Référence article</td>
+            <td class="value">@Model.CodeArticle</td>
+        </tr>
+        <tr>
+            <td class="label">Désignation</td>
+            <td class="value">@Model.NomArticle</td>
+        </tr>
+        <tr>
+            <td class="label">Type produit</td>
+            <td class="value">@Model.TypeProduit</td>
+        </tr>
+    </table>
+
+    <h2>Quantité et coûts</h2>
+    <table class="quantite-info">
+        <tr>
+            <td class="label">Quantité à fabriquer</td>
+            <td class="value">@Model.Quantite</td>
+        </tr>
+        <tr>
+            <td class="label">Coût BOM unitaire</td>
+            <td class="value">@Model.CoutBom.ToString("N2")</td>
+        </tr>
+        <tr>
+            <td class="label">Coût total théorique</td>
+            <td class="value">@Model.CoutTotalTheorique.ToString("N2")</td>
+        </tr>
+    </table>
+
+    <p class="small mt-20">
+        Cet ordre de fabrication a été généré automatiquement par le module MRP de l'ERP.
+    </p>
+
+    <div class="footer">
+        ERP PFC 2025-2026 - Ordre de fabrication @Model.ReferenceOF
+    </div>
+</body>
+</html>
