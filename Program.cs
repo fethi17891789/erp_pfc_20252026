@@ -142,11 +142,9 @@ using (var scope = app.Services.CreateScope())
             }
             else
             {
-                // ALTER TABLE pour ajouter les colonnes manquantes
                 const string alterSql = @"
 DO $$
 BEGIN
-    -- QuantiteDisponible
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'Produits' AND column_name = 'QuantiteDisponible'
@@ -154,7 +152,6 @@ BEGIN
         ALTER TABLE ""Produits"" ADD COLUMN ""QuantiteDisponible"" NUMERIC(18,2) NOT NULL DEFAULT 0;
     END IF;
 
-    -- TypeTechnique
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'Produits' AND column_name = 'TypeTechnique'
@@ -162,7 +159,6 @@ BEGIN
         ALTER TABLE ""Produits"" ADD COLUMN ""TypeTechnique"" INT NOT NULL DEFAULT 0;
     END IF;
 
-    -- CoutAchat
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'Produits' AND column_name = 'CoutAchat'
@@ -170,7 +166,6 @@ BEGIN
         ALTER TABLE ""Produits"" ADD COLUMN ""CoutAchat"" NUMERIC(18,2) NOT NULL DEFAULT 0;
     END IF;
 
-    -- CoutAutresCharges
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'Produits' AND column_name = 'CoutAutresCharges'
@@ -178,7 +173,6 @@ BEGIN
         ALTER TABLE ""Produits"" ADD COLUMN ""CoutAutresCharges"" NUMERIC(18,2) NOT NULL DEFAULT 0;
     END IF;
 
-    -- CoutBom
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'Produits' AND column_name = 'CoutBom'
@@ -186,7 +180,6 @@ BEGIN
         ALTER TABLE ""Produits"" ADD COLUMN ""CoutBom"" NUMERIC(18,2) NOT NULL DEFAULT 0;
     END IF;
 
-    -- CoutTotal
     IF NOT EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'Produits' AND column_name = 'CoutTotal'
@@ -228,7 +221,6 @@ using (var scope2 = app.Services.CreateScope())
             using var conn = new NpgsqlConnection(connString);
             conn.Open();
 
-            // Table Boms
             const string checkBomsSql = @"
                 SELECT EXISTS (
                     SELECT 1
@@ -265,7 +257,6 @@ using (var scope2 = app.Services.CreateScope())
                 }
             }
 
-            // Table BomLignes
             const string checkBomLignesSql = @"
                 SELECT EXISTS (
                     SELECT 1
@@ -310,7 +301,6 @@ using (var scope2 = app.Services.CreateScope())
             }
             else
             {
-                // Ajout de la colonne AutresCharges si elle manque
                 const string alterBomLignesSql = @"
 DO $$
 BEGIN
@@ -357,7 +347,6 @@ using (var scope3 = app.Services.CreateScope())
             conn.Open();
 
             const string createMessagingTablesSql = @"
-                -- 1. Table Conversations
                 CREATE TABLE IF NOT EXISTS ""Conversations"" (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""Titre"" VARCHAR(200) NULL,
@@ -367,7 +356,6 @@ using (var scope3 = app.Services.CreateScope())
                     ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
                 );
 
-                -- 2. Table Messages
                 CREATE TABLE IF NOT EXISTS ""Messages"" (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""ConversationId"" INT NOT NULL,
@@ -383,7 +371,6 @@ using (var scope3 = app.Services.CreateScope())
                         ON DELETE CASCADE
                 );
 
-                -- 3. Table MessageAttachments
                 CREATE TABLE IF NOT EXISTS ""MessageAttachments"" (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""MessageId"" INT NOT NULL,
@@ -396,7 +383,6 @@ using (var scope3 = app.Services.CreateScope())
                         ON DELETE CASCADE
                 );
 
-                -- 4. Table MessageReadStates
                 CREATE TABLE IF NOT EXISTS ""MessageReadStates"" (
                     ""Id"" SERIAL PRIMARY KEY,
                     ""MessageId"" INT NOT NULL,
@@ -405,8 +391,7 @@ using (var scope3 = app.Services.CreateScope())
                     CONSTRAINT ""FK_ReadStates_Messages_MessageId""
                         FOREIGN KEY (""MessageId"") REFERENCES ""Messages""(""Id"")
                         ON DELETE CASCADE
-                );
-            ";
+                );";
 
             using (var cmd = new NpgsqlCommand(createMessagingTablesSql, conn))
             {
@@ -482,7 +467,6 @@ using (var scope5 = app.Services.CreateScope())
             using var conn = new NpgsqlConnection(connString);
             conn.Open();
 
-            // Table MRPPlans
             const string checkMrpPlansSql = @"
                 SELECT EXISTS (
                     SELECT 1
@@ -522,7 +506,6 @@ using (var scope5 = app.Services.CreateScope())
                 Console.WriteLine("[DEBUG] Table MRPPlans créée.");
             }
 
-            // Table MRPPlanLignes
             const string checkMrpPlanLignesSql = @"
                 SELECT EXISTS (
                     SELECT 1
@@ -552,6 +535,7 @@ using (var scope5 = app.Services.CreateScope())
                         ""QuantiteBesoin"" NUMERIC(18,2) NOT NULL,
                         ""StockDisponible"" NUMERIC(18,2) NOT NULL,
                         ""QuantiteALancer"" NUMERIC(18,2) NOT NULL,
+                        ""PrixTotal"" NUMERIC(18,2) NOT NULL DEFAULT 0,
                         CONSTRAINT ""FK_MRPPlanLignes_MRPPlans_MRPPlanId""
                             FOREIGN KEY (""MRPPlanId"") REFERENCES ""MRPPlans""(""Id"")
                             ON DELETE CASCADE,
@@ -565,6 +549,25 @@ using (var scope5 = app.Services.CreateScope())
                 createTableCmd2.ExecuteNonQuery();
                 Console.WriteLine("[DEBUG] Table MRPPlanLignes créée.");
             }
+            else
+            {
+                const string alterMrpPlanLignesSql = @"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'MRPPlanLignes'
+          AND column_name = 'PrixTotal'
+    ) THEN
+        ALTER TABLE ""MRPPlanLignes""
+        ADD COLUMN ""PrixTotal"" NUMERIC(18,2) NOT NULL DEFAULT 0;
+    END IF;
+END $$;";
+                using var alterCmd = new NpgsqlCommand(alterMrpPlanLignesSql, conn);
+                alterCmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Colonne PrixTotal MRPPlanLignes OK.");
+            }
         }
         else
         {
@@ -574,6 +577,75 @@ using (var scope5 = app.Services.CreateScope())
     catch (Exception ex)
     {
         Console.WriteLine($"Erreur lors de la création auto des tables MRPPlans : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
+// ---------- 6. CREATION AUTOMATIQUE TABLE MRP FICHIERS (PDF OF) ----------
+using (var scope6 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope6.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        Console.WriteLine($"[DEBUG] Connexion utilisée pour MRPFichiers : {connString}");
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string checkMrpFichiersSql = @"
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = 'MRPFichiers'
+                );";
+
+            bool mrpFichiersExists;
+            using (var checkCmd = new NpgsqlCommand(checkMrpFichiersSql, conn))
+            {
+                var existsObj = checkCmd.ExecuteScalar();
+                mrpFichiersExists = existsObj is bool b && b;
+            }
+
+            Console.WriteLine($"[DEBUG] Table MRPFichiers existe déjà ? {mrpFichiersExists}");
+
+            if (!mrpFichiersExists)
+            {
+                const string createMrpFichiersSql = @"
+                    CREATE TABLE ""MRPFichiers"" (
+                        ""Id"" SERIAL PRIMARY KEY,
+                        ""PlanificationId"" INT NOT NULL,
+                        ""CodeArticle"" VARCHAR(50) NOT NULL,
+                        ""ReferenceOF"" VARCHAR(50) NOT NULL,
+                        ""DateOrdre"" TIMESTAMP WITH TIME ZONE NOT NULL,
+                        ""FichierNom"" VARCHAR(255) NOT NULL,
+                        ""ContentType"" VARCHAR(100) NOT NULL DEFAULT 'application/pdf',
+                        ""TailleOctets"" BIGINT NOT NULL,
+                        ""CreeLe"" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+                        ""FichierBlob"" BYTEA NOT NULL,
+                        CONSTRAINT ""FK_MRPFichiers_MRPPlans_PlanificationId""
+                            FOREIGN KEY (""PlanificationId"") REFERENCES ""MRPPlans""(""Id"")
+                            ON DELETE CASCADE
+                    );";
+
+                Console.WriteLine("[DEBUG] Création de la table MRPFichiers...");
+                using var createTableCmd = new NpgsqlCommand(createMrpFichiersSql, conn);
+                createTableCmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Table MRPFichiers créée.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("[DEBUG] Connexion vide, aucune création de table MRPFichiers.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto de la table MRPFichiers : {ex}");
     }
 }
 // --------------------------------------------------------------------

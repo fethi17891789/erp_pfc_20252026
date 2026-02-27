@@ -217,7 +217,7 @@
                                                            type="number"
                                                            step="0.01"
                                                            min="0"
-                                                           value="@(ligne.PrixUnitaire ?? 0)"
+                                                           value="@( (ligne.PrixUnitaire ?? 0m).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) )"
                                                            readonly />
                                                 </div>
                                             </td>
@@ -228,7 +228,7 @@
                                                            type="number"
                                                            step="0.01"
                                                            min="0"
-                                                           value="@(ligne.Quantite ?? 1)" />
+                                                           value="@( (ligne.Quantite ?? 1m).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) )" />
                                                 </div>
                                             </td>
                                             <td>
@@ -238,7 +238,7 @@
                                                            type="number"
                                                            step="0.01"
                                                            min="0"
-                                                           value="@(ligne.AutresCharges ?? 0)" />
+                                                           value="@( (ligne.AutresCharges ?? 0m).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) )" />
                                                 </div>
                                             </td>
                                             <td class="table-actions-cell">
@@ -259,7 +259,8 @@
                             <div class="bom-total-label">Coût BOM total (composants + autres charges)</div>
                             <div class="bom-total-value">
                                 <input id="CoutBomDisplay" class="bom-total-input" type="number" step="0.01"
-                                       value="@Model.CoutBomCalcule.ToString("0.00")" readonly />
+                                       value="@Model.CoutBomCalcule.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)"
+                                       readonly />
                                 <span class="bom-total-unit">DA</span>
                             </div>
                         </div>

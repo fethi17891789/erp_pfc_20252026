@@ -1,4 +1,5 @@
 ﻿// Fichier : Donnees/ErpDbContext.cs
+using erp_pfc_20252026.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace Donnees
@@ -29,6 +30,12 @@ namespace Donnees
         // MRP PLAN
         public DbSet<MRPPlan> MRPPlans { get; set; }
         public DbSet<MRPPlanLigne> MRPPlanLignes { get; set; }
+
+        // Détail périodique du tableau MRP
+        public DbSet<MRPTableau> MRPTables { get; set; }   // ou MRPTableaux si tu préfères
+
+        // Fichiers PDF MRP (OF) stockés en base
+        public DbSet<MRPFichier> MRPFichiers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -225,6 +232,11 @@ namespace Donnees
                 entity.Property(l => l.QuantiteALancer)
                       .HasColumnType("decimal(18,2)");
 
+                // Nouveau : configuration de la colonne PrixTotal
+                entity.Property(l => l.PrixTotal)
+                      .HasColumnType("decimal(18,2)")
+                      .HasDefaultValue(0m);
+
                 entity.HasOne(l => l.MRPPlan)
                       .WithMany(p => p.Lignes)
                       .HasForeignKey(l => l.MRPPlanId)
@@ -240,6 +252,91 @@ namespace Donnees
 
                 entity.HasIndex(l => l.ProduitId)
                       .HasDatabaseName("IX_MRPPlanLignes_ProduitId");
+            });
+
+            // --- CONFIG MRP TABLEAU (détail périodique) ---
+            modelBuilder.Entity<MRPTableau>(entity =>
+            {
+                entity.ToTable("MRPTableaux");
+                entity.HasKey(t => t.Id);
+
+                entity.Property(t => t.NumeroPeriode)
+                      .IsRequired();
+
+                entity.Property(t => t.DatePeriode)
+                      .HasColumnType("timestamp with time zone");
+
+                entity.Property(t => t.BesoinBrut)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.Property(t => t.StockPrevisionnel)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.Property(t => t.BesoinNet)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.Property(t => t.FinOrdre)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.Property(t => t.DebutOrdre)
+                      .HasColumnType("decimal(18,2)");
+
+                entity.Property(t => t.DelaiJours)
+                      .IsRequired();
+
+                entity.HasOne(t => t.MRPPlanLigne)
+                      .WithMany()
+                      .HasForeignKey(t => t.MRPPlanLigneId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(t => t.MRPPlanLigneId)
+                      .HasDatabaseName("IX_MRPTableaux_MRPPlanLigneId");
+            });
+
+            // --- CONFIG MRP FICHIERS (PDF OF) ---
+            modelBuilder.Entity<MRPFichier>(entity =>
+            {
+                entity.ToTable("MRPFichiers");
+                entity.HasKey(f => f.Id);
+
+                entity.Property(f => f.CodeArticle)
+                      .IsRequired()
+                      .HasMaxLength(50);
+
+                entity.Property(f => f.ReferenceOF)
+                      .IsRequired()
+                      .HasMaxLength(50);
+
+                entity.Property(f => f.DateOrdre)
+                      .HasColumnType("timestamp with time zone")
+                      .IsRequired();
+
+                entity.Property(f => f.FichierNom)
+                      .IsRequired()
+                      .HasMaxLength(255);
+
+                entity.Property(f => f.ContentType)
+                      .IsRequired()
+                      .HasMaxLength(100)
+                      .HasDefaultValue("application/pdf");
+
+                entity.Property(f => f.TailleOctets)
+                      .IsRequired();
+
+                entity.Property(f => f.CreeLe)
+                      .HasColumnType("timestamp with time zone")
+                      .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+
+                entity.Property(f => f.FichierBlob)
+                      .IsRequired();
+
+                entity.HasOne<MRPPlan>()
+                      .WithMany()
+                      .HasForeignKey(f => f.PlanificationId)
+                      .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(f => f.PlanificationId)
+                      .HasDatabaseName("IX_MRPFichiers_PlanificationId");
             });
         }
     }

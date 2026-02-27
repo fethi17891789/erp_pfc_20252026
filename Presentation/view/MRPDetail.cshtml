@@ -3,7 +3,54 @@
 @addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
 
 @{
-    ViewData["Title"] = "Détail planification MRP";
+    ViewData["Title"] = "Detail planification MRP";
+
+    var lignes = Model.Lignes ?? new List<erp_pfc_20252026.Pages.MRPDetailModel.LigneMrpVm>();
+    var planifOK = Model.PlanifAutoriseLancement();
+    var racines = lignes.Where(l => l.Niveau == 0).ToList();
+
+    var dictByCode = lignes
+        .Where(l => !string.IsNullOrEmpty(l.CodeArticle))
+        .GroupBy(l => l.CodeArticle)
+        .ToDictionary(g => g.Key, g => g.First());
+
+    var enfantsParRoot = new Dictionary<string, erp_pfc_20252026.Pages.MRPDetailModel.LigneMrpVm>();
+
+    var enfantsParRootList = new Dictionary<string, List<erp_pfc_20252026.Pages.MRPDetailModel.LigneMrpVm>>();
+    foreach (var root in racines)
+    {
+        var liste = new List<erp_pfc_20252026.Pages.MRPDetailModel.LigneMrpVm>();
+
+        foreach (var ligne in lignes.Where(l => l.Niveau > 0))
+        {
+            var parent = ligne.ParentCodeArticle;
+            var appartient = false;
+
+            while (!string.IsNullOrEmpty(parent))
+            {
+                if (parent == root.CodeArticle)
+                {
+                    appartient = true;
+                    break;
+                }
+
+                if (!dictByCode.TryGetValue(parent, out var parentLigne))
+                    break;
+
+                parent = parentLigne.ParentCodeArticle;
+            }
+
+            if (appartient)
+            {
+                liste.Add(ligne);
+            }
+        }
+
+        enfantsParRootList[root.CodeArticle] = liste
+            .OrderBy(l => l.Niveau)
+            .ThenBy(l => l.CodeArticle)
+            .ToList();
+    }
 }
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
@@ -29,7 +76,7 @@
             </a>
             <a asp-page="/MRP" class="nav-item nav-item-active">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                    <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1-2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
                 </svg>
                 <span>MRP</span>
             </a>
@@ -53,9 +100,9 @@
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="1"></circle>
                     <path d="M12 1v6m6.07 6.07h-6.14M12 19v4m6.07-6.07v0"></path>
-                    <path d="M19 5l-4.24 4.24M5 19l4.24-4.24M19 19l-4.24-4.24M5 5l4.24 4.24"></path>
+                    <path d="M19 5l-4.24 4.24M5 19l-4.24-4.24M19 19l-4.24-4.24M5 5l4.24 4.24"></path>
                 </svg>
-                <span>Paramètres</span>
+                <span>Parametres</span>
             </button>
         </nav>
 
@@ -73,7 +120,7 @@
                     <polyline points="16 3 16 10 13 7"></polyline>
                     <path d="M16 10v7a2 2 0 0 1-2 2h-2"></path>
                 </svg>
-                Déconnexion
+                Deconnexion
             </button>
         </div>
     </aside>
@@ -82,7 +129,7 @@
     <main class="erp-main">
         <header class="erp-header">
             <div class="header-left">
-                <h1>Détail planification MRP</h1>
+                <h1>Detail planification MRP</h1>
                 <p>
                     Visualisation des besoins pour
                     <strong>@Model.Planification?.Reference</strong>.
@@ -109,7 +156,7 @@
         </header>
 
         <section class="erp-content" style="display:flex; flex-direction:column; gap:16px;">
-            <!-- RECTANGLE RÉSUMÉ -->
+            <!-- RECTANGLE RESUME -->
             <div class="mrp-plan-resume">
                 <div class="mrp-plan-resume-left">
                     <div class="mrp-plan-resume-header">
@@ -117,7 +164,7 @@
                             Planification MRP
                         </span>
                         <span class="mrp-plan-ref">
-                            Réf : <strong>@Model.Planification?.Reference</strong>
+                            Ref : <strong>@Model.Planification?.Reference</strong>
                         </span>
                     </div>
 
@@ -127,10 +174,10 @@
                             <strong>@Model.Planification?.HorizonJours jours</strong>
                         </div>
                         <div>
-                            Période :
+                            Periode :
                             <strong>
                                 @Model.Planification?.DateDebut.ToString("dd/MM/yyyy")
-                                →
+                                ->
                                 @Model.Planification?.DateFin.ToString("dd/MM/yyyy")
                             </strong>
                         </div>
@@ -141,7 +188,7 @@
                             </span>
                         </div>
                         <div>
-                            Produits planifiés :
+                            Produits planifies :
                             <strong>@Model.NbProduitsPlanifies</strong>
                         </div>
                         <div>
@@ -161,7 +208,7 @@
                         <button type="submit"
                                 class="btn-secondary"
                                 style="min-width:170px;"
-                                @(Model.Planification?.Statut == "Terminée" ? "disabled" : "")>
+                                @(Model.Planification?.Statut == "Terminee" ? "disabled" : "")>
                             Enregistrer
                         </button>
                     </form>
@@ -170,17 +217,17 @@
                         <button type="submit"
                                 class="btn-secondary"
                                 style="min-width:170px;"
-                                @(Model.Planification?.Statut == "Terminée" ? "disabled" : "")>
+                                @(Model.Planification?.Statut == "Terminee" ? "disabled" : "")>
                             Annuler
                         </button>
                     </form>
                 </div>
             </div>
 
-            <!-- BARRE D'INFO -->
+            <!-- BARRE D INFO -->
             <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
                 <div style="font-size:0.9rem; color:var(--text-muted);">
-                    @Model.Lignes?.Count() lignes MRP (produits + composants)
+                    @lignes.Count lignes MRP (produits + composants)
                 </div>
             </div>
 
@@ -192,82 +239,80 @@
                             <tr>
                                 <th style="width:40px;"></th>
                                 <th style="width:60px;">Niv.</th>
-                                <th style="width:130px;">Référence</th>
+                                <th style="width:130px;">Reference</th>
                                 <th>Nom produit</th>
                                 <th style="width:120px;">Type</th>
                                 <th style="width:110px;">Stock dispo</th>
-                                <th style="width:110px;">Qté à lancer</th>
+                                <th style="width:110px;">Qte a lancer</th>
                                 <th style="width:120px;">Prix</th>
                                 <th style="width:130px;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @if (Model.Lignes != null && Model.Lignes.Any())
+                            @if (!lignes.Any() || !racines.Any())
                             {
-                                var planifOK = Model.PlanifAutoriseLancement();
-                                var racines = Model.Lignes.Where(l => l.Niveau == 0).ToList();
-
-                                if (!racines.Any())
+                                <tr>
+                                    <td colspan="9" style="text-align:center; padding:32px; color:var(--text-muted);">
+                                        Aucune ligne MRP a afficher pour le moment.
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var root in racines)
                                 {
-                                    <tr>
-                                        <td colspan="9" style="text-align:center; padding:32px; color:var(--text-muted);">
-                                            Aucune ligne MRP à afficher pour le moment.
+                                    var isOFRoot = root.EstOrdreFabrication;
+                                    var isOARoot = root.EstOrdreAchat;
+                                    var boutonTexteRoot = isOFRoot ? "Lancer OF" : (isOARoot ? "Lancer OA" : "");
+                                    var boutonDisabledRoot = !planifOK || root.QuantiteALancer <= 0 || string.IsNullOrEmpty(boutonTexteRoot);
+                                    var boutonTitleRoot = "";
+
+                                    if (!planifOK)
+                                    {
+                                        boutonTitleRoot = "Impossible de lancer un ordre : la planification n est pas en attente.";
+                                    }
+                                    else if (root.QuantiteALancer <= 0)
+                                    {
+                                        boutonTitleRoot = "Quantite a lancer nulle ou negative.";
+                                    }
+
+                                    <tr class="mrp-row mrp-row-root"
+                                        data-article="@root.CodeArticle"
+                                        data-label="@root.LibelleArticle"
+                                        onclick="openMrpPopup('@root.CodeArticle', '@root.LibelleArticle')">
+                                        <td onclick="event.stopPropagation();">
+                                            <button type="button"
+                                                    class="mrp-chevron-btn hover-lift-sm"
+                                                    onclick="toggleBom('@root.CodeArticle'); event.stopPropagation();">
+                                                <span id="chevron-@root.CodeArticle">▸</span>
+                                            </button>
+                                        </td>
+                                        <td>@root.Niveau</td>
+                                        <td>@root.CodeArticle</td>
+                                        <td>@root.LibelleArticle</td>
+                                        <td>@root.TypeProduit</td>
+                                        <td>@root.StockDisponible</td>
+                                        <!-- valeur initiale depuis le backend, sera écrasée par JS après calcul DEB -->
+                                        <td>@root.QuantiteALancer</td>
+                                        <td>@root.Prix.ToString("N2")</td>
+                                        <td onclick="event.stopPropagation();">
+                                            @if (!string.IsNullOrEmpty(boutonTexteRoot))
+                                            {
+                                                <button type="button"
+                                                        class="btn-primary"
+                                                        style="width:110px; padding-inline:8px; font-size:0.8rem;"
+                                                        @(boutonDisabledRoot ? "disabled" : "")
+                                                        title="@boutonTitleRoot"
+                                                        onclick="if(!this.disabled){alert('TODO: @boutonTexteRoot pour @root.CodeArticle');}">
+                                                    @boutonTexteRoot
+                                                </button>
+                                            }
                                         </td>
                                     </tr>
-                                }
-                                else
-                                {
-                                    foreach (var root in racines)
+
+                                    if (enfantsParRootList.TryGetValue(root.CodeArticle, out var enfantsDuRoot) && enfantsDuRoot.Any())
                                     {
-                                        var isOFRoot = root.EstOrdreFabrication;
-                                        var isOARoot = root.EstOrdreAchat;
-                                        var boutonTexteRoot = isOFRoot ? "Lancer OF" : (isOARoot ? "Lancer OA" : "");
-                                        var boutonDisabledRoot = !planifOK || root.QuantiteALancer <= 0 || string.IsNullOrEmpty(boutonTexteRoot);
-                                        var boutonTitleRoot = "";
-
-                                        if (!planifOK)
-                                        {
-                                            boutonTitleRoot = "Impossible de lancer un ordre : la planification n'est pas en attente.";
-                                        }
-                                        else if (root.QuantiteALancer <= 0)
-                                        {
-                                            boutonTitleRoot = "Quantité à lancer nulle ou négative.";
-                                        }
-
-                                        <tr class="mrp-row mrp-row-root"
-                                            data-article="@root.CodeArticle"
-                                            data-label="@root.LibelleArticle"
-                                            onclick="openMrpPopup('@root.CodeArticle', '@root.LibelleArticle')">
-                                            <td onclick="event.stopPropagation();">
-                                                <button type="button"
-                                                        class="mrp-chevron-btn hover-lift-sm"
-                                                        onclick="toggleBom('@root.CodeArticle'); event.stopPropagation();">
-                                                    <span id="chevron-@root.CodeArticle">▾</span>
-                                                </button>
-                                            </td>
-                                            <td>@root.Niveau</td>
-                                            <td>@root.CodeArticle</td>
-                                            <td>@root.LibelleArticle</td>
-                                            <td>@root.TypeProduit</td>
-                                            <td>@root.StockDisponible</td>
-                                            <td>@root.QuantiteALancer</td>
-                                            <td>@root.Prix.ToString("N2")</td>
-                                            <td onclick="event.stopPropagation();">
-                                                @if (!string.IsNullOrEmpty(boutonTexteRoot))
-                                                {
-                                                    <button type="button"
-                                                            class="btn-primary"
-                                                            style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                            @(boutonDisabledRoot ? "disabled" : "")
-                                                            title="@boutonTitleRoot"
-                                                            onclick="if(!this.disabled){alert('TODO: @boutonTexteRoot pour @root.CodeArticle');}">
-                                                        @boutonTexteRoot
-                                                    </button>
-                                                }
-                                            </td>
-                                        </tr>
-
-                                        @foreach (var c in Model.Lignes.Where(l => l.Niveau > 0 && l.ParentCodeArticle == root.CodeArticle))
+                                        foreach (var c in enfantsDuRoot)
                                         {
                                             var isOF = c.EstOrdreFabrication;
                                             var isOA = c.EstOrdreAchat;
@@ -277,21 +322,23 @@
 
                                             if (!planifOK)
                                             {
-                                                boutonTitle = "Impossible de lancer un ordre : la planification n'est pas en attente.";
+                                                boutonTitle = "Impossible de lancer un ordre : la planification n est pas en attente.";
                                             }
                                             else if (c.QuantiteALancer <= 0)
                                             {
-                                                boutonTitle = "Quantité à lancer nulle ou négative.";
+                                                boutonTitle = "Quantite a lancer nulle ou negative.";
                                             }
 
                                             <tr class="mrp-row mrp-row-child"
-                                                data-parent="@c.ParentCodeArticle">
+                                                data-parent="@c.ParentCodeArticle"
+                                                data-root="@root.CodeArticle">
                                                 <td></td>
                                                 <td>@c.Niveau</td>
                                                 <td>@c.CodeArticle</td>
                                                 <td>@c.LibelleArticle</td>
                                                 <td>@c.TypeProduit</td>
                                                 <td>@c.StockDisponible</td>
+                                                <!-- valeur initiale (0) sera remplacée par la somme DEB calc. -->
                                                 <td>@c.QuantiteALancer</td>
                                                 <td>@c.Prix.ToString("N2")</td>
                                                 <td>
@@ -312,18 +359,66 @@
                                     }
                                 }
                             }
-                            else
-                            {
-                                <tr>
-                                    <td colspan="9" style="text-align:center; padding:32px; color:var(--text-muted);">
-                                        Aucune ligne MRP à afficher pour le moment.
-                                    </td>
-                                </tr>
-                            }
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            <!-- TABLEAU DES FICHIERS D'ORDRES DE FABRICATION -->
+            <div class="erp-card mrp-table-card" style="margin-top: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px 0 16px;">
+                    <div>
+                        <h3 style="margin:0; font-size:0.95rem;">Fichiers d'ordres de fabrication</h3>
+                        <p style="margin:2px 0 0; font-size:0.8rem; color:var(--text-muted);">
+                            Liste des fichiers PDF generes pour cette planification.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mrp-table-wrapper" style="max-height: 24vh;">
+                    <table class="erp-table mrp-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%;">Produit</th>
+                                <th style="width: 25%;">Reference OF</th>
+                                <th style="width: 20%;">Date de l'ordre</th>
+                                <th style="width: 30%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Ligne d'exemple statique, sera remplacee plus tard par un foreach -->
+                            <tr>
+                                <td>Produit fini Exemple</td>
+                                <td>OF-0001</td>
+                                <td>27/02/2026</td>
+                                <td>
+                                    <div style="display:flex; gap:8px; justify-content:flex-start;">
+                                        <button type="button"
+                                                class="btn-secondary"
+                                                style="padding:6px 14px; font-size:0.8rem; margin-top:0;"
+                                                disabled>
+                                            Visualiser PDF
+                                        </button>
+                                        <button type="button"
+                                                class="btn-primary"
+                                                style="padding:6px 14px; font-size:0.8rem; margin-top:0;"
+                                                disabled>
+                                            Telecharger
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <tr>
+                                <td colspan="4" style="text-align:center; padding:20px; font-size:0.85rem; color:var(--text-muted);">
+                                    Aucun fichier d'ordre de fabrication enregistre pour le moment.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </section>
     </main>
 </div>
@@ -336,60 +431,80 @@
                 <h3 style="margin-bottom:4px;">Tableaux MRP produit / composants</h3>
                 <p id="mrp-product-header"
                    style="font-size:0.9rem; color:var(--text-muted);">
-                    Produit : <strong id="mrp-product-ref"></strong> – <span id="mrp-product-name"></span>
+                    Produit : <strong id="mrp-product-ref"></strong> - <span id="mrp-product-name"></span>
                 </p>
             </div>
             <button type="button"
                     class="mrp-close-btn"
                     onclick="closeMrpPopup()">
-                ✕
+                X
             </button>
         </div>
 
         <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:8px;">
-            Les colonnes représentent les périodes (jours) selon la configuration de la planification.
-            La ligne <strong>Besoin brut (BB)</strong> est saisissable uniquement pour le produit fini, et la ligne <strong>Délai</strong> est saisissable pour tous.
+            Les colonnes representent les periodes (jours) selon la configuration de la planification.
+            La ligne <strong>Besoin brut (BB)</strong> est saisissable uniquement pour le produit fini, et la ligne <strong>Delai</strong> est saisissable pour tous.
         </div>
 
         <div class="mrp-grid-wrapper" id="mrp-grid-wrapper">
-            @* Le contenu des tableaux sera généré dynamiquement en JS *@
+            @* Contenu genere dynamiquement en JS *@
         </div>
 
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
             <button type="button" class="btn-secondary" onclick="closeMrpPopup()">Fermer</button>
             <button type="button"
                     class="btn-primary"
-                    onclick="alert('TODO: Appliquer les valeurs MRP pour ce produit');">
+                    onclick="saveCurrentMrpTables()">
                 Appliquer les valeurs
             </button>
         </div>
     </div>
 </div>
 
-<!-- POPUP DÉCONNEXION -->
+<!-- POPUP DECONNEXION -->
 <div id="logout-overlay" class="logout-overlay" style="display:none;">
     <div class="logout-modal">
-        <h3>Confirmer la déconnexion</h3>
-        <p>Voulez-vous vraiment vous déconnecter et revenir à l'écran de choix du profil&nbsp;?</p>
+        <h3>Confirmer la deconnexion</h3>
+        <p>Voulez-vous vraiment vous deconnecter et revenir a l ecran de choix du profil ?</p>
 
         <form method="post" asp-page-handler="Logout" class="logout-modal-actions">
             <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
-            <button type="submit" class="btn-primary">Oui, se déconnecter</button>
+            <button type="submit" class="btn-primary">Oui, se deconnecter</button>
         </form>
     </div>
 </div>
 
 <script src="~/js/Home.js"></script>
 
+<form id="antiForgeryForm" method="post" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
 <script>
-    // Infos BOM envoyées depuis le backend : [{ codeArticlePF, nomPF, componentCount }]
     const mrpBomInfos = @Html.Raw(Model.BomInfosJson ?? "[]");
-
-    // Stocks envoyés depuis le backend : [{ codeArticle, stockDisponible }]
     const stockMrpByArticle = @Html.Raw(Model.StockMrpJson ?? "[]");
-
-    // Détails BOM (PF -> liste de composants avec codes) pour lier chaque tableau à son bon article
     const mrpBomDetails = @Html.Raw(Model.BomDetailsJson ?? "[]");
+    const mrpBomRatios = @Html.Raw(Model.BomRatiosJson ?? "[]");
+
+    const mrpTablesByArticle = {};
+    const mrpChildrenByParent = {};
+
+    const currentPlanId = @Model.Planification?.Id ?? 0;
+    const mrpDetailPageUrl = '@Url.Page("MRPDetail")';
+
+    mrpBomRatios.forEach(function (r) {
+        const parent = r.parentCodeArticle || r.ParentCodeArticle;
+        const child = r.enfantCodeArticle || r.EnfantCodeArticle;
+        const qty = r.quantiteParParent || r.QuantiteParParent || 1;
+        if (!parent || !child) return;
+        if (!mrpChildrenByParent[parent]) {
+            mrpChildrenByParent[parent] = [];
+        }
+        mrpChildrenByParent[parent].push({
+            childCode: child,
+            quantiteParParent: qty
+        });
+    });
 
     function findStockForArticle(codeArticle) {
         if (!codeArticle) return 0;
@@ -401,12 +516,12 @@
 
     function toggleBom(code) {
         const chevron = document.getElementById('chevron-' + code);
-        const rows = document.querySelectorAll('tr.mrp-row-child[data-parent="' + code + '"]');
+        const rows = document.querySelectorAll('tr.mrp-row-child[data-root="' + code + '"]');
         if (!chevron || rows.length === 0) return;
 
         const isVisible = rows[0].style.display !== 'none';
 
-        rows.forEach(r => {
+        rows.forEach(function (r) {
             r.style.display = isVisible ? 'none' : '';
         });
 
@@ -415,7 +530,12 @@
 
     document.addEventListener('DOMContentLoaded', function () {
         const children = document.querySelectorAll('tr.mrp-row-child');
-        children.forEach(r => r.style.display = 'none');
+        children.forEach(function (r) { r.style.display = 'none'; });
+
+        const chevrons = document.querySelectorAll('.mrp-chevron-btn span[id^="chevron-"]');
+        chevrons.forEach(function (ch) {
+            ch.textContent = '▸';
+        });
     });
 
     function openMrpPopup(codeArticle, libelleArticle) {
@@ -428,7 +548,9 @@
         if (refSpan) refSpan.textContent = codeArticle || '';
         if (nameSpan) nameSpan.textContent = libelleArticle || '';
 
-        buildMrpTablesForProduct(codeArticle);
+        buildMrpTablesForProduct(codeArticle, libelleArticle, function () {
+            loadMrpTableauxFromServer(codeArticle);
+        });
 
         overlay.style.display = 'flex';
         document.body.classList.add('logout-blur-active');
@@ -439,195 +561,250 @@
         if (!overlay) return;
         overlay.style.display = 'none';
         document.body.classList.remove('logout-blur-active');
+
+        for (const k in mrpTablesByArticle) {
+            delete mrpTablesByArticle[k];
+        }
     }
 
-    function buildMrpTablesForProduct(codeArticle) {
+    function buildMrpTablesForProduct(rootCodeArticle, rootLibelle, callbackAfterBuild) {
         const wrapper = document.getElementById('mrp-grid-wrapper');
         if (!wrapper) return;
 
         wrapper.innerHTML = "";
 
-        const info = mrpBomInfos.find(x => x.codeArticlePF === codeArticle || x.CodeArticlePF === codeArticle);
-        const componentCount = info ? info.componentCount ?? info.ComponentCount : 0;
+        const niveaux = {};
+        const queue = [rootCodeArticle];
+        niveaux[rootCodeArticle] = 0;
 
-        // Détails BOM pour retrouver le code des composants
-        const detail = mrpBomDetails.find(x => x.codeArticlePF === codeArticle || x.CodeArticlePF === codeArticle);
-        const composants = detail && Array.isArray(detail.composants ?? detail.Composants)
-            ? (detail.composants ?? detail.Composants)
-            : [];
-
-        const totalTables = 1 + componentCount;
-
-        for (let i = 0; i < totalTables; i++) {
-            const block = document.createElement('div');
-            block.style.marginBottom = "12px";
-
-            const title = document.createElement('div');
-            title.style.fontSize = "0.85rem";
-            title.style.color = "var(--text-muted)";
-            title.style.marginBottom = "4px";
-
-            let articleForThisTable = codeArticle; // par défaut PF
-            let isProductFini = (i === 0);        // premier tableau = produit fini
-
-            if (i === 0) {
-                title.textContent = "Produit fini";
-            } else {
-                const compIndex = i - 1;
-                if (composants[compIndex]) {
-                    const comp = composants[compIndex];
-                    const compCode = comp.codeArticle || comp.CodeArticle || codeArticle;
-                    const compNom = comp.nom || comp.Nom || ("Composant " + i);
-                    articleForThisTable = compCode;
-                    title.textContent = compCode + " - " + compNom;
-                } else {
-                    title.textContent = "Composant " + i;
+        while (queue.length > 0) {
+            const current = queue.shift();
+            const currentLevel = niveaux[current] ?? 0;
+            const children = mrpChildrenByParent[current] || [];
+            children.forEach(function (c) {
+                if (niveaux[c.childCode] === undefined) {
+                    niveaux[c.childCode] = currentLevel + 1;
+                    queue.push(c.childCode);
                 }
+            });
+        }
+
+        const articlesParNiveau = {};
+        Object.keys(niveaux).forEach(function (code) {
+            const lvl = niveaux[code];
+            if (!articlesParNiveau[lvl]) {
+                articlesParNiveau[lvl] = [];
             }
+            articlesParNiveau[lvl].push(code);
+        });
 
-            const table = document.createElement('table');
-            table.className = "erp-table mrp-grid-table";
-            table.style.borderCollapse = "collapse";
-            table.style.width = "max-content";
-            table.style.minWidth = "700px";
+        const niveauxOrdonnes = Object.keys(articlesParNiveau)
+            .map(x => parseInt(x, 10))
+            .sort((a, b) => a - b);
 
-            const thead = document.createElement('thead');
-            const trHead = document.createElement('tr');
+        const libelles = {};
+        libelles[rootCodeArticle] = rootLibelle || rootCodeArticle;
 
-            const thLabel = document.createElement('th');
-            thLabel.style.width = "160px";
-            thLabel.style.minWidth = "160px";
-            thLabel.textContent = "Ligne / Période";
-            trHead.appendChild(thLabel);
+        mrpBomDetails.forEach(function (bd) {
+            const pfCode = bd.codeArticlePF || bd.CodeArticlePF;
+            if (!pfCode) return;
+            const comps = bd.composants || bd.Composants || [];
+            comps.forEach(function (c) {
+                const cc = c.codeArticle || c.CodeArticle;
+                const nn = c.nom || c.Nom || cc;
+                if (cc && !libelles[cc]) {
+                    libelles[cc] = nn;
+                }
+            });
+        });
 
-            @if (Model.Periodes != null && Model.Periodes.Any())
-            {
-                        foreach (var p in Model.Periodes)
-                        {
-                                    @:    {
-                                    @:        const th = document.createElement('th');
-                                    @:        th.style.minWidth = "90px";
-                                    @:        th.style.width = "90px";
-                                    @:        th.title = "@p.LabelLong";
-                                    @:        th.textContent = "@p.LabelCourt";
-                                    @:        trHead.appendChild(th);
-                                    @:    }
-                        }
-            }
-            else
-            {
-                        @:    {
-                        @:        const th = document.createElement('th');
-                        @:        th.style.minWidth = "90px";
-                        @:        th.style.width = "90px";
-                        @:        th.textContent = "—";
-                        @:        trHead.appendChild(th);
-                        @:    }
-            }
+        niveauxOrdonnes.forEach(function (level) {
+            const codes = articlesParNiveau[level];
+            if (!codes || !codes.length) return;
 
-            thead.appendChild(trHead);
-            table.appendChild(thead);
+            const levelRow = document.createElement('div');
+            levelRow.className = 'mrp-level-row';
 
-            const tbody = document.createElement('tbody');
+            const levelLabel = document.createElement('div');
+            levelLabel.className = 'mrp-level-title';
+            levelLabel.textContent = "Niveau " + level;
+            wrapper.appendChild(levelLabel);
 
-            // PF : BB éditable, DEL éditable
-            // Composants : BB non éditable, DEL éditable
-            const rowDefs = [
-                { key: "BB", label: "Besoin brut (BB)", editable: isProductFini },
-                { key: "SP", label: "Stock prévisionnel (SP)", editable: false },
-                { key: "BN", label: "Besoin net (BN)", editable: false },
-                { key: "FIN", label: "Fin ordre (réceptions)", editable: false },
-                { key: "DEB", label: "Début ordre (lancements)", editable: false },
-                { key: "DEL", label: "Délai (jours)", editable: true }
-            ];
+            codes.forEach(function (codeArticle) {
+                const isPf = (codeArticle === rootCodeArticle);
 
-            const stockInitial = findStockForArticle(articleForThisTable);
+                const block = document.createElement('div');
+                block.className = 'mrp-grid-block';
 
-            rowDefs.forEach(r => {
-                const tr = document.createElement('tr');
+                const title = document.createElement('div');
+                title.className = 'mrp-grid-block-title';
 
-                const tdLabel = document.createElement('td');
-                tdLabel.className = "mrp-grid-row-label";
-                tdLabel.style.minWidth = "160px";
-                tdLabel.textContent = r.label;
-                tr.appendChild(tdLabel);
+                if (isPf) {
+                    title.textContent = "Produit fini : " + codeArticle + " - " + (libelles[codeArticle] || "");
+                } else {
+                    title.textContent = codeArticle + " - " + (libelles[codeArticle] || "");
+                }
+
+                const table = document.createElement('table');
+                table.className = "erp-table mrp-grid-table";
+                table.style.borderCollapse = "collapse";
+                table.style.width = "max-content";
+                table.style.minWidth = "700px";
+
+                const thead = document.createElement('thead');
+                const trHead = document.createElement('tr');
+
+                const thLabel = document.createElement('th');
+                thLabel.style.width = "160px";
+                thLabel.style.minWidth = "160px";
+                thLabel.textContent = "Ligne / Periode";
+                trHead.appendChild(thLabel);
 
                 @if (Model.Periodes != null && Model.Periodes.Any())
                 {
-                            for (int iPer = 0; iPer < Model.Periodes.Count; iPer++)
-                            {
-                                        @:      {
-                                        @:          const td = document.createElement('td');
-                                        @:          td.style.minWidth = "90px";
-                                        @:          td.style.width = "90px";
-                                        @:          const input = document.createElement('input');
-                                        @:          input.type = "number";
-                                        @:          input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
-                                        @:          input.style.width = "100%";
-                                        @:          input.style.minWidth = "70px";
-                                        @:          input.min = "0";
-                                        @:          input.step = "1";
-                                        @:          input.dataset.rowKey = r.key;
-                                        @:          input.dataset.periodIndex = "@iPer";
-                                        @:          if (r.key === "SP") {
-                                        @:              input.value = stockInitial.toString();
-                                        @:              input.disabled = true;
-                                        @:              input.className = "mrp-grid-input mrp-grid-input-disabled";
-                                        @:          } else {
-                                        @:              input.placeholder = r.editable ? "0" : "-";
-                                        @:              if (!r.editable) { input.disabled = true; }
-                                        @:          }
-                                        @:          td.appendChild(input);
-                                        @:          tr.appendChild(td);
-                                        @:      }
-                            }
+                    foreach (var p in Model.Periodes)
+                    {
+                        @: {
+                        @:     const th = document.createElement('th');
+                        @:     th.style.minWidth = "90px";
+                        @:     th.style.width = "90px";
+                        @:     th.title = "@p.LabelLong";
+                        @:     th.textContent = "@p.LabelCourt";
+                        @:     trHead.appendChild(th);
+                        @: }
+                    }
                 }
                 else
                 {
-                            @:      {
-                            @:          const td = document.createElement('td');
-                            @:          td.style.minWidth = "90px";
-                            @:          td.style.width = "90px";
-                            @:          const input = document.createElement('input');
-                            @:          input.type = "number";
-                            @:          input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
-                            @:          input.style.width = "100%";
-                            @:          input.style.minWidth = "70px";
-                            @:          input.min = "0";
-                            @:          input.step = "1";
-                            @:          input.dataset.rowKey = r.key;
-                            @:          input.dataset.periodIndex = "0";
-                            @:          if (r.key === "SP") {
-                            @:              input.value = stockInitial.toString();
-                            @:              input.disabled = true;
-                            @:              input.className = "mrp-grid-input mrp-grid-input-disabled";
-                            @:          } else {
-                            @:              input.placeholder = r.editable ? "0" : "-";
-                            @:              if (!r.editable) { input.disabled = true; }
-                            @:          }
-                            @:          td.appendChild(input);
-                            @:          tr.appendChild(td);
-                            @:      }
+                    @: {
+                    @:     const th = document.createElement('th');
+                    @:     th.style.minWidth = "90px";
+                    @:     th.style.width = "90px";
+                    @:     th.textContent = "-";
+                    @:     trHead.appendChild(th);
+                    @: }
                 }
 
-                tbody.appendChild(tr);
+                thead.appendChild(trHead);
+                table.appendChild(thead);
+
+                const tbody = document.createElement('tbody');
+
+                const rowDefs = [
+                    { key: "BB", label: "Besoin brut (BB)", editable: isPf },
+                    { key: "SP", label: "Stock previsionnel (SP)", editable: false },
+                    { key: "BN", label: "Besoin net (BN)", editable: false },
+                    { key: "FIN", label: "Fin ordre (receptions)", editable: false },
+                    { key: "DEB", label: "Debut ordre (lancements)", editable: false },
+                    { key: "DEL", label: "Delai (jours)", editable: true }
+                ];
+
+                const stockInitial = findStockForArticle(codeArticle);
+
+                rowDefs.forEach(function (r) {
+                    const tr = document.createElement('tr');
+
+                    const tdLabel = document.createElement('td');
+                    tdLabel.className = "mrp-grid-row-label";
+                    tdLabel.style.minWidth = "160px";
+                    tdLabel.textContent = r.label;
+                    tr.appendChild(tdLabel);
+
+                    @if (Model.Periodes != null && Model.Periodes.Any())
+                    {
+                        for (int iPer = 0; iPer < Model.Periodes.Count; iPer++)
+                        {
+                            @: {
+                            @:     const td = document.createElement('td');
+                            @:     td.style.minWidth = "90px";
+                            @:     td.style.width = "90px";
+                            @:     const input = document.createElement('input');
+                            @:     input.type = "number";
+                            @:     input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
+                            @:     input.style.width = "100%";
+                            @:     input.style.minWidth = "70px";
+                            @:     input.min = "0";
+                            @:     input.step = "1";
+                            @:     input.dataset.rowKey = r.key;
+                            @:     input.dataset.periodIndex = "@iPer";
+                            @:     if (r.key === "SP") {
+                            @:         input.value = stockInitial.toString();
+                            @:         input.disabled = true;
+                            @:         input.className = "mrp-grid-input mrp-grid-input-disabled";
+                            @:     } else {
+                            @:         input.placeholder = r.editable ? "0" : "-";
+                            @:         if (!r.editable) { input.disabled = true; }
+                            @:     }
+                            @:     input.dataset.articleCode = codeArticle;
+                            @:     td.appendChild(input);
+                            @:     tr.appendChild(td);
+                            @: }
+                        }
+                    }
+                    else
+                    {
+                        @: {
+                        @:     const td = document.createElement('td');
+                        @:     td.style.minWidth = "90px";
+                        @:     td.style.width = "90px";
+                        @:     const input = document.createElement('input');
+                        @:     input.type = "number";
+                        @:     input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
+                        @:     input.style.width = "100%";
+                        @:     input.style.minWidth = "70px";
+                        @:     input.min = "0";
+                        @:     input.step = "1";
+                        @:     input.dataset.rowKey = r.key;
+                        @:     input.dataset.periodIndex = "0";
+                        @:     if (r.key === "SP") {
+                        @:         input.value = stockInitial.toString();
+                        @:         input.disabled = true;
+                        @:         input.className = "mrp-grid-input mrp-grid-input-disabled";
+                        @:     } else {
+                        @:         input.placeholder = r.editable ? "0" : "-";
+                        @:         if (!r.editable) { input.disabled = true; }
+                        @:     }
+                        @:     input.dataset.articleCode = codeArticle;
+                        @:     td.appendChild(input);
+                        @:     tr.appendChild(td);
+                        @: }
+                    }
+
+                    tbody.appendChild(tr);
+                });
+
+                table.appendChild(tbody);
+                block.appendChild(title);
+                block.appendChild(table);
+                levelRow.appendChild(block);
+
+                const recalcFn = attachMrpLogicToTable(codeArticle, table, stockInitial, isPf);
+                mrpTablesByArticle[codeArticle] = {
+                    table: table,
+                    stockInitial: stockInitial,
+                    isPf: isPf,
+                    recalc: recalcFn
+                };
             });
 
-            table.appendChild(tbody);
-            block.appendChild(title);
-            block.appendChild(table);
-            wrapper.appendChild(block);
+            wrapper.appendChild(levelRow);
+        });
 
-            // --------- LOGIQUE MRP : écoute des changements BB/DEL et recalcul BN/FIN/DEB/SP ---------
-            attachMrpLogicToTable(table, stockInitial);
+        const rootInfo = mrpTablesByArticle[rootCodeArticle];
+        if (rootInfo && rootInfo.recalc) {
+            rootInfo.recalc();
+        }
+
+        if (typeof callbackAfterBuild === 'function') {
+            callbackAfterBuild();
         }
     }
 
-    function attachMrpLogicToTable(table, stockInitial) {
+    function attachMrpLogicToTable(articleCode, table, stockInitial, isProductFini) {
         const inputs = table.querySelectorAll('input.mrp-grid-input');
 
-        const recalc = () => {
-            const perCount = table.querySelectorAll('thead th').length - 1; // -1 pour le libellé
+        const recalc = function () {
+            const perCount = table.querySelectorAll('thead th').length - 1;
             const BB = new Array(perCount).fill(0);
             const SP = new Array(perCount).fill(0);
             const BN = new Array(perCount).fill(0);
@@ -635,8 +812,7 @@
             const DEB = new Array(perCount).fill(0);
             const DEL = new Array(perCount).fill(0);
 
-            // lire les valeurs BB et DEL
-            inputs.forEach(inp => {
+            inputs.forEach(function (inp) {
                 const rowKey = inp.dataset.rowKey;
                 const idx = parseInt(inp.dataset.periodIndex || "0", 10);
                 if (isNaN(idx)) return;
@@ -645,7 +821,6 @@
                 if (rowKey === "DEL") DEL[idx] = isNaN(val) ? 0 : val;
             });
 
-            // calcul SP/BN/FIN
             SP[0] = stockInitial - BB[0];
             if (SP[0] < 0) {
                 BN[0] = -SP[0];
@@ -661,7 +836,6 @@
                 }
             }
 
-            // calcul DEB à partir de FIN et DEL (backward planning simple)
             for (let t = 0; t < perCount; t++) {
                 if (FIN[t] > 0) {
                     const d = DEL[t] || 0;
@@ -672,8 +846,7 @@
                 }
             }
 
-            // injection dans les inputs
-            inputs.forEach(inp => {
+            inputs.forEach(function (inp) {
                 const rowKey = inp.dataset.rowKey;
                 const idx = parseInt(inp.dataset.periodIndex || "0", 10);
                 if (isNaN(idx)) return;
@@ -682,17 +855,224 @@
                 if (rowKey === "FIN") inp.value = FIN[idx] || 0;
                 if (rowKey === "DEB") inp.value = DEB[idx] || 0;
             });
+
+            propagateToChildren(articleCode, DEB);
         };
 
-        inputs.forEach(inp => {
+        inputs.forEach(function (inp) {
             const rowKey = inp.dataset.rowKey;
             if (rowKey === "BB" || rowKey === "DEL") {
                 inp.addEventListener('input', recalc);
             }
         });
 
-        // premier calcul avec stock initial & BB par défaut = 0
-        recalc();
+        return recalc;
+    }
+
+    function propagateToChildren(parentCode, parentDebArray) {
+        const children = mrpChildrenByParent[parentCode] || [];
+        if (!children.length) return;
+
+        children.forEach(function (rel) {
+            const childCode = rel.childCode;
+            const qParParent = rel.quantiteParParent || 1;
+
+            const childInfo = mrpTablesByArticle[childCode];
+            if (!childInfo) return;
+
+            const table = childInfo.table;
+            const inputs = table.querySelectorAll('input.mrp-grid-input');
+            const perCount = table.querySelectorAll('thead th').length - 1;
+
+            const newBB = new Array(perCount).fill(0);
+            for (let t = 0; t < perCount; t++) {
+                newBB[t] = (parentDebArray[t] || 0) * qParParent;
+            }
+
+            inputs.forEach(function (inp) {
+                const rowKey = inp.dataset.rowKey;
+                if (rowKey !== "BB") return;
+                const idx = parseInt(inp.dataset.periodIndex || "0", 10);
+                if (isNaN(idx)) return;
+                inp.value = newBB[idx] || 0;
+            });
+
+            if (childInfo.recalc) {
+                childInfo.recalc();
+            }
+        });
+    }
+
+    async function loadMrpTableauxFromServer(codeArticle) {
+        if (!currentPlanId || !codeArticle) return;
+        try {
+            const url = mrpDetailPageUrl + `?handler=LoadMrpTableaux&planId=${currentPlanId}&codeArticle=${encodeURIComponent(codeArticle)}`;
+            const resp = await fetch(url, { method: 'GET' });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (!Array.isArray(data) || data.length === 0) return;
+
+            const info = mrpTablesByArticle[codeArticle];
+            if (!info) return;
+            const table = info.table;
+            const inputs = table.querySelectorAll('input.mrp-grid-input');
+
+            const perValues = {};
+            data.forEach(d => {
+                const idx = d.numeroPeriode ?? d.NumeroPeriode ?? 0;
+                perValues[idx] = {
+                    BB: d.besoinBrut ?? d.BesoinBrut ?? 0,
+                    SP: d.stockPrevisionnel ?? d.StockPrevisionnel ?? 0,
+                    BN: d.besoinNet ?? d.BesoinNet ?? 0,
+                    FIN: d.finOrdre ?? d.FinOrdre ?? 0,
+                    DEB: d.debutOrdre ?? d.DebutOrdre ?? 0,
+                    DEL: d.delaiJours ?? d.DelaiJours ?? 0
+                };
+            });
+
+            inputs.forEach(function (inp) {
+                const rowKey = inp.dataset.rowKey;
+                const idx = parseInt(inp.dataset.periodIndex || "0", 10);
+                if (isNaN(idx)) return;
+                const pv = perValues[idx];
+                if (!pv) return;
+                if (rowKey === "BB") inp.value = pv.BB;
+                if (rowKey === "SP") inp.value = pv.SP;
+                if (rowKey === "BN") inp.value = pv.BN;
+                if (rowKey === "FIN") inp.value = pv.FIN;
+                if (rowKey === "DEB") inp.value = pv.DEB;
+                if (rowKey === "DEL") inp.value = pv.DEL;
+            });
+
+            if (info.recalc) {
+                info.recalc();
+            }
+        } catch (e) {
+            console.error('Erreur chargement MRP tableaux', e);
+        }
+    }
+
+    function getAntiForgeryToken() {
+        const form = document.getElementById('antiForgeryForm');
+        if (!form) return '';
+        const tokenInput = form.querySelector('input[name="__RequestVerificationToken"]');
+        return tokenInput ? tokenInput.value : '';
+    }
+
+    async function saveCurrentMrpTables() {
+        if (!currentPlanId) {
+            alert('Plan introuvable.');
+            return;
+        }
+
+        const token = getAntiForgeryToken();
+        const payload = [];
+
+        Object.keys(mrpTablesByArticle).forEach(codeArticle => {
+            const info = mrpTablesByArticle[codeArticle];
+            const table = info.table;
+            const inputs = table.querySelectorAll('input.mrp-grid-input');
+            const perCount = table.querySelectorAll('thead th').length - 1;
+
+            const perRow = {};
+            for (let i = 0; i < perCount; i++) {
+                perRow[i] = { BB: 0, SP: 0, BN: 0, FIN: 0, DEB: 0, DEL: 0 };
+            }
+
+            inputs.forEach(function (inp) {
+                const rowKey = inp.dataset.rowKey;
+                const idx = parseInt(inp.dataset.periodIndex || "0", 10);
+                if (isNaN(idx)) return;
+                const val = inp.value === "" ? 0 : parseFloat(inp.value);
+                if (!perRow[idx]) {
+                    perRow[idx] = { BB: 0, SP: 0, BN: 0, FIN: 0, DEB: 0, DEL: 0 };
+                }
+                if (rowKey === "BB") perRow[idx].BB = isNaN(val) ? 0 : val;
+                if (rowKey === "SP") perRow[idx].SP = isNaN(val) ? 0 : val;
+                if (rowKey === "BN") perRow[idx].BN = isNaN(val) ? 0 : val;
+                if (rowKey === "FIN") perRow[idx].FIN = isNaN(val) ? 0 : val;
+                if (rowKey === "DEB") perRow[idx].DEB = isNaN(val) ? 0 : val;
+                if (rowKey === "DEL") perRow[idx].DEL = isNaN(val) ? 0 : val;
+            });
+
+            Object.keys(perRow).forEach(k => {
+                const idx = parseInt(k, 10);
+                const v = perRow[idx];
+                payload.push({
+                    planId: currentPlanId,
+                    codeArticle: codeArticle,
+                    numeroPeriode: idx,
+                    datePeriode: null,
+                    besoinBrut: v.BB,
+                    stockPrevisionnel: v.SP,
+                    besoinNet: v.BN,
+                    finOrdre: v.FIN,
+                    debutOrdre: v.DEB,
+                    delaiJours: v.DEL
+                });
+            });
+        });
+
+        try {
+            const url = mrpDetailPageUrl + '?handler=SaveMrpTableaux';
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!resp.ok) {
+                alert('Erreur HTTP lors de la sauvegarde MRP.');
+                return;
+            }
+            const res = await resp.json();
+            if (!res.ok) {
+                alert('Erreur sauvegarde MRP: ' + (res.message || ''));
+            } else {
+                updateQuantitesALancerInMainGrid();
+                alert('Tableaux MRP sauvegardes avec succes.');
+            }
+        } catch (e) {
+            console.error('Erreur sauvegarde MRP', e);
+            alert('Erreur technique lors de la sauvegarde MRP.');
+        }
+    }
+
+    // Somme des DEB pour chaque code article ayant un tableau, puis mise à jour de toutes les lignes qui portent ce code.
+    function updateQuantitesALancerInMainGrid() {
+        Object.keys(mrpTablesByArticle).forEach(codeArticle => {
+            const info = mrpTablesByArticle[codeArticle];
+            if (!info || !info.table) return;
+
+            const table = info.table;
+            const inputs = table.querySelectorAll('input.mrp-grid-input');
+
+            let sommeDeb = 0;
+            inputs.forEach(inp => {
+                if (inp.dataset.rowKey === "DEB") {
+                    const val = inp.value === "" ? 0 : parseFloat(inp.value);
+                    if (!isNaN(val)) {
+                        sommeDeb += val;
+                    }
+                }
+            });
+
+            const allRows = document.querySelectorAll('tr.mrp-row-root, tr.mrp-row-child');
+
+            allRows.forEach(row => {
+                const refCell = row.querySelector('td:nth-child(3)');
+                if (!refCell) return;
+                const codeInRow = (refCell.textContent || '').trim();
+                if (codeInRow !== codeArticle) return;
+
+                const qteCell = row.querySelector('td:nth-child(7)');
+                if (qteCell) {
+                    qteCell.textContent = sommeDeb.toString();
+                }
+            });
+        });
     }
 
     function openLogoutModal() {
@@ -864,6 +1244,32 @@
         background: linear-gradient(135deg, rgba(8,11,32,0.98), rgba(18,22,54,0.98));
         padding: 8px;
         box-shadow: var(--shadow-md);
+    }
+
+    .mrp-level-title {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 8px;
+        margin-bottom: 4px;
+    }
+
+    .mrp-level-row {
+        display: flex;
+        flex-direction: row;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 12px;
+    }
+
+    .mrp-grid-block {
+        flex: 1 0 auto;
+        min-width: 720px;
+    }
+
+    .mrp-grid-block-title {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
     }
 
     .mrp-grid-table {

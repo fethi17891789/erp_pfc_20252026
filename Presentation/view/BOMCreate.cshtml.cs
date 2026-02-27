@@ -130,7 +130,11 @@ namespace erp_pfc_20252026.Pages
                                     : (string.IsNullOrEmpty(l.ComposantProduit.Reference)
                                         ? l.ComposantProduit.Nom
                                         : $"{l.ComposantProduit.Nom} ({l.ComposantProduit.Reference})"),
-                                PrixUnitaire = l.PrixUnitaire,
+                                // Recalcule le coût unitaire selon le type technique :
+                                // MP -> CoutAchat, SemiFini/Fini/SemiFiniEtFini -> CoutBom
+                                PrixUnitaire = l.ComposantProduit == null
+                                    ? l.PrixUnitaire
+                                    : GetCoutUnitairePourBom(l.ComposantProduit),
                                 Quantite = l.Quantite,
                                 AutresCharges = l.AutresCharges
                             })

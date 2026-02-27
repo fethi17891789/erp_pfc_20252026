@@ -23,5 +23,8 @@ namespace Donnees
         public decimal StockDisponible { get; set; }
 
         public decimal QuantiteALancer { get; set; }
+
+        // Nouveau : prix total MRP pour cette ligne (QteALancer * CoutBom)
+        public decimal PrixTotal { get; set; } = 0m;
     }
 }

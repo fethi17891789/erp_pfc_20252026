@@ -36,14 +36,20 @@ namespace erp_pfc_20252026.Pages
             public string CodeArticle { get; set; } = string.Empty;
             public string? ParentCodeArticle { get; set; }
             public string LibelleArticle { get; set; } = string.Empty;
-            public string TypeProduit { get; set; } = "PF"; // PF / SF / MP / PF+SF
+            public string TypeProduit { get; set; } = "PF";
             public string Unite { get; set; } = "PCS";
 
             public DateTime DateBesoin { get; set; }
             public decimal QuantiteBesoin { get; set; }
             public decimal StockDisponible { get; set; }
+
+            // Qte a lancer finale (somme des DEB) pour cette ligne
             public decimal QuantiteALancer { get; set; }
+
+            // Prix total = QuantiteALancer * CoutBom (pour OF et SF)
             public decimal Prix { get; set; }
+
+            public decimal QuantiteParParent { get; set; } = 1m;
 
             public bool EstOrdreFabrication =>
                 TypeProduit == "PF" || TypeProduit == "SF" || TypeProduit == "PF+SF";
@@ -82,9 +88,31 @@ namespace erp_pfc_20252026.Pages
         {
             public string CodeArticle { get; set; } = string.Empty;
             public string Nom { get; set; } = string.Empty;
+            public decimal QuantiteParParent { get; set; }
         }
 
-        // PROPRIETES POUR LA VUE
+        public class BomRatioVm
+        {
+            public string ParentCodeArticle { get; set; } = string.Empty;
+            public string EnfantCodeArticle { get; set; } = string.Empty;
+            public decimal QuantiteParParent { get; set; }
+        }
+
+        // DTO pour sauvegarde / chargement MRPTableau
+        public class MrpTableauDto
+        {
+            public int PlanId { get; set; }
+            public string CodeArticle { get; set; } = string.Empty;
+            public int NumeroPeriode { get; set; }
+            public DateTime DatePeriode { get; set; }
+            public decimal BesoinBrut { get; set; }
+            public decimal StockPrevisionnel { get; set; }
+            public decimal BesoinNet { get; set; }
+            public decimal FinOrdre { get; set; }
+            public decimal DebutOrdre { get; set; }
+            public int DelaiJours { get; set; }
+        }
+
         public PlanificationVm? Planification { get; set; }
         public List<LigneMrpVm> Lignes { get; set; } = new List<LigneMrpVm>();
         public List<PeriodeMrpVm> Periodes { get; set; } = new List<PeriodeMrpVm>();
@@ -92,6 +120,7 @@ namespace erp_pfc_20252026.Pages
         public string BomInfosJson { get; set; } = "[]";
         public string StockMrpJson { get; set; } = "[]";
         public string BomDetailsJson { get; set; } = "[]";
+        public string BomRatiosJson { get; set; } = "[]";
 
         public int NbProduitsPlanifies => Lignes.Count(l => l.Niveau == 0);
         public int NbPropositionsOF => Lignes.Count(l => l.EstOrdreFabrication && l.QuantiteALancer > 0);
@@ -156,7 +185,7 @@ namespace erp_pfc_20252026.Pages
             return Page();
         }
 
-        // HANDLERS POST
+        // HANDLERS POST EXISTANTS
         public async Task<IActionResult> OnPostEnregistrerAsync(int planId)
         {
             return await ModifierStatutPlanAsync(planId, "Sauvegardee");
@@ -191,6 +220,196 @@ namespace erp_pfc_20252026.Pages
             return RedirectToPage("/MRP");
         }
 
+        // HANDLER JSON : charger tableaux sauvegardes pour un plan + article
+        public async Task<IActionResult> OnGetLoadMrpTableauxAsync(int planId, string codeArticle)
+        {
+            if (string.IsNullOrWhiteSpace(codeArticle))
+                return new JsonResult(Array.Empty<MrpTableauDto>());
+
+            var plan = await _db.MRPPlans
+                .Include(p => p.Lignes)
+                    .ThenInclude(l => l.Produit)
+                .FirstOrDefaultAsync(p => p.Id == planId);
+
+            if (plan == null)
+                return new JsonResult(Array.Empty<MrpTableauDto>());
+
+            var ligne = plan.Lignes.FirstOrDefault(l => l.Produit.Reference == codeArticle);
+            if (ligne == null)
+                return new JsonResult(Array.Empty<MrpTableauDto>());
+
+            var tableaux = await _db.MRPTables
+                .Where(t => t.MRPPlanLigneId == ligne.Id)
+                .OrderBy(t => t.NumeroPeriode)
+                .ToListAsync();
+
+            var dtos = tableaux.Select(t => new MrpTableauDto
+            {
+                PlanId = planId,
+                CodeArticle = codeArticle,
+                NumeroPeriode = t.NumeroPeriode,
+                DatePeriode = t.DatePeriode,
+                BesoinBrut = t.BesoinBrut,
+                StockPrevisionnel = t.StockPrevisionnel,
+                BesoinNet = t.BesoinNet,
+                FinOrdre = t.FinOrdre,
+                DebutOrdre = t.DebutOrdre,
+                DelaiJours = t.DelaiJours
+            }).ToList();
+
+            return new JsonResult(dtos);
+        }
+
+        // HANDLER JSON : sauvegarder tableaux pour un plan
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> OnPostSaveMrpTableauxAsync()
+        {
+            using var reader = new System.IO.StreamReader(Request.Body);
+            var body = await reader.ReadToEndAsync();
+
+            Console.WriteLine("MRP Save - Raw body: " + body);
+
+            if (string.IsNullOrWhiteSpace(body))
+                return new JsonResult(new { ok = false, message = "Corps vide." });
+
+            var dtos = new List<MrpTableauDto>();
+
+            try
+            {
+                using var doc = JsonDocument.Parse(body);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array)
+                {
+                    return new JsonResult(new { ok = false, message = "JSON attendu: tableau." });
+                }
+
+                foreach (var el in doc.RootElement.EnumerateArray())
+                {
+                    var dto = new MrpTableauDto();
+
+                    if (el.TryGetProperty("planId", out var pPlanId) && pPlanId.ValueKind == JsonValueKind.Number)
+                        dto.PlanId = pPlanId.GetInt32();
+
+                    if (el.TryGetProperty("codeArticle", out var pCode) && pCode.ValueKind == JsonValueKind.String)
+                        dto.CodeArticle = pCode.GetString() ?? string.Empty;
+
+                    if (el.TryGetProperty("numeroPeriode", out var pNum) && pNum.ValueKind == JsonValueKind.Number)
+                        dto.NumeroPeriode = pNum.GetInt32();
+
+                    if (el.TryGetProperty("datePeriode", out var pDate) && pDate.ValueKind == JsonValueKind.String)
+                    {
+                        if (DateTime.TryParse(pDate.GetString(), out var d))
+                            dto.DatePeriode = d;
+                    }
+
+                    if (el.TryGetProperty("besoinBrut", out var pBB) && pBB.ValueKind == JsonValueKind.Number)
+                        dto.BesoinBrut = pBB.GetDecimal();
+
+                    if (el.TryGetProperty("stockPrevisionnel", out var pSP) && pSP.ValueKind == JsonValueKind.Number)
+                        dto.StockPrevisionnel = pSP.GetDecimal();
+
+                    if (el.TryGetProperty("besoinNet", out var pBN) && pBN.ValueKind == JsonValueKind.Number)
+                        dto.BesoinNet = pBN.GetDecimal();
+
+                    if (el.TryGetProperty("finOrdre", out var pFIN) && pFIN.ValueKind == JsonValueKind.Number)
+                        dto.FinOrdre = pFIN.GetDecimal();
+
+                    if (el.TryGetProperty("debutOrdre", out var pDEB) && pDEB.ValueKind == JsonValueKind.Number)
+                        dto.DebutOrdre = pDEB.GetDecimal();
+
+                    if (el.TryGetProperty("delaiJours", out var pDEL) && pDEL.ValueKind == JsonValueKind.Number)
+                        dto.DelaiJours = pDEL.GetInt32();
+
+                    dtos.Add(dto);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("MRP Save - Exception parse JSON: " + ex);
+                return new JsonResult(new { ok = false, message = "JSON invalide." });
+            }
+
+            Console.WriteLine("MRP Save - dtos count = " + dtos.Count);
+
+            if (dtos.Count == 0)
+                return new JsonResult(new { ok = false, message = "Aucune donnee recue." });
+
+            var planId = dtos[0].PlanId;
+            var plan = await _db.MRPPlans
+                .Include(p => p.Lignes)
+                    .ThenInclude(l => l.Produit)
+                .FirstOrDefaultAsync(p => p.Id == planId);
+
+            if (plan == null)
+                return new JsonResult(new { ok = false, message = "Plan introuvable." });
+
+            // Regroupement par article (code produit)
+            var dtosParArticle = dtos
+                .GroupBy(d => d.CodeArticle)
+                .ToList();
+
+            foreach (var grp in dtosParArticle)
+            {
+                var codeArticle = grp.Key;
+                var ligne = plan.Lignes.FirstOrDefault(l => l.Produit.Reference == codeArticle);
+                if (ligne == null)
+                    continue;
+
+                // 1) on supprime les anciennes lignes MRPTableau pour cette ligne
+                var existants = await _db.MRPTables
+                    .Where(t => t.MRPPlanLigneId == ligne.Id)
+                    .ToListAsync();
+
+                _db.MRPTables.RemoveRange(existants);
+
+                // 2) on reinsere les nouvelles
+                foreach (var dto in grp)
+                {
+                    var ent = new MRPTableau
+                    {
+                        MRPPlanLigneId = ligne.Id,
+                        NumeroPeriode = dto.NumeroPeriode,
+                        DatePeriode = dto.DatePeriode == default
+                            ? plan.DateDebutHorizon.AddDays(dto.NumeroPeriode)
+                            : dto.DatePeriode,
+                        BesoinBrut = dto.BesoinBrut,
+                        StockPrevisionnel = dto.StockPrevisionnel,
+                        BesoinNet = dto.BesoinNet,
+                        FinOrdre = dto.FinOrdre,
+                        DebutOrdre = dto.DebutOrdre,
+                        DelaiJours = dto.DelaiJours
+                    };
+                    _db.MRPTables.Add(ent);
+                }
+            }
+
+            // 3) calcul QuantiteALancer = somme des DEB et PrixTotal = QuantiteALancer * CoutBom
+            var lignesIds = plan.Lignes.Select(l => l.Id).ToList();
+            var tableauxParLigne = await _db.MRPTables
+                .Where(t => lignesIds.Contains(t.MRPPlanLigneId))
+                .GroupBy(t => t.MRPPlanLigneId)
+                .ToListAsync();
+
+            foreach (var grp in tableauxParLigne)
+            {
+                var ligne = plan.Lignes.FirstOrDefault(l => l.Id == grp.Key);
+                if (ligne == null) continue;
+
+                var sommeDebutOrdre = grp.Sum(t => t.DebutOrdre);
+
+                ligne.QuantiteALancer = sommeDebutOrdre;
+
+                var prod = ligne.Produit;
+                if (prod != null)
+                {
+                    // Prix total base sur CoutBom du produit
+                    ligne.PrixTotal = sommeDebutOrdre * prod.CoutBom;
+                }
+            }
+
+            await _db.SaveChangesAsync();
+            return new JsonResult(new { ok = true });
+        }
+
         // CREATION DU PLAN
         private async Task<MRPPlan> CreerNouveauPlanAvecLignesAsync(
             List<int> idsProduits,
@@ -216,6 +435,7 @@ namespace erp_pfc_20252026.Pages
                 .Where(p => idsProduits.Contains(p.Id))
                 .ToListAsync();
 
+            // Lignes pour TOUS les produits selectionnes (PF, SF, MP)
             foreach (var prod in produits)
             {
                 var ligne = new MRPPlanLigne
@@ -225,16 +445,101 @@ namespace erp_pfc_20252026.Pages
                     QuantiteBesoin = 0,
                     StockDisponible = prod.QuantiteDisponible,
                     QuantiteALancer = 0,
+                    PrixTotal = 0m,
                     TypeProduit = "Fini"
                 };
 
                 plan.Lignes.Add(ligne);
             }
 
+            // Lignes pour les composants (PF + SF + MP), pour le backend MRP
+            await AjouterLignesComposantsPourPlanAsync(plan);
+
             _db.MRPPlans.Add(plan);
             await _db.SaveChangesAsync();
 
             return plan;
+        }
+
+        // Cree des MRPPlanLigne pour tous les composants d un plan
+        private async Task AjouterLignesComposantsPourPlanAsync(MRPPlan plan)
+        {
+            var produitIds = plan.Lignes.Select(l => l.ProduitId).Distinct().ToList();
+
+            var produits = await _db.Produits
+                .Where(p => produitIds.Contains(p.Id))
+                .ToListAsync();
+
+            var produitsDict = produits.ToDictionary(p => p.Id, p => p);
+
+            var boms = await _db.Boms
+                .Include(b => b.Lignes)
+                    .ThenInclude(bl => bl.ComposantProduit)
+                .ToListAsync();
+
+            var lignesExistantes = plan.Lignes
+                .Select(l => l.ProduitId)
+                .ToHashSet();
+
+            foreach (var lignePf in plan.Lignes.ToList())
+            {
+                if (!produitsDict.TryGetValue(lignePf.ProduitId, out var prodPf))
+                    continue;
+
+                await CreerLignesComposantsRecursifsAsync(
+                    plan,
+                    prodPf,
+                    lignesExistantes,
+                    boms);
+            }
+        }
+
+        private async Task CreerLignesComposantsRecursifsAsync(
+            MRPPlan plan,
+            Produit produitParent,
+            HashSet<int> lignesExistantes,
+            List<Bom> bomsCache)
+        {
+            var bom = bomsCache.FirstOrDefault(b => b.ProduitId == produitParent.Id);
+            if (bom == null || bom.Lignes == null || bom.Lignes.Count == 0)
+                return;
+
+            foreach (var bl in bom.Lignes)
+            {
+                var comp = bl.ComposantProduit;
+                if (comp == null)
+                {
+                    comp = await _db.Produits.FirstOrDefaultAsync(p => p.Id == bl.ComposantProduitId);
+                    if (comp == null) continue;
+                }
+
+                if (!lignesExistantes.Contains(comp.Id))
+                {
+                    var ligneComp = new MRPPlanLigne
+                    {
+                        ProduitId = comp.Id,
+                        DateBesoin = plan.DateFinHorizon,
+                        QuantiteBesoin = 0m,
+                        StockDisponible = comp.QuantiteDisponible,
+                        QuantiteALancer = 0m,
+                        PrixTotal = 0m,
+                        TypeProduit = MapTypeTechniqueToMrpType(comp.TypeTechnique)
+                    };
+
+                    plan.Lignes.Add(ligneComp);
+                    lignesExistantes.Add(comp.Id);
+                }
+
+                if (comp.TypeTechnique == TypeTechniqueProduit.SemiFini ||
+                    comp.TypeTechnique == TypeTechniqueProduit.SemiFiniEtFini)
+                {
+                    await CreerLignesComposantsRecursifsAsync(
+                        plan,
+                        comp,
+                        lignesExistantes,
+                        bomsCache);
+                }
+            }
         }
 
         private string MapTypeTechniqueToMrpType(TypeTechniqueProduit typeTech)
@@ -249,7 +554,6 @@ namespace erp_pfc_20252026.Pages
             };
         }
 
-        // MAPPING ENTITE -> VIEWMODEL
         private async Task MapFromEntityAsync(MRPPlan plan)
         {
             Planification = new PlanificationVm
@@ -272,19 +576,28 @@ namespace erp_pfc_20252026.Pages
 
             var planProduitsDict = produits.ToDictionary(p => p.Id, p => p);
 
+            // NOUVEAU : dictionnaire des lignes de plan par ProduitId
+            var lignesPlanParProduitId = plan.Lignes
+                .GroupBy(l => l.ProduitId)
+                .ToDictionary(g => g.Key, g => g.First());
+
             var bomsCache = await _db.Boms
                 .Include(b => b.Lignes)
                     .ThenInclude(bl => bl.ComposantProduit)
                 .ToListAsync();
 
+            // IMPORTANT : on n ajoute en racine que les produits techniquement PF ou PF+SF
             foreach (var l in plan.Lignes)
             {
                 if (!planProduitsDict.TryGetValue(l.ProduitId, out var prod))
                     continue;
 
+                var typeMrp = MapTypeTechniqueToMrpType(prod.TypeTechnique);
+                if (typeMrp != "PF" && typeMrp != "PF+SF")
+                    continue; // SF/MP non visibles comme lignes racines
+
                 var codePf = prod.Reference;
                 var libPf = prod.Nom;
-                var typePf = MapTypeTechniqueToMrpType(prod.TypeTechnique);
                 var stockPfActuel = prod.QuantiteDisponible;
 
                 var vmPf = new LigneMrpVm
@@ -293,13 +606,14 @@ namespace erp_pfc_20252026.Pages
                     CodeArticle = codePf,
                     ParentCodeArticle = null,
                     LibelleArticle = libPf,
-                    TypeProduit = typePf,
+                    TypeProduit = typeMrp,
                     Unite = "PCS",
                     DateBesoin = l.DateBesoin,
                     QuantiteBesoin = l.QuantiteBesoin,
                     StockDisponible = stockPfActuel,
-                    QuantiteALancer = l.QuantiteALancer,
-                    Prix = prod.PrixVente
+                    QuantiteALancer = l.QuantiteALancer,   // valeur déjà indexée en base
+                    Prix = l.PrixTotal,                    // valeur déjà indexée en base
+                    QuantiteParParent = 1m
                 };
 
                 Lignes.Add(vmPf);
@@ -309,21 +623,24 @@ namespace erp_pfc_20252026.Pages
                     niveauParent: 0,
                     codeParent: codePf,
                     dateBesoin: l.DateBesoin,
-                    bomsCache: bomsCache);
+                    bomsCache: bomsCache,
+                    lignesPlanParProduitId: lignesPlanParProduitId);
             }
 
             await ConstruireInfosBomAsync();
             ConstruireStockMrp();
             ConstruireBomDetails();
+            ConstruireBomRatios();
         }
 
-        // Ajoute recursivement les composants (SF/MP) d un produit parent
+        // surcharge avec dictionnaire des lignes de plan
         private async Task AjouterComposantsRecursifsAsync(
             Produit produitParent,
             int niveauParent,
             string codeParent,
             DateTime dateBesoin,
-            List<Bom> bomsCache)
+            List<Bom> bomsCache,
+            Dictionary<int, MRPPlanLigne> lignesPlanParProduitId)
         {
             var bom = bomsCache.FirstOrDefault(b => b.ProduitId == produitParent.Id);
             if (bom == null || bom.Lignes == null || bom.Lignes.Count == 0)
@@ -341,6 +658,13 @@ namespace erp_pfc_20252026.Pages
                 var codeComp = comp.Reference;
                 var libComp = comp.Nom;
                 var typeComp = MapTypeTechniqueToMrpType(comp.TypeTechnique);
+                var quantiteParParent = bl.Quantite;
+
+                // Récupérer la ligne de plan correspondante pour cet article (si existe)
+                lignesPlanParProduitId.TryGetValue(comp.Id, out var lignePlanComp);
+
+                var quantiteALancerComp = lignePlanComp?.QuantiteALancer ?? 0m;
+                var prixComp = lignePlanComp?.PrixTotal ?? comp.CoutBom;
 
                 var vmComp = new LigneMrpVm
                 {
@@ -350,11 +674,12 @@ namespace erp_pfc_20252026.Pages
                     LibelleArticle = libComp,
                     TypeProduit = typeComp,
                     Unite = "PCS",
-                    DateBesoin = dateBesoin,
-                    QuantiteBesoin = 0,
-                    StockDisponible = comp.QuantiteDisponible,
-                    QuantiteALancer = 0,
-                    Prix = comp.PrixVente
+                    DateBesoin = lignePlanComp?.DateBesoin ?? dateBesoin,
+                    QuantiteBesoin = lignePlanComp?.QuantiteBesoin ?? 0m,
+                    StockDisponible = lignePlanComp?.StockDisponible ?? comp.QuantiteDisponible,
+                    QuantiteALancer = quantiteALancerComp,  // valeur sauvegardée (somme des DEB)
+                    Prix = prixComp,                         // prix total sauvegardé si présent
+                    QuantiteParParent = quantiteParParent
                 };
 
                 Lignes.Add(vmComp);
@@ -366,37 +691,12 @@ namespace erp_pfc_20252026.Pages
                         niveauParent: niveauParent + 1,
                         codeParent: codeComp,
                         dateBesoin: dateBesoin,
-                        bomsCache: bomsCache);
+                        bomsCache: bomsCache,
+                        lignesPlanParProduitId: lignesPlanParProduitId);
                 }
             }
         }
 
-        // PERIODES
-        private void ConstruirePeriodesDepuisPlanification()
-        {
-            Periodes = new List<PeriodeMrpVm>();
-
-            if (Planification == null)
-                return;
-
-            var debut = Planification.DateDebut;
-            var horizon = Planification.HorizonJours;
-            if (horizon <= 0) horizon = 1;
-
-            for (int i = 0; i < horizon; i++)
-            {
-                var date = debut.AddDays(i);
-                Periodes.Add(new PeriodeMrpVm
-                {
-                    Index = i + 1,
-                    Date = date,
-                    LabelCourt = $"P{i + 1}",
-                    LabelLong = date.ToString("dd/MM/yyyy")
-                });
-            }
-        }
-
-        // INFOS BOM POUR POPUP
         private async Task ConstruireInfosBomAsync()
         {
             var infos = new List<BomInfoVm>();
@@ -422,7 +722,7 @@ namespace erp_pfc_20252026.Pages
                 var codePf = prod.Reference;
 
                 var composantsDistincts = Lignes
-                    .Where(l => l.CodeArticle != codePf)
+                    .Where(l => l.CodeArticle != codePf && l.ParentCodeArticle == codePf)
                     .Select(l => l.CodeArticle)
                     .Distinct()
                     .Count();
@@ -470,11 +770,12 @@ namespace erp_pfc_20252026.Pages
                 };
 
                 var composants = Lignes
-                    .Where(l => l.CodeArticle != codePf)
+                    .Where(l => l.ParentCodeArticle == codePf)
                     .Select(l => new BomDetailComponentVm
                     {
                         CodeArticle = l.CodeArticle,
-                        Nom = l.LibelleArticle
+                        Nom = l.LibelleArticle,
+                        QuantiteParParent = l.QuantiteParParent
                     })
                     .DistinctBy(c => c.CodeArticle)
                     .ToList();
@@ -486,7 +787,47 @@ namespace erp_pfc_20252026.Pages
             BomDetailsJson = JsonSerializer.Serialize(details);
         }
 
-        // LOGIQUE UI EXISTANTE
+        private void ConstruireBomRatios()
+        {
+            var ratios = new List<BomRatioVm>();
+
+            foreach (var l in Lignes.Where(x => !string.IsNullOrEmpty(x.ParentCodeArticle)))
+            {
+                ratios.Add(new BomRatioVm
+                {
+                    ParentCodeArticle = l.ParentCodeArticle!,
+                    EnfantCodeArticle = l.CodeArticle,
+                    QuantiteParParent = l.QuantiteParParent
+                });
+            }
+
+            BomRatiosJson = JsonSerializer.Serialize(ratios);
+        }
+
+        private void ConstruirePeriodesDepuisPlanification()
+        {
+            Periodes = new List<PeriodeMrpVm>();
+
+            if (Planification == null)
+                return;
+
+            var debut = Planification.DateDebut;
+            var horizon = Planification.HorizonJours;
+            if (horizon <= 0) horizon = 1;
+
+            for (int i = 0; i < horizon; i++)
+            {
+                var date = debut.AddDays(i);
+                Periodes.Add(new PeriodeMrpVm
+                {
+                    Index = i,
+                    Date = date,
+                    LabelCourt = "P" + (i + 1),
+                    LabelLong = date.ToString("dd/MM/yyyy")
+                });
+            }
+        }
+
         public bool PlanifAutoriseLancement()
         {
             if (Planification == null) return false;
