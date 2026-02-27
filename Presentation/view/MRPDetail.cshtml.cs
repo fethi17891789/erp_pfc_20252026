@@ -1,22 +1,27 @@
+// Fichier : Presentation/view/MRPDetail.cshtml.cs
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Donnees;
+using Metier.MRP;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
+using erp_pfc_20252026.Data.Entities;
 
 namespace erp_pfc_20252026.Pages
 {
     public class MRPDetailModel : PageModel
     {
         private readonly ErpDbContext _db;
+        private readonly OrdreFabricationService _ofService;
 
-        public MRPDetailModel(ErpDbContext db)
+        public MRPDetailModel(ErpDbContext db, OrdreFabricationService ofService)
         {
             _db = db;
+            _ofService = ofService;
         }
 
         // VIEWMODELS POUR L AFFICHAGE
@@ -126,6 +131,9 @@ namespace erp_pfc_20252026.Pages
         public int NbPropositionsOF => Lignes.Count(l => l.EstOrdreFabrication && l.QuantiteALancer > 0);
         public int NbPropositionsOA => Lignes.Count(l => l.EstOrdreAchat && l.QuantiteALancer > 0);
 
+        // Liste des fichiers d'ordres de fabrication pour la planification
+        public List<MRPFichier> FichiersOF { get; set; } = new List<MRPFichier>();
+
         // HANDLER GET PRINCIPAL
         public async Task<IActionResult> OnGetAsync(
             int? id,
@@ -146,6 +154,7 @@ namespace erp_pfc_20252026.Pages
 
                 await MapFromEntityAsync(plan);
                 ConstruirePeriodesDepuisPlanification();
+                await ChargerFichiersOFAsync(plan.Id);
                 return Page();
             }
 
@@ -181,6 +190,7 @@ namespace erp_pfc_20252026.Pages
 
             await MapFromEntityAsync(newPlan);
             ConstruirePeriodesDepuisPlanification();
+            await ChargerFichiersOFAsync(newPlan.Id);
 
             return Page();
         }
@@ -194,6 +204,27 @@ namespace erp_pfc_20252026.Pages
         public async Task<IActionResult> OnPostAnnulerAsync(int planId)
         {
             return await ModifierStatutPlanAsync(planId, "Annulee");
+        }
+
+        public async Task<IActionResult> OnPostLancerOFAsync(int planId, string codeArticle, decimal quantite)
+        {
+            if (planId <= 0 || string.IsNullOrWhiteSpace(codeArticle) || quantite <= 0)
+            {
+                TempData["Erreur"] = "Paramètres de lancement d'OF invalides.";
+                return RedirectToPage(new { id = planId });
+            }
+
+            try
+            {
+                var fichier = await _ofService.GenererOrdreFabricationAsync(planId, codeArticle, quantite);
+                TempData["Succes"] = $"Ordre de fabrication {fichier.ReferenceOF} généré pour l'article {codeArticle}.";
+            }
+            catch (Exception ex)
+            {
+                TempData["Erreur"] = "Erreur lors de la génération de l'ordre de fabrication : " + ex.Message;
+            }
+
+            return RedirectToPage(new { id = planId });
         }
 
         private async Task<IActionResult> ModifierStatutPlanAsync(int planId, string nouveauStatut)
@@ -576,7 +607,7 @@ namespace erp_pfc_20252026.Pages
 
             var planProduitsDict = produits.ToDictionary(p => p.Id, p => p);
 
-            // NOUVEAU : dictionnaire des lignes de plan par ProduitId
+            // dictionnaire des lignes de plan par ProduitId
             var lignesPlanParProduitId = plan.Lignes
                 .GroupBy(l => l.ProduitId)
                 .ToDictionary(g => g.Key, g => g.First());
@@ -611,8 +642,8 @@ namespace erp_pfc_20252026.Pages
                     DateBesoin = l.DateBesoin,
                     QuantiteBesoin = l.QuantiteBesoin,
                     StockDisponible = stockPfActuel,
-                    QuantiteALancer = l.QuantiteALancer,   // valeur déjà indexée en base
-                    Prix = l.PrixTotal,                    // valeur déjà indexée en base
+                    QuantiteALancer = l.QuantiteALancer,
+                    Prix = l.PrixTotal,
                     QuantiteParParent = 1m
                 };
 
@@ -677,8 +708,8 @@ namespace erp_pfc_20252026.Pages
                     DateBesoin = lignePlanComp?.DateBesoin ?? dateBesoin,
                     QuantiteBesoin = lignePlanComp?.QuantiteBesoin ?? 0m,
                     StockDisponible = lignePlanComp?.StockDisponible ?? comp.QuantiteDisponible,
-                    QuantiteALancer = quantiteALancerComp,  // valeur sauvegardée (somme des DEB)
-                    Prix = prixComp,                         // prix total sauvegardé si présent
+                    QuantiteALancer = quantiteALancerComp,
+                    Prix = prixComp,
                     QuantiteParParent = quantiteParParent
                 };
 
@@ -851,6 +882,35 @@ namespace erp_pfc_20252026.Pages
         {
             HttpContext.Session.Clear();
             return RedirectToPage("/BDDView");
+        }
+
+        // TELECHARGEMENT / VISUALISATION D'UN FICHIER OF
+        public async Task<IActionResult> OnGetDownloadOFAsync(int id)
+        {
+            var fichier = await _db.MRPFichiers.FirstOrDefaultAsync(f => f.Id == id);
+            if (fichier == null || fichier.FichierBlob == null || fichier.FichierBlob.Length == 0)
+            {
+                return NotFound();
+            }
+
+            var contentType = string.IsNullOrWhiteSpace(fichier.ContentType)
+                ? "application/pdf"
+                : fichier.ContentType;
+
+            var fileName = string.IsNullOrWhiteSpace(fichier.FichierNom)
+                ? fichier.ReferenceOF + ".pdf"
+                : fichier.FichierNom;
+
+            return File(fichier.FichierBlob, contentType, fileName);
+        }
+
+        // charge les fichiers d'OF pour une planification donnée
+        private async Task ChargerFichiersOFAsync(int planId)
+        {
+            FichiersOF = await _db.MRPFichiers
+                .Where(f => f.PlanificationId == planId)
+                .OrderByDescending(f => f.DateOrdre)
+                .ToListAsync();
         }
     }
 

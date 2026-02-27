@@ -298,14 +298,21 @@
                                         <td onclick="event.stopPropagation();">
                                             @if (!string.IsNullOrEmpty(boutonTexteRoot))
                                             {
-                                                <button type="button"
-                                                        class="btn-primary"
-                                                        style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                        @(boutonDisabledRoot ? "disabled" : "")
-                                                        title="@boutonTitleRoot"
-                                                        onclick="if(!this.disabled){alert('TODO: @boutonTexteRoot pour @root.CodeArticle');}">
-                                                    @boutonTexteRoot
-                                                </button>
+                                                <form method="post"
+                                                      asp-page-handler="LancerOF"
+                                                      style="display:inline;"
+                                                      onsubmit="event.stopPropagation();">
+                                                    <input type="hidden" name="planId" value="@Model.Planification?.Id" />
+                                                    <input type="hidden" name="codeArticle" value="@root.CodeArticle" />
+                                                    <input type="hidden" name="quantite" value="@root.QuantiteALancer" />
+                                                    <button type="submit"
+                                                            class="btn-primary"
+                                                            style="width:110px; padding-inline:8px; font-size:0.8rem;"
+                                                            @(boutonDisabledRoot ? "disabled" : "")
+                                                            title="@boutonTitleRoot">
+                                                        @boutonTexteRoot
+                                                    </button>
+                                                </form>
                                             }
                                         </td>
                                     </tr>
@@ -386,34 +393,42 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <!-- Ligne d'exemple statique, sera remplacee plus tard par un foreach -->
-                            <tr>
-                                <td>Produit fini Exemple</td>
-                                <td>OF-0001</td>
-                                <td>27/02/2026</td>
-                                <td>
-                                    <div style="display:flex; gap:8px; justify-content:flex-start;">
-                                        <button type="button"
-                                                class="btn-secondary"
-                                                style="padding:6px 14px; font-size:0.8rem; margin-top:0;"
-                                                disabled>
-                                            Visualiser PDF
-                                        </button>
-                                        <button type="button"
-                                                class="btn-primary"
-                                                style="padding:6px 14px; font-size:0.8rem; margin-top:0;"
-                                                disabled>
-                                            Telecharger
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-
-                            <tr>
-                                <td colspan="4" style="text-align:center; padding:20px; font-size:0.85rem; color:var(--text-muted);">
-                                    Aucun fichier d'ordre de fabrication enregistre pour le moment.
-                                </td>
-                            </tr>
+                            @if (Model.FichiersOF != null && Model.FichiersOF.Any())
+                            {
+                                foreach (var f in Model.FichiersOF)
+                                {
+                                    <tr>
+                                        <td>@f.CodeArticle</td>
+                                        <td>@f.ReferenceOF</td>
+                                        <td>@f.DateOrdre.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td>
+                                            <div style="display:flex; gap:8px; justify-content:flex-start;">
+                                                <a asp-page-handler="DownloadOF"
+                                                   asp-route-id="@f.Id"
+                                                   class="btn-secondary"
+                                                   style="padding:6px 14px; font-size:0.8rem; margin-top:0;"
+                                                   target="_blank">
+                                                    Visualiser PDF
+                                                </a>
+                                                <a asp-page-handler="DownloadOF"
+                                                   asp-route-id="@f.Id"
+                                                   class="btn-primary"
+                                                   style="padding:6px 14px; font-size:0.8rem; margin-top:0;">
+                                                    Telecharger
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="4" style="text-align:center; padding:20px; font-size:0.85rem; color:var(--text-muted);">
+                                        Aucun fichier d'ordre de fabrication enregistre pour le moment.
+                                    </td>
+                                </tr>
+                            }
                         </tbody>
                     </table>
                 </div>
@@ -662,27 +677,27 @@
 
                 @if (Model.Periodes != null && Model.Periodes.Any())
                 {
-                    foreach (var p in Model.Periodes)
-                    {
+                        foreach (var p in Model.Periodes)
+                        {
+                                @: {
+                                @:     const th = document.createElement('th');
+                                @:     th.style.minWidth = "90px";
+                                @:     th.style.width = "90px";
+                                @:     th.title = "@p.LabelLong";
+                                @:     th.textContent = "@p.LabelCourt";
+                                @:     trHead.appendChild(th);
+                                @: }
+                        }
+                }
+                else
+                {
                         @: {
                         @:     const th = document.createElement('th');
                         @:     th.style.minWidth = "90px";
                         @:     th.style.width = "90px";
-                        @:     th.title = "@p.LabelLong";
-                        @:     th.textContent = "@p.LabelCourt";
+                        @:     th.textContent = "-";
                         @:     trHead.appendChild(th);
                         @: }
-                    }
-                }
-                else
-                {
-                    @: {
-                    @:     const th = document.createElement('th');
-                    @:     th.style.minWidth = "90px";
-                    @:     th.style.width = "90px";
-                    @:     th.textContent = "-";
-                    @:     trHead.appendChild(th);
-                    @: }
                 }
 
                 thead.appendChild(trHead);
@@ -712,8 +727,37 @@
 
                     @if (Model.Periodes != null && Model.Periodes.Any())
                     {
-                        for (int iPer = 0; iPer < Model.Periodes.Count; iPer++)
-                        {
+                            for (int iPer = 0; iPer < Model.Periodes.Count; iPer++)
+                            {
+                                    @: {
+                                    @:     const td = document.createElement('td');
+                                    @:     td.style.minWidth = "90px";
+                                    @:     td.style.width = "90px";
+                                    @:     const input = document.createElement('input');
+                                    @:     input.type = "number";
+                                    @:     input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
+                                    @:     input.style.width = "100%";
+                                    @:     input.style.minWidth = "70px";
+                                    @:     input.min = "0";
+                                    @:     input.step = "1";
+                                    @:     input.dataset.rowKey = r.key;
+                                    @:     input.dataset.periodIndex = "@iPer";
+                                    @:     if (r.key === "SP") {
+                                    @:         input.value = stockInitial.toString();
+                                    @:         input.disabled = true;
+                                    @:         input.className = "mrp-grid-input mrp-grid-input-disabled";
+                                    @:     } else {
+                                    @:         input.placeholder = r.editable ? "0" : "-";
+                                    @:         if (!r.editable) { input.disabled = true; }
+                                    @:     }
+                                    @:     input.dataset.articleCode = codeArticle;
+                                    @:     td.appendChild(input);
+                                    @:     tr.appendChild(td);
+                                    @: }
+                            }
+                    }
+                    else
+                    {
                             @: {
                             @:     const td = document.createElement('td');
                             @:     td.style.minWidth = "90px";
@@ -726,7 +770,7 @@
                             @:     input.min = "0";
                             @:     input.step = "1";
                             @:     input.dataset.rowKey = r.key;
-                            @:     input.dataset.periodIndex = "@iPer";
+                            @:     input.dataset.periodIndex = "0";
                             @:     if (r.key === "SP") {
                             @:         input.value = stockInitial.toString();
                             @:         input.disabled = true;
@@ -739,35 +783,6 @@
                             @:     td.appendChild(input);
                             @:     tr.appendChild(td);
                             @: }
-                        }
-                    }
-                    else
-                    {
-                        @: {
-                        @:     const td = document.createElement('td');
-                        @:     td.style.minWidth = "90px";
-                        @:     td.style.width = "90px";
-                        @:     const input = document.createElement('input');
-                        @:     input.type = "number";
-                        @:     input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
-                        @:     input.style.width = "100%";
-                        @:     input.style.minWidth = "70px";
-                        @:     input.min = "0";
-                        @:     input.step = "1";
-                        @:     input.dataset.rowKey = r.key;
-                        @:     input.dataset.periodIndex = "0";
-                        @:     if (r.key === "SP") {
-                        @:         input.value = stockInitial.toString();
-                        @:         input.disabled = true;
-                        @:         input.className = "mrp-grid-input mrp-grid-input-disabled";
-                        @:     } else {
-                        @:         input.placeholder = r.editable ? "0" : "-";
-                        @:         if (!r.editable) { input.disabled = true; }
-                        @:     }
-                        @:     input.dataset.articleCode = codeArticle;
-                        @:     td.appendChild(input);
-                        @:     tr.appendChild(td);
-                        @: }
                     }
 
                     tbody.appendChild(tr);
@@ -1351,4 +1366,14 @@
             color: var(--accent-light);
             transform: translateY(-1px);
         }
+
+    /* Garde pour éviter des boutons full width si une règle globale existe */
+    .btn-primary,
+    .btn-secondary {
+        display: inline-flex;
+        width: auto;
+        max-width: 200px;
+        align-items: center;
+        justify-content: center;
+    }
 </style>

@@ -48,6 +48,7 @@ builder.Services.AddScoped<Metier.Messagerie.MessagerieService>();
 
 // MRP
 builder.Services.AddScoped<Metier.MRP.MRPConfigService>();
+builder.Services.AddScoped<Metier.MRP.OrdreFabricationService>();
 
 // SignalR
 builder.Services.AddSignalR();
