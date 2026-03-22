@@ -228,5 +228,21 @@ namespace Metier.Messagerie
                 throw;
             }
         }
+
+        // --- FONCTION AJOUTÉE POUR SAUVEGARDER L'AFFICHAGE DES ORDRES D'ACHAT ---
+        public async Task UpdateOaHtml(int messageId, string newHtmlContent)
+        {
+            try
+            {
+                var updatedMsg = await _messagerieService.UpdateMessageHtmlAsync(messageId, newHtmlContent);
+                // Informe tous les gens dans la conversation que le HTML du message a été mis à jour
+                await Clients.Group($"conv-{updatedMsg.ConversationId}")
+                             .SendAsync("MessageUpdated", updatedMsg);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur UpdateOaHtml: {ex}");
+            }
+        }
     }
 }

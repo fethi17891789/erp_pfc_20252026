@@ -1,4 +1,4 @@
-﻿// Fichier : wwwroot/js/messagerie.js
+// Fichier : wwwroot/js/messagerie.js
 
 // ID utilisateur courant récupéré depuis la page Razor
 let currentUserId = window.currentUserIdFromServer || 0;
@@ -21,7 +21,6 @@ const connection = new signalR.HubConnectionBuilder()
 
 // ====================== GESTION STATUT EN LIGNE / HORS LIGNE ======================
 
-// Mise à jour du badge dans la liste des utilisateurs
 function updateUserItemOnlineStatus(userId, isOnline) {
     const container = document.getElementById("usersContainer");
     if (!container) return;
@@ -34,7 +33,6 @@ function updateUserItemOnlineStatus(userId, isOnline) {
         const id = parseInt(idStr, 10);
         if (id !== userId) return;
 
-        // Mettre à jour l'attribut data-isonline (utile pour la sélection / header)
         item.setAttribute("data-isonline", isOnline ? "true" : "false");
 
         const dot = item.querySelector(".chat-user-status");
@@ -53,7 +51,6 @@ function updateUserItemOnlineStatus(userId, isOnline) {
     });
 }
 
-// Mise à jour du header (utilisateur sélectionné)
 function updateHeaderOnlineStatus(isOnline) {
     const statusDot = document.getElementById("chatHeaderStatusDot");
     const statusText = document.getElementById("chatHeaderStatusText");
@@ -70,48 +67,43 @@ function updateHeaderOnlineStatus(isOnline) {
 
 // ====================== HANDLERS SIGNALR ======================
 
-// Réception d'un message temps réel
 connection.on("ReceiveMessage", function (message) {
     if (!message || (!message.conversationId && !message.ConversationId)) return;
 
     const convId = message.conversationId || message.ConversationId;
     if (convId !== currentConversationId) return;
 
-    // Par défaut, un nouveau message vient d'être envoyé => pas encore lu par l'autre
     if (typeof message.isReadByOther === "undefined" && typeof message.IsReadByOther === "undefined") {
         message.isReadByOther = false;
     }
 
     appendMessageToUi(message);
 
-    // Si le message vient de l'autre utilisateur, on le marque comme lu (coté serveur)
     const senderId = message.senderId || message.SenderId;
     if (senderId && senderId !== currentUserId) {
         if (connection.state === signalR.HubConnectionState.Connected) {
             connection.invoke("MarkConversationAsRead", currentConversationId, currentUserId)
-                .catch(err => console.warn("Erreur MarkConversationAsRead (ReceiveMessage):", err.toString()));
+                .catch(err => console.warn("Erreur MarkConversationAsRead:", err.toString()));
         }
     }
 });
 
-// Notification de conversation lue (read receipts)
+connection.on("MessageUpdated", function (message) {
+    if (currentTargetUserId) {
+        const activeUserItem = document.querySelector(`.user-item[data-user-id='${currentTargetUserId}']`);
+        if (activeUserItem) activeUserItem.click();
+    }
+});
+
 connection.on("ConversationRead", function (info) {
-    // info = { conversationId, readerUserId }
     if (!info) return;
 
     const convId = info.conversationId || info.ConversationId;
     const readerUserId = info.readerUserId || info.ReaderUserId;
 
-    // On ne s'intéresse qu'à la conversation actuellement ouverte
     if (!currentConversationId || convId !== currentConversationId) return;
+    if (readerUserId === currentUserId) return;
 
-    // Si c'est moi qui lis, je ne change pas mon propre UI
-    if (readerUserId === currentUserId) {
-        return;
-    }
-
-    // Ici : readerUserId = l'autre utilisateur
-    // Pour tous MES messages "sent" de cette conversation, on passe "Envoyé" -> "Vu"
     const container = document.getElementById("messagesContainer");
     if (!container) return;
 
@@ -135,7 +127,6 @@ connection.on("ConversationRead", function (info) {
     }
 });
 
-// Un utilisateur passe en ligne
 connection.on("UserOnline", function (info) {
     if (!info) return;
     const userId = info.userId || info.UserId;
@@ -143,13 +134,11 @@ connection.on("UserOnline", function (info) {
 
     updateUserItemOnlineStatus(userId, true);
 
-    // Si c'est l'utilisateur actuellement sélectionné dans le header
     if (currentTargetUserId && userId === currentTargetUserId) {
         updateHeaderOnlineStatus(true);
     }
 });
 
-// Un utilisateur passe hors ligne
 connection.on("UserOffline", function (info) {
     if (!info) return;
     const userId = info.userId || info.UserId;
@@ -162,11 +151,8 @@ connection.on("UserOffline", function (info) {
     }
 });
 
-// Démarrer la connexion
 connection.start().then(function () {
     console.log("SignalR connecté");
-
-    // Optionnel : récupérer la liste des users en ligne au cas où
     connection.invoke("GetOnlineUsers")
         .then(function (userIds) {
             if (!Array.isArray(userIds)) return;
@@ -200,11 +186,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const fileInput = document.getElementById("chatFileInput");
 
     if (!input || !btnSend || !usersContainer || !messagesContainer) {
-        console.warn("éléments de base manquants");
         return;
     }
 
-    // Clic sur un utilisateur dans la liste de gauche
     usersContainer.addEventListener("click", async function (e) {
         const btn = e.target.closest(".user-item");
         if (!btn) return;
@@ -232,64 +216,48 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             const url = `/Messagerie?handler=Conversation&otherUserId=${encodeURIComponent(userId)}`;
             const response = await fetch(url, { method: "GET" });
-            if (!response.ok) {
-                console.error("Erreur HTTP Conversation", response.status);
-                return;
-            }
+            if (!response.ok) return;
 
             const conv = await response.json();
 
-            // Quitter l'ancienne conversation SignalR
             if (currentConversationId && connection.state === signalR.HubConnectionState.Connected) {
                 try {
                     await connection.invoke("LeaveConversation", currentConversationId);
-                } catch (err) {
-                    console.warn("Erreur LeaveConversation:", err.toString());
-                }
+                } catch (err) { }
             }
 
             currentConversationId = conv.conversationId;
-            console.log("Conversation chargée, currentConversationId =", currentConversationId);
 
-            // Rejoindre la nouvelle conversation
             if (connection.state === signalR.HubConnectionState.Connected) {
                 try {
                     await connection.invoke("JoinConversation", currentConversationId);
-                } catch (err) {
-                    console.error("Erreur JoinConversation:", err.toString());
-                }
+                } catch (err) { }
             }
 
-            // Mettre à jour le header
             const otherName = conv.otherUserName || displayName;
             if (headerName) headerName.textContent = otherName;
             if (headerInitial) {
                 const initial = (otherName || "?").charAt(0).toUpperCase();
                 headerInitial.textContent = initial;
             }
-            // Statut header en fonction de data-isonline
             if (headerStatusDot && headerStatusText) {
                 updateHeaderOnlineStatus(isOnline);
             }
 
-            // Afficher l'historique
             messagesContainer.innerHTML = "";
             if (Array.isArray(conv.messages)) {
                 conv.messages.forEach(m => appendMessageToUi(m));
                 messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
 
-            // Marquer la conversation comme lue pour l'utilisateur courant
             if (connection.state === signalR.HubConnectionState.Connected) {
                 try {
                     connection.invoke("MarkConversationAsRead", currentConversationId, currentUserId)
-                        .catch(err => console.warn("Erreur MarkConversationAsRead:", err.toString()));
-                } catch (err) {
-                    console.warn("Erreur MarkConversationAsRead:", err.toString());
-                }
+                        .catch(err => { });
+                } catch (err) { }
             }
         } catch (err) {
-            console.error("Erreur lors du chargement de la conversation :", err);
+            console.error("Erreur chargement conversation :", err);
         }
     });
 
@@ -320,41 +288,29 @@ document.addEventListener("DOMContentLoaded", function () {
 
     btnSend.addEventListener("click", send);
     input.addEventListener("keyup", function (e) {
-        if (e.key === "Enter") {
-            send();
-        }
+        if (e.key === "Enter") send();
     });
 
-    // Gestion du bouton d'enregistrement audio
     if (btnRecordAudio) {
         btnRecordAudio.addEventListener("click", toggleRecording);
     }
 
-    // Gestion du bouton trombone + input fichier
     if (btnAttachFile && fileInput) {
         btnAttachFile.addEventListener("click", function () {
             if (!currentConversationId || !currentTargetUserId) {
-                alert("Sélectionne d'abord un destinataire dans la liste à gauche.");
+                alert("Sélectionne d'abord un destinataire.");
                 return;
             }
             fileInput.click();
         });
-
         fileInput.addEventListener("change", handleChatFilesSelected);
-    } else {
-        console.warn("btnAttachFile ou fileInput introuvable");
     }
 });
 
 // ====================== GESTION AUDIO ======================
 
-// Démarrer/arrêter l'enregistrement audio
 async function toggleRecording() {
-    if (!currentConversationId || !currentTargetUserId) {
-        alert("Sélectionne d'abord un destinataire dans la liste à gauche.");
-        return;
-    }
-
+    if (!currentConversationId || !currentTargetUserId) return;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("Votre navigateur ne supporte pas l'enregistrement audio.");
         return;
@@ -367,9 +323,7 @@ async function toggleRecording() {
             mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
 
             mediaRecorder.ondataavailable = function (e) {
-                if (e.data && e.data.size > 0) {
-                    recordedChunks.push(e.data);
-                }
+                if (e.data && e.data.size > 0) recordedChunks.push(e.data);
             };
 
             mediaRecorder.onstop = function () {
@@ -382,7 +336,6 @@ async function toggleRecording() {
             isRecording = true;
             updateRecordButton(true);
         } catch (err) {
-            console.error("Erreur getUserMedia:", err);
             alert("Impossible d'accéder au micro.");
         }
     } else {
@@ -407,42 +360,22 @@ function updateRecordButton(isRec) {
     }
 }
 
-// Upload du blob audio vers le handler Razor
 async function uploadAudioBlob(blob) {
-    if (!blob || blob.size === 0) return;
-    if (!currentConversationId) {
-        alert("Conversation invalide.");
-        return;
-    }
+    if (!blob || blob.size === 0 || !currentConversationId) return;
 
     const formData = new FormData();
     formData.append("conversationId", currentConversationId);
     formData.append("audioFile", blob, "audio.webm");
 
     const tokenInput = document.getElementById("__RequestVerificationToken");
-    if (tokenInput) {
-        formData.append("__RequestVerificationToken", tokenInput.value);
-    }
+    if (tokenInput) formData.append("__RequestVerificationToken", tokenInput.value);
 
     try {
-        const response = await fetch("/Messagerie?handler=UploadAudio", {
-            method: "POST",
-            body: formData
-        });
-
-        if (!response.ok) {
-            const txt = await response.text().catch(() => "");
-            console.error("Erreur HTTP UploadAudio:", response.status, txt);
-            return;
-        }
+        const response = await fetch("/Messagerie?handler=UploadAudio", { method: "POST", body: formData });
+        if (!response.ok) return;
 
         const msg = await response.json();
-
-        try {
-            await connection.invoke("SendAudioMessage", msg);
-        } catch (err) {
-            console.warn("Erreur SendAudioMessage:", err.toString());
-        }
+        await connection.invoke("SendAudioMessage", msg);
     } catch (err) {
         console.error("Erreur upload audio:", err);
     }
@@ -452,13 +385,7 @@ async function uploadAudioBlob(blob) {
 
 function handleChatFilesSelected(e) {
     const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    if (!currentConversationId || !currentTargetUserId) {
-        alert("Sélectionne d'abord un destinataire dans la liste à gauche.");
-        e.target.value = "";
-        return;
-    }
+    if (!files || files.length === 0 || !currentConversationId || !currentTargetUserId) return;
 
     const tokenInput = document.getElementById("__RequestVerificationToken");
     const token = tokenInput ? tokenInput.value : "";
@@ -469,17 +396,10 @@ function handleChatFilesSelected(e) {
         formData.append("chatFile", file);
         formData.append("__RequestVerificationToken", token);
 
-        fetch("/Messagerie?handler=UploadFile", {
-            method: "POST",
-            body: formData
-        })
-            .then(r => {
-                if (!r.ok) throw new Error("Erreur upload fichier");
-                return r.json();
-            })
+        fetch("/Messagerie?handler=UploadFile", { method: "POST", body: formData })
+            .then(r => r.json())
             .then(messageDto => {
-                connection.invoke("SendMessage", messageDto)
-                    .catch(err => console.error("Erreur SendMessage fichier:", err.toString()));
+                connection.invoke("SendMessage", messageDto);
             })
             .catch(err => console.error("Erreur upload fichier:", err));
     });
@@ -489,10 +409,8 @@ function handleChatFilesSelected(e) {
 
 // ====================== UTILITAIRES MESSAGES ======================
 
-// Utilitaire format date -> "dd/MM HH:mm"
 function formatTimestampForDisplay(timestampValue) {
     if (!timestampValue) return "";
-
     const d = new Date(timestampValue);
     if (isNaN(d.getTime())) return "";
 
@@ -504,39 +422,28 @@ function formatTimestampForDisplay(timestampValue) {
     return `${day}/${month} ${hours}:${minutes}`;
 }
 
-// OUVERTURE / FERMETURE OVERLAY IMAGE
 function openImageOverlay(imageUrl) {
     const overlay = document.getElementById("chatImageOverlay");
     if (!overlay) return;
-
     const imgEl = document.getElementById("chatImageOverlayImg");
-    if (imgEl) {
-        imgEl.src = imageUrl;
-    }
-
+    if (imgEl) imgEl.src = imageUrl;
     overlay.style.display = "flex";
 }
 
 function closeImageOverlay() {
     const overlay = document.getElementById("chatImageOverlay");
-    if (!overlay) return;
-
-    overlay.style.display = "none";
+    if (overlay) overlay.style.display = "none";
 }
 
-// Fermer l'overlay au clic sur le fond
 document.addEventListener("click", function (e) {
     const overlay = document.getElementById("chatImageOverlay");
-    if (!overlay) return;
-    if (e.target === overlay) {
+    if (overlay && e.target === overlay) {
         closeImageOverlay();
     }
 });
 
-// Utilitaire pour afficher un message
+// ====================== CREATION DE LA BULLE ======================
 function appendMessageToUi(message) {
-    console.log("DEBUG message reçu :", message);
-
     const container = document.getElementById("messagesContainer");
     if (!container) return;
 
@@ -547,45 +454,79 @@ function appendMessageToUi(message) {
     const timestampRaw = message.timestamp || message.Timestamp || null;
     const timestampText = formatTimestampForDisplay(timestampRaw);
 
-    // flag de lecture calculé par le backend (persistance)
-    const isReadByOther =
-        (typeof message.isReadByOther !== "undefined" ? message.isReadByOther : message.IsReadByOther) || false;
-
+    const isReadByOther = (typeof message.isReadByOther !== "undefined" ? message.isReadByOther : message.IsReadByOther) || false;
     const isMe = senderId === currentUserId;
 
-    // Wrapper de base
+    // Wrapper pour aligner l'étiquette au bon endroit
     const wrapper = document.createElement("div");
     wrapper.style.display = "flex";
     wrapper.style.flexDirection = "column";
     wrapper.style.alignItems = isMe ? "flex-end" : "flex-start";
     wrapper.style.marginBottom = "4px";
 
-    // Infos pour read receipts
     wrapper.dataset.senderId = senderId.toString();
-    wrapper.dataset.msgStatus = isMe
-        ? (isReadByOther ? "read" : "sent")
-        : "none";
+    wrapper.dataset.msgStatus = isMe ? (isReadByOther ? "read" : "sent") : "none";
 
-    // CAS SPÉCIAL OA : pas de bulle standard, on insère directement le HTML
-    if (messageType === "oa-proposal") {
-        const oaContainer = document.createElement("div");
-        oaContainer.innerHTML = content;  // content contient ta .oa-preview-card complète
-        wrapper.appendChild(oaContainer);
+    // ==========================================================
+    // CAS SPÉCIAL OA 
+    // ==========================================================
+    if (messageType === "oa-proposal" || messageType === "oa_request") {
 
-        console.log("ok"); // debug pour confirmer le rendu OA
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(content, 'text/html');
+        // La grosse carte preview
+        const card = doc.querySelector('.oa-preview-card');
 
-        // Timestamp en dessous, si tu veux quand même la date
+        let bulleToDisplay = null;
+
+        if (card && card.children.length >= 2) {
+            const vueExpediteur = card.children[0];
+            const vueDestinataire = card.children[1];
+
+            // On extrait JUSTE la ligne contenant la bulle pour garder ton design CSS d'origine !
+            if (isMe) {
+                bulleToDisplay = vueExpediteur.querySelector('.chat-message-row');
+            } else {
+                bulleToDisplay = vueDestinataire.querySelector('.chat-message-row');
+
+                // On relie tes veritables boutons Accepter/Refuser
+                if (bulleToDisplay) {
+                    const btnAccept = bulleToDisplay.querySelector('.oa-btn-accept');
+                    const btnReject = bulleToDisplay.querySelector('.oa-btn-reject');
+                    const currentMsgId = message.id || message.Id;
+
+                    if (btnAccept && !btnAccept.dataset.bound) {
+                        btnAccept.dataset.bound = "true";
+                        btnAccept.addEventListener('click', () => handleOaAction(content, 'acceptee', currentMsgId));
+                    }
+                    if (btnReject && !btnReject.dataset.bound) {
+                        btnReject.dataset.bound = "true";
+                        btnReject.addEventListener('click', () => handleOaAction(content, 'refusee', currentMsgId));
+                    }
+                }
+            }
+        }
+
+        if (bulleToDisplay) {
+            // Pas de couleurs forcées, pas de padding forcé : On utilise ton CSS d'origine !
+            bulleToDisplay.style.margin = "0";
+            bulleToDisplay.style.maxWidth = "85%";
+            wrapper.appendChild(bulleToDisplay);
+        } else {
+            const tempDiv = document.createElement("div");
+            tempDiv.innerHTML = content;
+            wrapper.appendChild(tempDiv);
+        }
+
         if (timestampText) {
             const dateLine = document.createElement("div");
             dateLine.style.fontSize = "0.7rem";
             dateLine.style.color = "rgba(255,255,255,0.6)";
             dateLine.style.marginTop = "2px";
             dateLine.style.padding = "0 4px";
-
             const dateSpan = document.createElement("span");
             dateSpan.textContent = timestampText;
             dateLine.appendChild(dateSpan);
-
             wrapper.appendChild(dateLine);
         }
 
@@ -594,7 +535,9 @@ function appendMessageToUi(message) {
         return;
     }
 
-    // Bulle standard pour tous les autres types
+    // =========================================================
+    // Bulle standard pour les Mots Normaux / Fichiers / etc.
+    // =========================================================
     const bubble = document.createElement("div");
     bubble.style.maxWidth = "70%";
     bubble.style.padding = "8px 10px";
@@ -623,12 +566,10 @@ function appendMessageToUi(message) {
         img.style.borderRadius = "10px";
         img.style.display = "block";
         img.style.cursor = "zoom-in";
-
         img.addEventListener("click", function (ev) {
             ev.stopPropagation();
             openImageOverlay(attachmentUrl);
         });
-
         bubble.appendChild(img);
     } else if (messageType === "file" && attachmentUrl) {
         const link = document.createElement("a");
@@ -640,18 +581,14 @@ function appendMessageToUi(message) {
         link.style.display = "inline-flex";
         link.style.alignItems = "center";
         link.style.gap = "6px";
-
         const icon = document.createElement("span");
         icon.textContent = "📎";
         link.appendChild(icon);
-
         const nameSpan = document.createElement("span");
         nameSpan.textContent = content || "Fichier joint";
         link.appendChild(nameSpan);
-
         bubble.appendChild(link);
     } else {
-        // Texte classique
         bubble.textContent = content;
     }
 
@@ -663,7 +600,6 @@ function appendMessageToUi(message) {
         dateLine.style.color = "rgba(255,255,255,0.6)";
         dateLine.style.marginTop = "2px";
         dateLine.style.padding = "0 4px";
-
         const dateSpan = document.createElement("span");
         dateSpan.textContent = timestampText;
         dateLine.appendChild(dateSpan);
@@ -677,7 +613,6 @@ function appendMessageToUi(message) {
             const statusSpanId = "msg-status-" + (message.id || message.Id || (Date.now() + Math.random()));
             statusSpan.id = statusSpanId;
             wrapper.dataset.statusSpanId = statusSpanId;
-
             statusSpan.textContent = isReadByOther ? "Vu" : "Envoyé";
             dateLine.appendChild(statusSpan);
         }
@@ -688,3 +623,48 @@ function appendMessageToUi(message) {
     container.appendChild(wrapper);
     container.scrollTop = container.scrollHeight;
 }
+
+// ====================== GESTION DES ACTIONS OA ======================
+window.handleOaAction = function (originalContentHtml, action, messageId) {
+    if (!messageId) return;
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(originalContentHtml, 'text/html');
+    const card = doc.querySelector('.oa-preview-card');
+
+    if (!card || card.children.length < 2) return;
+
+    const vueExpediteur = card.children[0];
+    const vueDestinataire = card.children[1];
+
+    const isAccepte = (action === 'acceptee');
+    const color = isAccepte ? "#10b981" : "#ef4444"; // Vert ou Rouge
+    const texte = isAccepte ? "Acceptée ✅" : "Refusée ❌";
+
+    // MAJ de la vue de l'expéditeur
+    const statusExpediteur = vueExpediteur.querySelector('.oa-status-pill');
+    if (statusExpediteur) {
+        statusExpediteur.className = "oa-status-pill";
+        statusExpediteur.style.backgroundColor = color;
+        statusExpediteur.style.color = "white";
+        statusExpediteur.innerHTML = `<span>${texte}</span>`;
+    }
+
+    // MAJ de la vue de l'acheteur
+    const actionsBlock = vueDestinataire.querySelector('.oa-actions');
+    if (actionsBlock) actionsBlock.remove();
+
+    const footerAcheteur = vueDestinataire.querySelector('.oa-footer');
+    if (footerAcheteur) {
+        footerAcheteur.style.background = color;
+        footerAcheteur.style.color = "white";
+        footerAcheteur.innerHTML = `<span style="display:block; padding:4px; font-weight:bold; width:100%; text-align:center;">Décision : ${texte}</span>`;
+    }
+
+    const newHtmlContent = card.outerHTML;
+
+    if (connection.state === signalR.HubConnectionState.Connected) {
+        connection.invoke("UpdateOaHtml", parseInt(messageId), newHtmlContent)
+            .catch(err => console.error("Erreur backend:", err));
+    }
+};

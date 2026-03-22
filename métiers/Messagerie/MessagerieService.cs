@@ -570,5 +570,51 @@ namespace Metier.Messagerie
 
             await cmd.ExecuteNonQueryAsync();
         }
+
+        /// <summary>
+        /// Met à jour DIRECTEMENT le contenu HTML d'un Message dans la base de données. 
+        /// (Utilisé quand l'Acheteur accepte/refuse un OA et qu'on repeint la bulle)
+        /// </summary>
+        public async Task<ChatMessageDto> UpdateMessageHtmlAsync(int messageId, string newHtmlContent)
+        {
+            var connString = GetConnectionString();
+            await using var conn = new NpgsqlConnection(connString);
+            await conn.OpenAsync();
+
+            const string getSql = @"SELECT ""ConversationId"", ""SenderId"", ""Timestamp"", ""MessageType"" FROM ""Messages"" WHERE ""Id"" = @mid FOR UPDATE;";
+            int convId = 0, senderId = 0; DateTime ts = DateTime.UtcNow; string mType = "";
+
+            await using (var getCmd = new NpgsqlCommand(getSql, conn))
+            {
+                getCmd.Parameters.AddWithValue("mid", messageId);
+                await using var reader = await getCmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    convId = reader.GetInt32(0);
+                    senderId = reader.GetInt32(1);
+                    ts = reader.GetDateTime(2);
+                    mType = reader.IsDBNull(3) ? "oa-proposal" : reader.GetString(3);
+                }
+                else throw new InvalidOperationException("Message introuvable.");
+            }
+
+            const string updateSql = @"UPDATE ""Messages"" SET ""Content"" = @c WHERE ""Id"" = @mid;";
+            await using (var updCmd = new NpgsqlCommand(updateSql, conn))
+            {
+                updCmd.Parameters.AddWithValue("c", newHtmlContent);
+                updCmd.Parameters.AddWithValue("mid", messageId);
+                await updCmd.ExecuteNonQueryAsync();
+            }
+
+            return new ChatMessageDto
+            {
+                Id = messageId,
+                ConversationId = convId,
+                SenderId = senderId,
+                Content = newHtmlContent,
+                Timestamp = ts,
+                MessageType = mType
+            };
+        }
     }
 }
