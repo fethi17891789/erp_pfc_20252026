@@ -2,14 +2,18 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Donnees;
 using Metier.MRP;
+using Metier.Messagerie;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using erp_pfc_20252026.Data.Entities;
+using Microsoft.AspNetCore.SignalR;
 
 namespace erp_pfc_20252026.Pages
 {
@@ -17,14 +21,21 @@ namespace erp_pfc_20252026.Pages
     {
         private readonly ErpDbContext _db;
         private readonly OrdreFabricationService _ofService;
+        private readonly MessagerieService _messagerieService;
+        private readonly IHubContext<ChatHub> _chatHub;
 
-        public MRPDetailModel(ErpDbContext db, OrdreFabricationService ofService)
+        public MRPDetailModel(
+            ErpDbContext db,
+            OrdreFabricationService ofService,
+            MessagerieService messagerieService,
+            IHubContext<ChatHub> chatHub)
         {
             _db = db;
             _ofService = ofService;
+            _messagerieService = messagerieService;
+            _chatHub = chatHub;
         }
 
-        // VIEWMODELS POUR L AFFICHAGE
         public class PlanificationVm
         {
             public int Id { get; set; }
@@ -48,10 +59,8 @@ namespace erp_pfc_20252026.Pages
             public decimal QuantiteBesoin { get; set; }
             public decimal StockDisponible { get; set; }
 
-            // Qte a lancer finale (somme des DEB) pour cette ligne
             public decimal QuantiteALancer { get; set; }
 
-            // Prix total = QuantiteALancer * CoutBom (pour OF et SF)
             public decimal Prix { get; set; }
 
             public decimal QuantiteParParent { get; set; } = 1m;
@@ -103,7 +112,6 @@ namespace erp_pfc_20252026.Pages
             public decimal QuantiteParParent { get; set; }
         }
 
-        // DTO pour sauvegarde / chargement MRPTableau
         public class MrpTableauDto
         {
             public int PlanId { get; set; }
@@ -131,10 +139,8 @@ namespace erp_pfc_20252026.Pages
         public int NbPropositionsOF => Lignes.Count(l => l.EstOrdreFabrication && l.QuantiteALancer > 0);
         public int NbPropositionsOA => Lignes.Count(l => l.EstOrdreAchat && l.QuantiteALancer > 0);
 
-        // Liste des fichiers d'ordres de fabrication pour la planification
         public List<MRPFichier> FichiersOF { get; set; } = new List<MRPFichier>();
 
-        // HANDLER GET PRINCIPAL
         public async Task<IActionResult> OnGetAsync(
             int? id,
             int? horizonJours,
@@ -195,7 +201,6 @@ namespace erp_pfc_20252026.Pages
             return Page();
         }
 
-        // HANDLERS POST EXISTANTS
         public async Task<IActionResult> OnPostEnregistrerAsync(int planId)
         {
             return await ModifierStatutPlanAsync(planId, "Sauvegardee");
@@ -212,20 +217,20 @@ namespace erp_pfc_20252026.Pages
 
             if (planId <= 0 || string.IsNullOrWhiteSpace(codeArticle) || quantite <= 0)
             {
-                TempData["Erreur"] = "Paramètres de lancement d'OF invalides.";
+                TempData["Erreur"] = "Parametres de lancement d'OF invalides.";
                 return RedirectToPage(new { id = planId });
             }
 
             try
             {
                 var fichier = await _ofService.GenererOrdreFabricationAsync(planId, codeArticle, quantite);
-                Console.WriteLine($"[DEBUG] OF généré Id={fichier.Id}, Ref={fichier.ReferenceOF}");
-                TempData["Succes"] = $"Ordre de fabrication {fichier.ReferenceOF} généré pour l'article {codeArticle}.";
+                Console.WriteLine($"[DEBUG] OF genere Id={fichier.Id}, Ref={fichier.ReferenceOF}");
+                TempData["Succes"] = $"Ordre de fabrication {fichier.ReferenceOF} genere pour l'article {codeArticle}.";
             }
             catch (Exception ex)
             {
                 Console.WriteLine("[DEBUG] Erreur OF : " + ex);
-                TempData["Erreur"] = "Erreur lors de la génération de l'ordre de fabrication : " + ex.Message;
+                TempData["Erreur"] = "Erreur lors de la generation de l'ordre de fabrication : " + ex.Message;
             }
 
             return RedirectToPage(new { id = planId });
@@ -255,7 +260,6 @@ namespace erp_pfc_20252026.Pages
             return RedirectToPage("/MRP");
         }
 
-        // HANDLER JSON : charger tableaux sauvegardes pour un plan + article
         public async Task<IActionResult> OnGetLoadMrpTableauxAsync(int planId, string codeArticle)
         {
             if (string.IsNullOrWhiteSpace(codeArticle))
@@ -295,7 +299,6 @@ namespace erp_pfc_20252026.Pages
             return new JsonResult(dtos);
         }
 
-        // HANDLER JSON : sauvegarder tableaux pour un plan
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> OnPostSaveMrpTableauxAsync()
         {
@@ -377,7 +380,6 @@ namespace erp_pfc_20252026.Pages
             if (plan == null)
                 return new JsonResult(new { ok = false, message = "Plan introuvable." });
 
-            // Regroupement par article (code produit)
             var dtosParArticle = dtos
                 .GroupBy(d => d.CodeArticle)
                 .ToList();
@@ -389,14 +391,12 @@ namespace erp_pfc_20252026.Pages
                 if (ligne == null)
                     continue;
 
-                // 1) on supprime les anciennes lignes MRPTableau pour cette ligne
                 var existants = await _db.MRPTables
                     .Where(t => t.MRPPlanLigneId == ligne.Id)
                     .ToListAsync();
 
                 _db.MRPTables.RemoveRange(existants);
 
-                // 2) on reinsere les nouvelles
                 foreach (var dto in grp)
                 {
                     var ent = new MRPTableau
@@ -417,7 +417,6 @@ namespace erp_pfc_20252026.Pages
                 }
             }
 
-            // 3) calcul QuantiteALancer = somme des DEB et PrixTotal = QuantiteALancer * CoutBom
             var lignesIds = plan.Lignes.Select(l => l.Id).ToList();
             var tableauxParLigne = await _db.MRPTables
                 .Where(t => lignesIds.Contains(t.MRPPlanLigneId))
@@ -436,7 +435,6 @@ namespace erp_pfc_20252026.Pages
                 var prod = ligne.Produit;
                 if (prod != null)
                 {
-                    // Prix total base sur CoutBom du produit
                     ligne.PrixTotal = sommeDebutOrdre * prod.CoutBom;
                 }
             }
@@ -445,7 +443,6 @@ namespace erp_pfc_20252026.Pages
             return new JsonResult(new { ok = true });
         }
 
-        // CREATION DU PLAN
         private async Task<MRPPlan> CreerNouveauPlanAvecLignesAsync(
             List<int> idsProduits,
             int horizonJours)
@@ -470,7 +467,6 @@ namespace erp_pfc_20252026.Pages
                 .Where(p => idsProduits.Contains(p.Id))
                 .ToListAsync();
 
-            // Lignes pour TOUS les produits selectionnes (PF, SF, MP)
             foreach (var prod in produits)
             {
                 var ligne = new MRPPlanLigne
@@ -487,7 +483,6 @@ namespace erp_pfc_20252026.Pages
                 plan.Lignes.Add(ligne);
             }
 
-            // Lignes pour les composants (PF + SF + MP), pour le backend MRP
             await AjouterLignesComposantsPourPlanAsync(plan);
 
             _db.MRPPlans.Add(plan);
@@ -496,7 +491,6 @@ namespace erp_pfc_20252026.Pages
             return plan;
         }
 
-        // Cree des MRPPlanLigne pour tous les composants d un plan
         private async Task AjouterLignesComposantsPourPlanAsync(MRPPlan plan)
         {
             var produitIds = plan.Lignes.Select(l => l.ProduitId).Distinct().ToList();
@@ -611,7 +605,6 @@ namespace erp_pfc_20252026.Pages
 
             var planProduitsDict = produits.ToDictionary(p => p.Id, p => p);
 
-            // dictionnaire des lignes de plan par ProduitId
             var lignesPlanParProduitId = plan.Lignes
                 .GroupBy(l => l.ProduitId)
                 .ToDictionary(g => g.Key, g => g.First());
@@ -621,7 +614,6 @@ namespace erp_pfc_20252026.Pages
                     .ThenInclude(bl => bl.ComposantProduit)
                 .ToListAsync();
 
-            // IMPORTANT : on n ajoute en racine que les produits techniquement PF ou PF+SF
             foreach (var l in plan.Lignes)
             {
                 if (!planProduitsDict.TryGetValue(l.ProduitId, out var prod))
@@ -629,7 +621,7 @@ namespace erp_pfc_20252026.Pages
 
                 var typeMrp = MapTypeTechniqueToMrpType(prod.TypeTechnique);
                 if (typeMrp != "PF" && typeMrp != "PF+SF")
-                    continue; // SF/MP non visibles comme lignes racines
+                    continue;
 
                 var codePf = prod.Reference;
                 var libPf = prod.Nom;
@@ -668,7 +660,6 @@ namespace erp_pfc_20252026.Pages
             ConstruireBomRatios();
         }
 
-        // surcharge avec dictionnaire des lignes de plan
         private async Task AjouterComposantsRecursifsAsync(
             Produit produitParent,
             int niveauParent,
@@ -695,7 +686,6 @@ namespace erp_pfc_20252026.Pages
                 var typeComp = MapTypeTechniqueToMrpType(comp.TypeTechnique);
                 var quantiteParParent = bl.Quantite;
 
-                // Récupérer la ligne de plan correspondante pour cet article (si existe)
                 lignesPlanParProduitId.TryGetValue(comp.Id, out var lignePlanComp);
 
                 var quantiteALancerComp = lignePlanComp?.QuantiteALancer ?? 0m;
@@ -888,7 +878,6 @@ namespace erp_pfc_20252026.Pages
             return RedirectToPage("/BDDView");
         }
 
-        // TELECHARGEMENT / VISUALISATION D'UN FICHIER OF
         public async Task<IActionResult> OnGetDownloadOFAsync(int id)
         {
             var fichier = await _db.MRPFichiers.FirstOrDefaultAsync(f => f.Id == id);
@@ -908,13 +897,197 @@ namespace erp_pfc_20252026.Pages
             return File(fichier.FichierBlob, contentType, fileName);
         }
 
-        // charge les fichiers d'OF pour une planification donnée
         private async Task ChargerFichiersOFAsync(int planId)
         {
             FichiersOF = await _db.MRPFichiers
                 .Where(f => f.PlanificationId == planId)
                 .OrderByDescending(f => f.DateOrdre)
                 .ToListAsync();
+        }
+
+        public async Task<IActionResult> OnGetSearchUsersAsync(string term)
+        {
+            term = term?.Trim() ?? string.Empty;
+            if (term.Length < 2)
+            {
+                return new JsonResult(Array.Empty<object>());
+            }
+
+            var lower = term.ToLower();
+
+            var query = _db.ErpUsers
+                .AsNoTracking()
+                .Where(u =>
+                    (!string.IsNullOrEmpty(u.Login) && u.Login.ToLower().Contains(lower)) ||
+                    (!string.IsNullOrEmpty(u.Email) && u.Email.ToLower().Contains(lower)) ||
+                    (!string.IsNullOrEmpty(u.Poste) && u.Poste.ToLower().Contains(lower)))
+                .OrderBy(u => u.Login)
+                .Take(10);
+
+            var list = await query
+                .Select(u => new
+                {
+                    id = u.Id,
+                    login = u.Login,
+                    email = u.Email,
+                    poste = u.Poste,
+                    isOnline = u.IsOnline,
+                    nomAffiche = string.IsNullOrWhiteSpace(u.Login)
+                        ? (string.IsNullOrWhiteSpace(u.Poste) ? (u.Email ?? $"User {u.Id}") : u.Poste)
+                        : u.Login
+                })
+                .ToListAsync();
+
+            return new JsonResult(list);
+        }
+
+        public class SendOAProposalInput
+        {
+            public string CodeArticle { get; set; } = string.Empty;
+            public string LibelleArticle { get; set; } = string.Empty;
+            public decimal Quantite { get; set; }
+            public int DestUserId { get; set; }
+            public string Commentaire { get; set; } = string.Empty;
+        }
+
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> OnPostSendOAProposalAsync(SendOAProposalInput input)
+        {
+            var sessionUserId = HttpContext.Session.GetInt32("CurrentUserId");
+            if (sessionUserId == null || sessionUserId.Value <= 0)
+            {
+                return new JsonResult(new { ok = false, message = "Utilisateur non connecte." });
+            }
+
+            if (input == null)
+            {
+                return new JsonResult(new { ok = false, message = "Donnees manquantes." });
+            }
+
+            if (input.DestUserId <= 0)
+            {
+                return new JsonResult(new { ok = false, message = "Destinataire invalide." });
+            }
+
+            if (string.IsNullOrWhiteSpace(input.CodeArticle))
+            {
+                return new JsonResult(new { ok = false, message = "Code article manquant." });
+            }
+
+            if (input.Quantite <= 0)
+            {
+                return new JsonResult(new { ok = false, message = "Quantite invalide." });
+            }
+
+            try
+            {
+                var currentUserId = sessionUserId.Value;
+
+                var conv = await _messagerieService.GetOrCreateDirectConversationAsync(
+                    currentUserId,
+                    input.DestUserId,
+                    maxMessages: 20);
+
+                string E(string? s) => System.Net.WebUtility.HtmlEncode(s ?? string.Empty);
+
+                var code = E(input.CodeArticle);
+                var libelle = E(input.LibelleArticle);
+                var commentaire = E(input.Commentaire);
+                var quantiteStr = input.Quantite.ToString("0.##");
+
+                var html = new StringBuilder();
+
+                html.AppendLine("<div class=\"oa-preview-card\">");
+                html.AppendLine("  <div>");
+                html.AppendLine("    <div class=\"oa-col-title\">Vue expediteur</div>");
+                html.AppendLine("    <div class=\"oa-col-sub\">Ce que voit le planificateur MRP.</div>");
+                html.AppendLine("    <div class=\"oa-group-title\">En attente</div>");
+                html.AppendLine("    <div class=\"chat-message-row outgoing\">");
+                html.AppendLine("      <div class=\"chat-message-bubble\">");
+                html.AppendLine("        <div class=\"oa-badge\">");
+                html.AppendLine("          <span class=\"oa-badge-dot\"></span>");
+                html.AppendLine("          <span>Proposition d'ordre d'achat</span>");
+                html.AppendLine("        </div>");
+                html.AppendLine("        <div class=\"oa-product-line\">Produit : <strong>" + code + "</strong> - " + libelle + "</div>");
+                html.AppendLine("        <div class=\"oa-product-line\">Quantite demandee : <strong>" + quantiteStr + " unites</strong></div>");
+                html.AppendLine("        <div class=\"oa-meta\">");
+                html.AppendLine("          Besoin pour le : <strong>-</strong><br />");
+                html.AppendLine("          Plan MRP : <strong>-</strong>");
+                html.AppendLine("        </div>");
+                html.AppendLine("        <div class=\"oa-status-pill oa-status-en-attente\">");
+                html.AppendLine("          <span class=\"oa-status-pill-dot\"></span>");
+                html.AppendLine("          <span>En attente de validation du responsable achats</span>");
+                html.AppendLine("        </div>");
+                if (!string.IsNullOrWhiteSpace(commentaire))
+                {
+                    html.AppendLine("        <div class=\"oa-footer\">");
+                    html.AppendLine("          <span>Commentaire : " + commentaire + "</span>");
+                    html.AppendLine("          <span></span>");
+                    html.AppendLine("        </div>");
+                }
+                else
+                {
+                    html.AppendLine("        <div class=\"oa-footer\">");
+                    html.AppendLine("          <span>Envoye a : Responsable Achats</span>");
+                    html.AppendLine("          <span></span>");
+                    html.AppendLine("        </div>");
+                }
+                html.AppendLine("      </div>");
+                html.AppendLine("    </div>");
+                html.AppendLine("  </div>");
+
+                html.AppendLine("  <div>");
+                html.AppendLine("    <div class=\"oa-col-title\">Vue destinataire</div>");
+                html.AppendLine("    <div class=\"oa-col-sub\">Ce que voit le responsable achats.</div>");
+                html.AppendLine("    <div class=\"oa-group-title\">En attente (avec actions)</div>");
+                html.AppendLine("    <div class=\"chat-message-row incoming\">");
+                html.AppendLine("      <div class=\"chat-message-bubble\">");
+                html.AppendLine("        <div class=\"oa-badge\">");
+                html.AppendLine("          <span class=\"oa-badge-dot\"></span>");
+                html.AppendLine("          <span>Proposition d'ordre d'achat</span>");
+                html.AppendLine("        </div>");
+                html.AppendLine("        <div class=\"oa-product-line\">Produit : <strong>" + code + "</strong> - " + libelle + "</div>");
+                html.AppendLine("        <div class=\"oa-product-line\">Quantite demandee : <strong>" + quantiteStr + " unites</strong></div>");
+                html.AppendLine("        <div class=\"oa-meta\">");
+                html.AppendLine("          Besoin pour le : <strong>-</strong><br />");
+                html.AppendLine("          Demandeur : <strong>Planificateur MRP</strong>");
+                html.AppendLine("        </div>");
+                html.AppendLine("        <div class=\"oa-actions\">");
+                html.AppendLine("          <button class=\"oa-btn oa-btn-accept\" type=\"button\">Accepter</button>");
+                html.AppendLine("          <button class=\"oa-btn oa-btn-reject\" type=\"button\">Refuser</button>");
+                html.AppendLine("        </div>");
+                html.AppendLine("        <div class=\"oa-footer\">");
+                html.AppendLine("          <span>Statut actuel : En attente de ma decision</span>");
+                html.AppendLine("          <span></span>");
+                html.AppendLine("        </div>");
+                html.AppendLine("      </div>");
+                html.AppendLine("    </div>");
+                html.AppendLine("  </div>");
+                html.AppendLine("</div>");
+
+                var contentHtml = html.ToString();
+
+                var saved = await _messagerieService.SaveMessageAsync(
+                    conv.ConversationId,
+                    currentUserId,
+                    contentHtml,
+                    "oa-proposal");
+
+                await _chatHub.Clients.Group($"conv-{conv.ConversationId}")
+                    .SendAsync("ReceiveMessage", saved);
+
+                return new JsonResult(new
+                {
+                    ok = true,
+                    conversationId = conv.ConversationId,
+                    messageId = saved.Id
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Erreur OnPostSendOAProposalAsync : " + ex);
+                return new JsonResult(new { ok = false, message = "Erreur technique lors de l'envoi de la proposition OA." });
+            }
         }
     }
 

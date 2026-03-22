@@ -535,6 +535,8 @@ document.addEventListener("click", function (e) {
 
 // Utilitaire pour afficher un message
 function appendMessageToUi(message) {
+    console.log("DEBUG message reçu :", message);
+
     const container = document.getElementById("messagesContainer");
     if (!container) return;
 
@@ -551,6 +553,7 @@ function appendMessageToUi(message) {
 
     const isMe = senderId === currentUserId;
 
+    // Wrapper de base
     const wrapper = document.createElement("div");
     wrapper.style.display = "flex";
     wrapper.style.flexDirection = "column";
@@ -563,6 +566,35 @@ function appendMessageToUi(message) {
         ? (isReadByOther ? "read" : "sent")
         : "none";
 
+    // CAS SPÉCIAL OA : pas de bulle standard, on insère directement le HTML
+    if (messageType === "oa-proposal") {
+        const oaContainer = document.createElement("div");
+        oaContainer.innerHTML = content;  // content contient ta .oa-preview-card complète
+        wrapper.appendChild(oaContainer);
+
+        console.log("ok"); // debug pour confirmer le rendu OA
+
+        // Timestamp en dessous, si tu veux quand même la date
+        if (timestampText) {
+            const dateLine = document.createElement("div");
+            dateLine.style.fontSize = "0.7rem";
+            dateLine.style.color = "rgba(255,255,255,0.6)";
+            dateLine.style.marginTop = "2px";
+            dateLine.style.padding = "0 4px";
+
+            const dateSpan = document.createElement("span");
+            dateSpan.textContent = timestampText;
+            dateLine.appendChild(dateSpan);
+
+            wrapper.appendChild(dateLine);
+        }
+
+        container.appendChild(wrapper);
+        container.scrollTop = container.scrollHeight;
+        return;
+    }
+
+    // Bulle standard pour tous les autres types
     const bubble = document.createElement("div");
     bubble.style.maxWidth = "70%";
     bubble.style.padding = "8px 10px";
@@ -619,6 +651,7 @@ function appendMessageToUi(message) {
 
         bubble.appendChild(link);
     } else {
+        // Texte classique
         bubble.textContent = content;
     }
 

@@ -196,9 +196,19 @@ namespace Metier.Messagerie
         /// </summary>
         public async Task<ChatMessageDto> SaveMessageAsync(int conversationId, int senderId, string content)
         {
+            // garde la compatibilité existante : type "text"
+            return await SaveMessageAsync(conversationId, senderId, content, "text");
+        }
+
+        /// <summary>
+        /// Enregistre un message dans une conversation existante avec un type spécifique.
+        /// </summary>
+        public async Task<ChatMessageDto> SaveMessageAsync(int conversationId, int senderId, string content, string messageType)
+        {
             if (conversationId <= 0) throw new ArgumentException("conversationId invalide");
             if (senderId <= 0) throw new ArgumentException("senderId invalide");
             if (string.IsNullOrWhiteSpace(content)) throw new ArgumentException("content vide");
+            if (string.IsNullOrWhiteSpace(messageType)) messageType = "text";
 
             var connString = GetConnectionString();
             await using var conn = new NpgsqlConnection(connString);
@@ -244,12 +254,12 @@ namespace Metier.Messagerie
                 }
             }
 
-            // Insérer le message texte
+            // Insérer le message avec le type fourni
             const string insertSql = @"
                 INSERT INTO ""Messages""
                     (""ConversationId"", ""SenderId"", ""Content"", ""Timestamp"", ""MessageType"", ""IsEdited"", ""IsDeleted"")
                 VALUES
-                    (@convId, @senderId, @content, NOW(), 'text', FALSE, FALSE)
+                    (@convId, @senderId, @content, NOW(), @msgType, FALSE, FALSE)
                 RETURNING ""Id"", ""Timestamp"";";
 
             int messageId;
@@ -259,6 +269,7 @@ namespace Metier.Messagerie
                 cmd.Parameters.AddWithValue("convId", conversationId);
                 cmd.Parameters.AddWithValue("senderId", senderId);
                 cmd.Parameters.AddWithValue("content", content);
+                cmd.Parameters.AddWithValue("msgType", messageType);
 
                 await using var readerMsg = await cmd.ExecuteReaderAsync();
                 if (await readerMsg.ReadAsync())
@@ -268,7 +279,7 @@ namespace Metier.Messagerie
                 }
                 else
                 {
-                    throw new InvalidOperationException("Échec d'insertion du message texte.");
+                    throw new InvalidOperationException("Échec d'insertion du message.");
                 }
             }
 
@@ -280,7 +291,7 @@ namespace Metier.Messagerie
                 SenderName = senderName,
                 Content = content,
                 Timestamp = ts,
-                MessageType = "text",
+                MessageType = messageType,
                 AttachmentUrl = null,
                 IsReadByOther = false
             };

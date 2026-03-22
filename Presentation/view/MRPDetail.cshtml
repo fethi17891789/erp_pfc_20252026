@@ -14,9 +14,8 @@
         .GroupBy(l => l.CodeArticle)
         .ToDictionary(g => g.Key, g => g.First());
 
-    var enfantsParRoot = new Dictionary<string, erp_pfc_20252026.Pages.MRPDetailModel.LigneMrpVm>();
-
     var enfantsParRootList = new Dictionary<string, List<erp_pfc_20252026.Pages.MRPDetailModel.LigneMrpVm>>();
+
     foreach (var root in racines)
     {
         var liste = new List<erp_pfc_20252026.Pages.MRPDetailModel.LigneMrpVm>();
@@ -292,11 +291,10 @@
                                         <td>@root.LibelleArticle</td>
                                         <td>@root.TypeProduit</td>
                                         <td>@root.StockDisponible</td>
-                                        <!-- valeur initiale depuis le backend, sera écrasée par JS après calcul DEB -->
                                         <td>@root.QuantiteALancer</td>
                                         <td>@root.Prix.ToString("N2")</td>
                                         <td onclick="event.stopPropagation();">
-                                            @if (!string.IsNullOrEmpty(boutonTexteRoot))
+                                            @if (isOFRoot)
                                             {
                                                 <form method="post"
                                                       asp-page-handler="LancerOF"
@@ -310,9 +308,20 @@
                                                             style="width:110px; padding-inline:8px; font-size:0.8rem;"
                                                             @(boutonDisabledRoot ? "disabled" : "")
                                                             title="@boutonTitleRoot">
-                                                        @boutonTexteRoot
+                                                        Lancer OF
                                                     </button>
                                                 </form>
+                                            }
+                                            else if (isOARoot)
+                                            {
+                                                <button type="button"
+                                                        class="btn-primary"
+                                                        style="width:110px; padding-inline:8px; font-size:0.8rem;"
+                                                        @(boutonDisabledRoot ? "disabled" : "")
+                                                        title="@boutonTitleRoot"
+                                                        onclick="if(!this.disabled){openOAPopup('@root.CodeArticle','@root.LibelleArticle','@root.QuantiteALancer');}">
+                                                    Lancer OA
+                                                </button>
                                             }
                                         </td>
                                     </tr>
@@ -345,20 +354,33 @@
                                                 <td>@c.LibelleArticle</td>
                                                 <td>@c.TypeProduit</td>
                                                 <td>@c.StockDisponible</td>
-                                                <!-- valeur initiale (0) sera remplacée par la somme DEB calc. -->
                                                 <td>@c.QuantiteALancer</td>
                                                 <td>@c.Prix.ToString("N2")</td>
                                                 <td>
                                                     @if (!string.IsNullOrEmpty(boutonTexte))
                                                     {
-                                                        <button type="button"
-                                                                class="btn-primary"
-                                                                style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                                @(boutonDisabled ? "disabled" : "")
-                                                                title="@boutonTitle"
-                                                                onclick="if(!this.disabled){alert('TODO: ' + '@boutonTexte' + ' pour @c.CodeArticle');}">
-                                                            @boutonTexte
-                                                        </button>
+                                                        if (isOF)
+                                                        {
+                                                            <button type="button"
+                                                                    class="btn-primary"
+                                                                    style="width:110px; padding-inline:8px; font-size:0.8rem;"
+                                                                    @(boutonDisabled ? "disabled" : "")
+                                                                    title="@boutonTitle"
+                                                                    onclick="if(!this.disabled){alert('TODO: Lancer OF pour @c.CodeArticle');}">
+                                                                Lancer OF
+                                                            </button>
+                                                        }
+                                                        else if (isOA)
+                                                        {
+                                                            <button type="button"
+                                                                    class="btn-primary"
+                                                                    style="width:110px; padding-inline:8px; font-size:0.8rem;"
+                                                                    @(boutonDisabled ? "disabled" : "")
+                                                                    title="@boutonTitle"
+                                                                    onclick="if(!this.disabled){openOAPopup('@c.CodeArticle','@c.LibelleArticle','@c.QuantiteALancer');}">
+                                                                Lancer OA
+                                                            </button>
+                                                        }
                                                     }
                                                 </td>
                                             </tr>
@@ -471,6 +493,68 @@
                     class="btn-primary"
                     onclick="saveCurrentMrpTables()">
                 Appliquer les valeurs
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- POPUP PROPOSITION ORDRE D'ACHAT -->
+<div id="oa-overlay" class="logout-overlay" style="display:none;">
+    <div class="logout-modal" style="max-width: 480px; width: 95%; display:flex; flex-direction:column; gap:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h3 style="margin-bottom:4px;">Proposition d'ordre d'achat</h3>
+                <p style="margin:0; font-size:0.85rem; color:var(--text-muted);">
+                    Produit : <strong id="oa-product-ref"></strong> -
+                    <span id="oa-product-name"></span><br />
+                    Besoin : <strong id="oa-quantity"></strong> unite(s)
+                </p>
+            </div>
+            <button type="button"
+                    class="mrp-close-btn"
+                    onclick="closeOAPopup()">
+                X
+            </button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:6px;">
+            <label for="oa-user-search" style="font-size:0.85rem; color:var(--text-muted);">
+                Envoyer a un utilisateur
+            </label>
+            <input id="oa-user-search"
+                   type="text"
+                   class="mrp-grid-input"
+                   placeholder="Rechercher un nom de profil..."
+                   autocomplete="off"
+                   oninput="onOAUserSearchInput(this.value)" />
+            <div id="oa-user-suggestions"
+                 style="max-height:160px; overflow:auto; margin-top:4px; border-radius:8px; border:1px solid var(--border-soft); background:rgba(15,23,42,0.98); display:none;">
+                @* Sera rempli en JS (liste de profils) *@
+            </div>
+            <input type="hidden" id="oa-selected-user-id" value="" />
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:6px;">
+            <label for="oa-message" style="font-size:0.85rem; color:var(--text-muted);">
+                Message (optionnel)
+            </label>
+            <textarea id="oa-message"
+                      rows="3"
+                      class="mrp-grid-input"
+                      style="resize:vertical;"
+                      placeholder="Ajouter un commentaire pour la demande d'achat..."></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+            <button type="button"
+                    class="btn-secondary"
+                    onclick="closeOAPopup()">
+                Annuler
+            </button>
+            <button type="button"
+                    class="btn-primary"
+                    onclick="sendOAProposal()">
+                Envoyer
             </button>
         </div>
     </div>
@@ -677,27 +761,27 @@
 
                 @if (Model.Periodes != null && Model.Periodes.Any())
                 {
-                        foreach (var p in Model.Periodes)
-                        {
-                                @: {
-                                @:     const th = document.createElement('th');
-                                @:     th.style.minWidth = "90px";
-                                @:     th.style.width = "90px";
-                                @:     th.title = "@p.LabelLong";
-                                @:     th.textContent = "@p.LabelCourt";
-                                @:     trHead.appendChild(th);
-                                @: }
-                        }
+                            foreach (var p in Model.Periodes)
+                            {
+                                                @: {
+                                                @:     const th = document.createElement('th');
+                                                @:     th.style.minWidth = "90px";
+                                                @:     th.style.width = "90px";
+                                                @:     th.title = "@p.LabelLong";
+                                                @:     th.textContent = "@p.LabelCourt";
+                                                @:     trHead.appendChild(th);
+                                                @: }
+                            }
                 }
                 else
                 {
-                        @: {
-                        @:     const th = document.createElement('th');
-                        @:     th.style.minWidth = "90px";
-                        @:     th.style.width = "90px";
-                        @:     th.textContent = "-";
-                        @:     trHead.appendChild(th);
-                        @: }
+                                    @: {
+                                    @:     const th = document.createElement('th');
+                                    @:     th.style.minWidth = "90px";
+                                    @:     th.style.width = "90px";
+                                    @:     th.textContent = "-";
+                                    @:     trHead.appendChild(th);
+                                    @: }
                 }
 
                 thead.appendChild(trHead);
@@ -727,62 +811,62 @@
 
                     @if (Model.Periodes != null && Model.Periodes.Any())
                     {
-                            for (int iPer = 0; iPer < Model.Periodes.Count; iPer++)
-                            {
-                                    @: {
-                                    @:     const td = document.createElement('td');
-                                    @:     td.style.minWidth = "90px";
-                                    @:     td.style.width = "90px";
-                                    @:     const input = document.createElement('input');
-                                    @:     input.type = "number";
-                                    @:     input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
-                                    @:     input.style.width = "100%";
-                                    @:     input.style.minWidth = "70px";
-                                    @:     input.min = "0";
-                                    @:     input.step = "1";
-                                    @:     input.dataset.rowKey = r.key;
-                                    @:     input.dataset.periodIndex = "@iPer";
-                                    @:     if (r.key === "SP") {
-                                    @:         input.value = stockInitial.toString();
-                                    @:         input.disabled = true;
-                                    @:         input.className = "mrp-grid-input mrp-grid-input-disabled";
-                                    @:     } else {
-                                    @:         input.placeholder = r.editable ? "0" : "-";
-                                    @:         if (!r.editable) { input.disabled = true; }
-                                    @:     }
-                                    @:     input.dataset.articleCode = codeArticle;
-                                    @:     td.appendChild(input);
-                                    @:     tr.appendChild(td);
-                                    @: }
-                            }
+                                for (int iPer = 0; iPer < Model.Periodes.Count; iPer++)
+                                {
+                                                    @: {
+                                                    @:     const td = document.createElement('td');
+                                                    @:     td.style.minWidth = "90px";
+                                                    @:     td.style.width = "90px";
+                                                    @:     const input = document.createElement('input');
+                                                    @:     input.type = "number";
+                                                    @:     input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
+                                                    @:     input.style.width = "100%";
+                                                    @:     input.style.minWidth = "70px";
+                                                    @:     input.min = "0";
+                                                    @:     input.step = "1";
+                                                    @:     input.dataset.rowKey = r.key;
+                                                    @:     input.dataset.periodIndex = "@iPer";
+                                                    @:     if (r.key === "SP") {
+                                                    @:         input.value = stockInitial.toString();
+                                                    @:         input.disabled = true;
+                                                    @:         input.className = "mrp-grid-input mrp-grid-input-disabled";
+                                                    @:     } else {
+                                                    @:         input.placeholder = r.editable ? "0" : "-";
+                                                    @:         if (!r.editable) { input.disabled = true; }
+                                                    @:     }
+                                                    @:     input.dataset.articleCode = codeArticle;
+                                                    @:     td.appendChild(input);
+                                                    @:     tr.appendChild(td);
+                                                    @: }
+                                }
                     }
                     else
                     {
-                            @: {
-                            @:     const td = document.createElement('td');
-                            @:     td.style.minWidth = "90px";
-                            @:     td.style.width = "90px";
-                            @:     const input = document.createElement('input');
-                            @:     input.type = "number";
-                            @:     input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
-                            @:     input.style.width = "100%";
-                            @:     input.style.minWidth = "70px";
-                            @:     input.min = "0";
-                            @:     input.step = "1";
-                            @:     input.dataset.rowKey = r.key;
-                            @:     input.dataset.periodIndex = "0";
-                            @:     if (r.key === "SP") {
-                            @:         input.value = stockInitial.toString();
-                            @:         input.disabled = true;
-                            @:         input.className = "mrp-grid-input mrp-grid-input-disabled";
-                            @:     } else {
-                            @:         input.placeholder = r.editable ? "0" : "-";
-                            @:         if (!r.editable) { input.disabled = true; }
-                            @:     }
-                            @:     input.dataset.articleCode = codeArticle;
-                            @:     td.appendChild(input);
-                            @:     tr.appendChild(td);
-                            @: }
+                                        @: {
+                                        @:     const td = document.createElement('td');
+                                        @:     td.style.minWidth = "90px";
+                                        @:     td.style.width = "90px";
+                                        @:     const input = document.createElement('input');
+                                        @:     input.type = "number";
+                                        @:     input.className = "mrp-grid-input" + (r.editable ? "" : " mrp-grid-input-disabled");
+                                        @:     input.style.width = "100%";
+                                        @:     input.style.minWidth = "70px";
+                                        @:     input.min = "0";
+                                        @:     input.step = "1";
+                                        @:     input.dataset.rowKey = r.key;
+                                        @:     input.dataset.periodIndex = "0";
+                                        @:     if (r.key === "SP") {
+                                        @:         input.value = stockInitial.toString();
+                                        @:         input.disabled = true;
+                                        @:         input.className = "mrp-grid-input mrp-grid-input-disabled";
+                                        @:     } else {
+                                        @:         input.placeholder = r.editable ? "0" : "-";
+                                        @:         if (!r.editable) { input.disabled = true; }
+                                        @:     }
+                                        @:     input.dataset.articleCode = codeArticle;
+                                        @:     td.appendChild(input);
+                                        @:     tr.appendChild(td);
+                                        @: }
                     }
 
                     tbody.appendChild(tr);
@@ -1055,7 +1139,6 @@
         }
     }
 
-    // Somme des DEB pour chaque code article ayant un tableau, puis mise à jour de toutes les lignes qui portent ce code.
     function updateQuantitesALancerInMainGrid() {
         Object.keys(mrpTablesByArticle).forEach(codeArticle => {
             const info = mrpTablesByArticle[codeArticle];
@@ -1088,6 +1171,189 @@
                 }
             });
         });
+    }
+
+    // === POPUP ORDRE D'ACHAT (BACKEND + MESSAGERIE) ===
+    let currentOAProduct = {
+        codeArticle: null,
+        libelle: null,
+        quantite: 0
+    };
+
+    function openOAPopup(codeArticle, libelleArticle, quantite) {
+        currentOAProduct.codeArticle = codeArticle;
+        currentOAProduct.libelle = libelleArticle;
+        currentOAProduct.quantite = quantite;
+
+        const overlay = document.getElementById('oa-overlay');
+        if (!overlay) return;
+
+        document.getElementById('oa-product-ref').textContent = codeArticle || '';
+        document.getElementById('oa-product-name').textContent = libelleArticle || '';
+        document.getElementById('oa-quantity').textContent = quantite || 0;
+
+        const searchInput = document.getElementById('oa-user-search');
+        const suggestions = document.getElementById('oa-user-suggestions');
+        const selectedUserId = document.getElementById('oa-selected-user-id');
+        const message = document.getElementById('oa-message');
+
+        if (searchInput) searchInput.value = '';
+        if (suggestions) {
+            suggestions.innerHTML = '';
+            suggestions.style.display = 'none';
+        }
+        if (selectedUserId) selectedUserId.value = '';
+        if (message) message.value = '';
+
+        overlay.style.display = 'flex';
+        document.body.classList.add('logout-blur-active');
+    }
+
+    function closeOAPopup() {
+        const overlay = document.getElementById('oa-overlay');
+        if (!overlay) return;
+        overlay.style.display = 'none';
+        document.body.classList.remove('logout-blur-active');
+    }
+
+    async function onOAUserSearchInput(value) {
+        const suggestions = document.getElementById('oa-user-suggestions');
+        const hiddenId = document.getElementById('oa-selected-user-id');
+        if (!suggestions || !hiddenId) return;
+
+        hiddenId.value = '';
+
+        const term = (value || '').toLowerCase().trim();
+        if (!term) {
+            suggestions.innerHTML = '';
+            suggestions.style.display = 'none';
+            return;
+        }
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const planId = params.get('id') || '';
+            const url = `/MRPDetail?id=${encodeURIComponent(planId)}&handler=SearchUsers&term=${encodeURIComponent(term)}`;
+
+            const resp = await fetch(url, { method: 'GET' });
+            if (!resp.ok) {
+                console.warn('Erreur HTTP SearchUsers:', resp.status);
+                suggestions.innerHTML = '';
+                suggestions.style.display = 'none';
+                return;
+            }
+
+            const users = await resp.json();
+            if (!Array.isArray(users) || users.length === 0) {
+                suggestions.innerHTML = '';
+                suggestions.style.display = 'none';
+                return;
+            }
+
+            suggestions.innerHTML = '';
+
+            users.forEach(u => {
+                const item = document.createElement('div');
+                item.textContent = u.nomAffiche || u.login || u.email || ('User ' + u.id);
+                item.style.padding = '6px 10px';
+                item.style.cursor = 'pointer';
+                item.style.fontSize = '0.85rem';
+                item.addEventListener('click', () => {
+                    const input = document.getElementById('oa-user-search');
+                    if (input) input.value = item.textContent;
+                    hiddenId.value = (u.id || '').toString();
+                    suggestions.style.display = 'none';
+                });
+                item.addEventListener('mouseover', () => {
+                    item.style.backgroundColor = 'rgba(51,65,85,0.85)';
+                });
+                item.addEventListener('mouseout', () => {
+                    item.style.backgroundColor = 'transparent';
+                });
+                suggestions.appendChild(item);
+            });
+
+            suggestions.style.display = 'block';
+        } catch (err) {
+            console.error('Erreur SearchUsers:', err);
+            suggestions.innerHTML = '';
+            suggestions.style.display = 'none';
+        }
+    }
+
+    async function sendOAProposal() {
+        const selectedUserId = document.getElementById('oa-selected-user-id');
+        const searchInput = document.getElementById('oa-user-search');
+        const message = document.getElementById('oa-message');
+
+        if (!selectedUserId || !searchInput) return;
+
+        const userIdStr = selectedUserId.value;
+        if (!userIdStr) {
+            alert("Veuillez selectionner un utilisateur dans la liste.");
+            return;
+        }
+
+        const destUserId = parseInt(userIdStr, 10);
+        if (!destUserId || isNaN(destUserId)) {
+            alert("Utilisateur selectionne invalide.");
+            return;
+        }
+
+        if (!currentOAProduct.codeArticle) {
+            alert("Produit OA invalide.");
+            return;
+        }
+
+        const commentaire = message && message.value ? message.value.trim() : '';
+        const quantite = currentOAProduct.quantite || 0;
+
+        if (!quantite || quantite <= 0) {
+            alert("Quantite OA invalide.");
+            return;
+        }
+
+        const token = getAntiForgeryToken();
+
+        const formData = new URLSearchParams();
+        formData.append("CodeArticle", currentOAProduct.codeArticle);
+        formData.append("LibelleArticle", currentOAProduct.libelle || "");
+        formData.append("Quantite", quantite.toString());
+        formData.append("DestUserId", destUserId.toString());
+        formData.append("Commentaire", commentaire);
+
+        try {
+            const params = new URLSearchParams(window.location.search);
+            const planId = params.get('id') || '';
+            const url = `/MRPDetail?id=${encodeURIComponent(planId)}&handler=SendOAProposal`;
+
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'RequestVerificationToken': token
+                },
+                body: formData.toString()
+            });
+
+            if (!resp.ok) {
+                console.error('Erreur HTTP SendOAProposal:', resp.status);
+                alert("Erreur HTTP lors de l'envoi de la proposition OA.");
+                return;
+            }
+
+            const res = await resp.json();
+            if (!res.ok) {
+                alert("Erreur lors de l'envoi de la proposition OA : " + (res.message || ''));
+                return;
+            }
+
+            alert("Proposition d'OA envoyee avec succes.");
+            closeOAPopup();
+        } catch (err) {
+            console.error('Erreur SendOAProposal:', err);
+            alert("Erreur technique lors de l'envoi de la proposition OA.");
+        }
     }
 
     function openLogoutModal() {
@@ -1367,7 +1633,6 @@
             transform: translateY(-1px);
         }
 
-    /* Garde pour éviter des boutons full width si une règle globale existe */
     .btn-primary,
     .btn-secondary {
         display: inline-flex;

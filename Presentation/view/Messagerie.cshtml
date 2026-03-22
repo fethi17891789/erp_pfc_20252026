@@ -9,6 +9,209 @@
 <link rel="stylesheet" href="/css/Common.css">
 <link rel="stylesheet" href="/css/Home.css">
 
+<style>
+    :root {
+        --bg: #02030A;
+        --bg-alt: #050718;
+        --border-soft: rgba(255, 255, 255, 0.05);
+        --text: #FFFFFF;
+        --text-muted: #A4A7C8;
+        --text-muted-2: #7F83A5;
+        --accent: #7B5EFF;
+        --accent-light: #9C8CFF;
+        --accent-glow: rgba(123, 94, 255, 0.35);
+    }
+
+    .oa-preview-card {
+        width: min(980px, 96vw);
+        padding: 18px 20px;
+        border-radius: 18px;
+        background: radial-gradient(circle at top left, rgba(123, 94, 255, 0.35), transparent 55%), radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.96), rgba(3, 7, 18, 0.98));
+        border: 1px solid rgba(148, 163, 253, 0.5);
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9);
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+    }
+
+    .oa-col-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #CBD5F5;
+        margin-bottom: 4px;
+    }
+
+    .oa-col-sub {
+        font-size: 0.75rem;
+        color: var(--text-muted-2);
+        margin-bottom: 10px;
+    }
+
+    .oa-group-title {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin: 10px 0 4px;
+    }
+
+    .chat-message-row {
+        display: flex;
+        margin-bottom: 8px;
+    }
+
+        .chat-message-row.outgoing {
+            justify-content: flex-end;
+        }
+
+        .chat-message-row.incoming {
+            justify-content: flex-start;
+        }
+
+    .chat-message-bubble {
+        display: inline-block;
+        max-width: 420px;
+        padding: 10px 12px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(123, 94, 255, 0.16), rgba(15, 23, 42, 0.98));
+        border: 1px solid rgba(123, 94, 255, 0.3);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        font-size: 0.83rem;
+    }
+
+    .chat-message-row.outgoing .chat-message-bubble {
+        border-top-right-radius: 6px;
+    }
+
+    .chat-message-row.incoming .chat-message-bubble {
+        border-top-left-radius: 6px;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(3, 7, 18, 0.98));
+        border-color: rgba(148, 163, 253, 0.3);
+    }
+
+    .oa-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border: 1px solid rgba(123, 94, 255, 0.6);
+        background: rgba(123, 94, 255, 0.18);
+        color: #CBD5F5;
+        margin-bottom: 6px;
+    }
+
+    .oa-badge-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--accent-light);
+        box-shadow: 0 0 8px var(--accent-glow);
+    }
+
+    .oa-product-line {
+        font-size: 0.86rem;
+        margin-bottom: 2px;
+    }
+
+        .oa-product-line strong {
+            font-weight: 600;
+        }
+
+    .oa-meta {
+        font-size: 0.76rem;
+        color: var(--text-muted-2);
+        margin-top: 4px;
+        margin-bottom: 8px;
+    }
+
+    .oa-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        border: 1px solid rgba(148, 163, 184, 0.6);
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.96));
+        color: #E5E7EB;
+    }
+
+    .oa-status-pill-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+    }
+
+    .oa-status-en-attente .oa-status-pill-dot {
+        background: #FACC15;
+        box-shadow: 0 0 8px rgba(250, 204, 21, 0.9);
+    }
+
+    .oa-status-confirme .oa-status-pill-dot {
+        background: #22C55E;
+        box-shadow: 0 0 8px rgba(34, 197, 94, 0.9);
+    }
+
+    .oa-status-refuse .oa-status-pill-dot {
+        background: #F97373;
+        box-shadow: 0 0 8px rgba(248, 113, 113, 0.9);
+    }
+
+    .oa-footer {
+        margin-top: 8px;
+        font-size: 0.7rem;
+        color: var(--text-muted-2);
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .oa-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 6px;
+    }
+
+    .oa-btn {
+        border-radius: 999px;
+        padding: 6px 14px;
+        border: none;
+        cursor: pointer;
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .oa-btn-accept {
+        background: linear-gradient(135deg, #16A34A, #22C55E);
+        color: #ECFDF3;
+        box-shadow: 0 8px 24px rgba(22, 163, 74, 0.6);
+    }
+
+        .oa-btn-accept:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 40px rgba(22, 163, 74, 0.8);
+        }
+
+    .oa-btn-reject {
+        background: linear-gradient(135deg, #7F1D1D, #B91C1C);
+        color: #FEE2E2;
+        box-shadow: 0 8px 24px rgba(185, 28, 28, 0.6);
+    }
+
+        .oa-btn-reject:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 40px rgba(185, 28, 28, 0.8);
+        }
+</style>
+
 <div class="erp-shell">
     <!-- BARRE LATÉRALE GAUCHE (identique) -->
     <aside class="erp-sidebar">
@@ -49,7 +252,7 @@
             <button class="nav-item" type="button">
                 <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="1" />
-                    <path d="M12 1v6m6.07 6.07h-6.14M12 19v4m6.07-6.07v0" />
+                    <path d="M12 1v6m6.07 6.07h-6.13M12 19v4m6.07-6.07v0" />
                     <path d="M19 5l-4.24 4.24M5 19l4.24-4.24" />
                     <path d="M19 19l-4.24-4.24M5 5l4.24 4.24" />
                 </svg>
@@ -176,8 +379,7 @@
                                                 <div style="font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                                     @displayName
                                                 </div>
-                                                <span class="chat-user-status @statusClass">
-                                                </span>
+                                                <span class="chat-user-status @statusClass"></span>
                                             </div>
                                             <div style="font-size:0.75rem; color:var(--text-muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                                 @u.Email (@u.Poste)
@@ -223,13 +425,98 @@
 
                     <!-- ZONE MESSAGES -->
                     <div id="messagesContainer" style="flex:1; padding:8px 6px 6px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; font-size:0.85rem;">
-                        <!-- Les messages seront injectés ici par JS -->
+
+                        <!-- PREVIEW OA (statique, juste pour design) -->
+                        <div class="oa-preview-card" style="width:100%; padding:14px 16px; border-radius:14px; background:radial-gradient(circle at top left, rgba(123,94,255,0.35), transparent 55%), radial-gradient(circle at bottom right, rgba(15,23,42,0.96), rgba(3,7,18,0.98)); border:1px solid rgba(148,163,253,0.5); box-shadow:0 18px 60px rgba(15,23,42,0.9); display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:8px;">
+                            <!-- Col expéditeur -->
+                            <div>
+                                <div style="font-size:0.85rem; font-weight:700; color:#CBD5F5; margin-bottom:2px;">Vue expéditeur</div>
+                                <div style="font-size:0.72rem; color:#7F83A5; margin-bottom:6px;">Planificateur MRP.</div>
+
+                                <!-- En attente -->
+                                <div style="font-size:0.72rem; color:#A4A7C8; margin:6px 0 3px;">En attente</div>
+                                <div class="chat-message-row outgoing">
+                                    <div class="chat-message-bubble" style="display:inline-block; max-width:100%; padding:8px 10px; border-radius:14px; background:linear-gradient(135deg, rgba(123,94,255,0.16), rgba(15,23,42,0.98)); border:1px solid rgba(123,94,255,0.3); box-shadow:0 10px 30px rgba(0,0,0,0.6); font-size:0.8rem;">
+                                        <div style="display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(123,94,255,0.6); background:rgba(123,94,255,0.18); color:#CBD5F5; margin-bottom:5px;">
+                                            <span style="width:6px; height:6px; border-radius:999px; background:#9C8CFF; box-shadow:0 0 8px rgba(123,94,255,0.35);"></span>
+                                            <span>Proposition d'ordre d'achat</span>
+                                        </div>
+
+                                        <div style="font-size:0.8rem; margin-bottom:2px;">
+                                            Produit : <strong>PF-001</strong> — Chaise assemblée
+                                        </div>
+                                        <div style="font-size:0.8rem; margin-bottom:2px;">
+                                            Quantité demandée : <strong>150&nbsp;unités</strong>
+                                        </div>
+
+                                        <div style="font-size:0.72rem; color:#7F83A5; margin-top:4px; margin-bottom:6px;">
+                                            Besoin pour le : <strong>15/03/2026</strong><br />
+                                            Plan MRP : <strong>MRP-2026-03-001</strong>
+                                        </div>
+
+                                        <div style="display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px; font-size:0.68rem; border:1px solid rgba(148,163,184,0.6); background:linear-gradient(135deg, rgba(15,23,42,0.96), rgba(30,41,59,0.96)); color:#E5E7EB;">
+                                            <span style="width:6px; height:6px; border-radius:999px; background:#FACC15; box-shadow:0 0 8px rgba(250,204,21,0.9);"></span>
+                                            <span>En attente de validation du responsable achats</span>
+                                        </div>
+
+                                        <div style="margin-top:6px; font-size:0.7rem; color:#7F83A5; display:flex; justify-content:space-between; gap:8px;">
+                                            <span>Envoyé à : Responsable Achats</span>
+                                            <span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Col destinataire -->
+                            <div>
+                                <div style="font-size:0.85rem; font-weight:700; color:#CBD5F5; margin-bottom:2px;">Vue destinataire</div>
+                                <div style="font-size:0.72rem; color:#7F83A5; margin-bottom:6px;">Responsable Achats.</div>
+
+                                <!-- En attente -->
+                                <div style="font-size:0.72rem; color:#A4A7C8; margin:6px 0 3px;">En attente (avec actions)</div>
+                                <div class="chat-message-row incoming">
+                                    <div class="chat-message-bubble" style="display:inline-block; max-width:100%; padding:8px 10px; border-radius:14px; background:linear-gradient(135deg, rgba(15,23,42,0.98), rgba(3,7,18,0.98)); border:1px solid rgba(148,163,253,0.3); box-shadow:0 10px 30px rgba(0,0,0,0.6); font-size:0.8rem;">
+                                        <div style="display:inline-flex; align-items:center; gap:6px; padding:3px 8px; border-radius:999px; font-size:0.65rem; text-transform:uppercase; letter-spacing:0.08em; border:1px solid rgba(123,94,255,0.6); background:rgba(123,94,255,0.18); color:#CBD5F5; margin-bottom:5px;">
+                                            <span style="width:6px; height:6px; border-radius:999px; background:#9C8CFF; box-shadow:0 0 8px rgba(123,94,255,0.35);"></span>
+                                            <span>Proposition d'ordre d'achat</span>
+                                        </div>
+
+                                        <div style="font-size:0.8rem; margin-bottom:2px;">
+                                            Produit : <strong>PF-001</strong> — Chaise assemblée
+                                        </div>
+                                        <div style="font-size:0.8rem; margin-bottom:2px;">
+                                            Quantité demandée : <strong>150&nbsp;unités</strong>
+                                        </div>
+
+                                        <div style="font-size:0.72rem; color:#7F83A5; margin-top:4px; margin-bottom:6px;">
+                                            Besoin pour le : <strong>15/03/2026</strong><br />
+                                            Demandeur : <strong>Planificateur MRP</strong>
+                                        </div>
+
+                                        <div style="display:flex; gap:8px; margin-top:4px;">
+                                            <button type="button" style="border-radius:999px; padding:5px 12px; border:none; background:linear-gradient(135deg, #16A34A, #22C55E); color:#ECFDF3; font-size:0.72rem; font-weight:600; letter-spacing:0.02em; text-transform:uppercase; display:inline-flex; align-items:center; gap:4px; box-shadow:0 8px 24px rgba(22,163,74,0.6); cursor:default;">
+                                                ✓ Accepter
+                                            </button>
+                                            <button type="button" style="border-radius:999px; padding:5px 12px; border:none; background:linear-gradient(135deg, #7F1D1D, #B91C1C); color:#FEE2E2; font-size:0.72rem; font-weight:600; letter-spacing:0.02em; text-transform:uppercase; display:inline-flex; align-items:center; gap:4px; box-shadow:0 8px 24px rgba(185,28,28,0.6); cursor:default;">
+                                                ✕ Refuser
+                                            </button>
+                                        </div>
+
+                                        <div style="margin-top:6px; font-size:0.7rem; color:#7F83A5; display:flex; justify-content:space-between; gap:8px;">
+                                            <span>Statut actuel : En attente de ma décision</span>
+                                            <span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- FIN PREVIEW OA -->
+
                     </div>
 
                     <!-- INPUT MESSAGE -->
                     <footer style="display:grid; grid-template-columns:auto auto 1fr auto; align-items:center; gap:8px; padding:6px 8px 4px; border-top:1px solid rgba(255,255,255,0.08);">
                         <div>
-                            <!-- Bouton trombone moderne (remplace 📎) -->
                             <button type="button"
                                     id="btnAttachFile"
                                     style="border:none; background:transparent; color:var(--text-muted-2); font-size:1.4rem; cursor:pointer; transition:transform 0.15s ease, color 0.15s ease; padding:6px; display:flex; align-items:center; justify-content:center; width:32px; height:32px;"
@@ -239,7 +526,6 @@
                                     <path d="M21.44 11.05l-8.19 8.19a6 6 0 0 1-8.49-8.49l8.19-8.19a4 4 0 0 1 5.66 5.66l-8.19 8.19a2 2 0 0 1-2.83-2.83l8.19-8.19a4 4 0 0 1 5.66 0 4 4 0 0 1 0 5.66z" />
                                 </svg>
                             </button>
-                            <!-- input fichier caché -->
                             <input type="file"
                                    id="chatFileInput"
                                    name="chatFile"
@@ -247,7 +533,6 @@
                                    style="display:none;" />
                         </div>
 
-                        <!-- Bouton micro moderne (remplace 🎤) -->
                         <div>
                             <button type="button"
                                     id="btnRecordAudio"
@@ -290,7 +575,7 @@
        name="__RequestVerificationToken"
        value="@Antiforgery.GetAndStoreTokens(HttpContext).RequestToken" />
 
-<!-- POPUP DÉCONNEXION (réutilisé) -->
+<!-- POPUP DÉCONNEXION -->
 <div id="logout-overlay" class="logout-overlay" style="display:none;">
     <div class="logout-modal">
         <h3>Confirmer la déconnexion</h3>
@@ -322,16 +607,9 @@
 
 <script src="/js/Home.js"></script>
 
-<!-- Expose l'ID courant au JS -->
 <script>
     window.currentUserIdFromServer = parseInt(document.getElementById("currentUserId")?.value || "0");
-</script>
 
-<!-- SignalR + script messagerie -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
-<script src="/js/messagerie.js"></script>
-
-<script>
     function filterUsers(searchTerm) {
         const container = document.getElementById('usersContainer');
         if (!container) return;
@@ -352,3 +630,6 @@
         });
     }
 </script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script src="/js/messagerie.js"></script>

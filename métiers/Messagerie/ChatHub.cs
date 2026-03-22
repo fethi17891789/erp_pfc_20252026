@@ -152,14 +152,18 @@ namespace Metier.Messagerie
         {
             try
             {
-                // Si c'est un simple texte
-                if (string.Equals(message.MessageType, "text", StringComparison.OrdinalIgnoreCase)
-                    && string.IsNullOrEmpty(message.AttachmentUrl))
+                // Si pas de pièce jointe : on persiste via le service en respectant le type
+                if (string.IsNullOrEmpty(message.AttachmentUrl))
                 {
+                    var type = string.IsNullOrWhiteSpace(message.MessageType)
+                        ? "text"
+                        : message.MessageType;
+
                     var saved = await _messagerieService.SaveMessageAsync(
                         message.ConversationId,
                         message.SenderId,
-                        message.Content
+                        message.Content,
+                        type
                     );
 
                     await Clients.Group($"conv-{saved.ConversationId}")
@@ -167,7 +171,7 @@ namespace Metier.Messagerie
                 }
                 else
                 {
-                    // Pour les messages déjà créés côté Razor (image, file, etc.)
+                    // Pour les messages déjà créés côté Razor (image, file, audio, etc.)
                     await Clients.Group($"conv-{message.ConversationId}")
                                  .SendAsync("ReceiveMessage", message);
                 }
