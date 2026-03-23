@@ -1,0 +1,13 @@
+﻿/* ====== Fabrication.css ======
+   Style spécifique au module Fabrication.
+   Utilise la grille et les tokens de Common.css pour garder la cohérence UI.
+*/
+
+/* Section : Layout spécifique Fabrication */
+/* .fabrication-options { ... } */
+
+/* Section : Carte option de fabrication (ex: BOM) */
+/* .fabrication-card { ... } */
+
+/* Section : Boutons / liens de retour */
+/* .btn-link-back { ... } */

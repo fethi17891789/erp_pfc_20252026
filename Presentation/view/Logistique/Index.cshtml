@@ -1,198 +1,383 @@
 @page
 @model erp_pfc_20252026.Pages.Logistique.IndexModel
 @{
-    ViewData["Title"] = "Logistique - Flotte & Tracking";
+    Layout = null;
+    ViewData["Title"] = "Logistique - Dashboard";
 }
 
-<!-- Leaflet CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/css/Common.css" />
+    <link rel="stylesheet" href="~/css/Home.css" />
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
 
-<style>
-    .logistique-container {
-        display: grid;
-        grid-template-columns: 350px 1fr;
-        gap: 20px;
-        height: calc(100vh - 140px);
-        padding: 20px;
+    <style>
+    :root {
+        --map-height: calc(100vh - 220px);
     }
 
-    .fleet-panel {
-        background: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 16px;
-        display: flex;
-        flex-direction: column;
+    /* Override Leaflet for Dark Theme compatibility */
+    .leaflet-container {
+        background: #0a0c1a !important;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .leaflet-tile-container {
+        filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+    }
+
+    /* Custom Scrollbar for Vehicle List */
+    .vehicle-list-scroll::-webkit-scrollbar {
+        width: 4px;
+    }
+    .vehicle-list-scroll::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    .vehicle-list-scroll::-webkit-scrollbar-thumb {
+        background: var(--accent);
+        border-radius: 10px;
+    }
+
+    .vehicle-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 14px;
+        padding: 12px;
+        margin-bottom: 10px;
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        cursor: pointer;
+        position: relative;
         overflow: hidden;
     }
 
-    .fleet-header {
-        padding: 16px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+    .vehicle-card:hover {
+        background: rgba(123, 94, 255, 0.08);
+        border-color: rgba(123, 94, 255, 0.3);
+        transform: translateX(4px);
     }
 
-    .fleet-list {
-        flex: 1;
-        overflow-y: auto;
-        padding: 12px;
-    }
-
-    .vehicule-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
-        padding: 12px;
-        margin-bottom: 12px;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-
-    .vehicule-card:hover {
-        background: rgba(255, 255, 255, 0.08);
+    .vehicle-card.active {
+        background: rgba(123, 94, 255, 0.12);
         border-color: var(--accent);
-        transform: translateY(-2px);
-    }
-
-    .vehicule-card.active {
-        border-color: var(--accent);
-        background: rgba(123, 94, 255, 0.1);
-    }
-
-    .vehicule-info h4 {
-        margin: 0;
-        font-size: 0.95rem;
-        color: #fff;
-    }
-
-    .vehicule-info p {
-        margin: 4px 0 0;
-        font-size: 0.8rem;
-        color: var(--text-muted);
+        box-shadow: 0 0 20px rgba(123, 94, 255, 0.2);
     }
 
     .status-badge {
+        font-size: 0.65rem;
+        padding: 2px 8px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 700;
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 2px 8px;
-        border-radius: 999px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        text-transform: uppercase;
     }
 
-    .status-disponible { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
-    .status-en-trajet { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+    .status-online { color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); background: rgba(34, 197, 94, 0.1); }
+    .status-offline { color: var(--text-muted-2); border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.05); }
 
-    #map {
-        border-radius: 16px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        z-index: 1;
+    .pulse-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        animation: pulse 1.5s infinite;
     }
 
-    .btn-add {
-        background: var(--accent);
-        color: white;
-        border: none;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        cursor: pointer;
+    @@keyframes pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.5); opacity: 0.5; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+
+    .map-controls {
+        position: absolute;
+        bottom: 25px;
+        right: 25px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
     }
 </style>
+</head>
+<body class="erp-dark-mode">
 
-<div class="logistique-container">
-    <!-- PANNEAU FLOTTE -->
-    <div class="fleet-panel">
-        <div class="fleet-header">
-            <h3 style="margin:0; font-size:1.1rem;">Ma Flotte</h3>
-            <button class="btn-add" onclick="document.getElementById('add-vehicule-modal').style.display='flex'">Ajouter</button>
+<div class="erp-shell">
+    <!-- BARRE LATÉRALE -->
+    <aside class="erp-sidebar">
+        <div class="erp-logo">
+            <span class="erp-logo-mark">E</span>
+            <span class="erp-logo-text">ERP Suite</span>
         </div>
-        
-        <div class="fleet-list">
-            @if (Model.Vehicules != null && Model.Vehicules.Any())
-            {
-                foreach (var v in Model.Vehicules)
-                {
-                    <div class="vehicule-card" onclick="focusVehicule(@v.Id, @(v.Latitude ?? 0), @(v.Longitude ?? 0))">
-                        <div style="display:flex; justify-content:space-between; align-items:start;">
-                            <div class="vehicule-info">
-                                <h4>@v.Nom</h4>
-                                <p>@v.Matricule • @v.TypeTransport</p>
-                            </div>
-                            <span class="status-badge status-@v.Statut.ToLower().Replace(" ", "-")">@v.Statut</span>
-                        </div>
-                        @if (v.DerniereMiseAJour.HasValue)
+        <nav class="erp-nav">
+            <a asp-page="/Home" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                    <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+                <span>Accueil</span>
+            </a>
+            <a asp-page="/Fabrication" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2z" />
+                </svg>
+                <span>Modules</span>
+            </a>
+            <button class="nav-item nav-item-active" type="button">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"></path>
+                    <circle cx="12" cy="9" r="3"></circle>
+                </svg>
+                <span>Logistique</span>
+            </button>
+            <a asp-page="/Messagerie" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>Messagerie</span>
+            </a>
+            <a asp-page="/Settings/MobileAccess" class="nav-item">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"></path>
+                    <circle cx="12" cy="9" r="3"></circle>
+                </svg>
+                <span>Accès Extérieur</span>
+            </a>
+            <button class="nav-item" type="button">
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                </svg>
+                <span>Profils</span>
+            </button>
+        </nav>
+        <div class="erp-sidebar-footer">
+            <button class="sidebar-quick secondary" type="button" onclick="openLogoutModal()">
+                <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 3 16 10 13 7" />
+                </svg>
+                Déconnexion
+            </button>
+        </div>
+    </aside>
+
+    <!-- CONTENU PRINCIPAL -->
+    <main class="erp-main">
+        <header class="erp-header">
+            <div class="header-left">
+                <h1>Logistique & Flotte</h1>
+                <p>Suivi en temps réel et gestion des transports.</p>
+            </div>
+            <div class="header-right">
+                <div class="header-db">
+                    <span class="header-db-label">Base active</span>
+                    <span class="header-db-name">erp_db</span>
+                </div>
+                <button class="header-profile-btn" type="button">
+                    <div class="header-avatar">P</div>
+                </button>
+            </div>
+        </header>
+
+        <section class="erp-content" style="padding: 20px;">
+            <div style="display: grid; grid-template-columns: 320px 1fr; gap: 20px; height: var(--map-height);">
+                
+                <!-- COLONNE GAUCHE : LISTE -->
+                <div style="display: flex; flex-direction: column; gap: 15px; min-height: 0;">
+                    <!-- Barre de recherche -->
+                    <div class="chat-search-wrapper" style="position:relative;">
+                        <input type="text" placeholder="Rechercher un véhicule..." 
+                               oninput="filterVehicles(this.value)"
+                               style="width:100%; height:42px; padding:0 40px 0 12px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
+                        <svg style="position:absolute; right:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; opacity:0.5; color:var(--accent-light);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                    </div>
+
+                    <!-- Bouton Ajouter (Déplacé ici) -->
+                    <button class="module-action" style="width:100%; justify-content:center; height:40px; margin-bottom:5px;" onclick="document.getElementById('add-vehicule-modal').style.display='flex'">
+                        <svg style="width:16px; height:16px; margin-right:8px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                        <span>Ajouter un véhicule</span>
+                    </button>
+
+                    <div class="vehicle-list-scroll" style="flex:1; overflow-y:auto; padding-right:5px;">
+                        @if (Model.Vehicules != null && Model.Vehicules.Any())
                         {
-                            <div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted-2);">
-                                Mis à jour le @v.DerniereMiseAJour.Value.ToString("HH:mm")
+                            foreach (var v in Model.Vehicules)
+                            {
+                                var isOnline = v.Latitude.HasValue && v.DerniereMiseAJour > DateTime.UtcNow.AddMinutes(-10);
+                                <div class="vehicle-card @(isOnline ? "active" : "")" onclick="focusVehicule(@v.Id, @(v.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"), @(v.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"))">
+                                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                                        <div>
+                                            <h4 style="margin:0; font-size:0.95rem; font-weight:700;">@v.Nom</h4>
+                                            <code style="font-size:0.7rem; color:var(--text-muted-2);">@v.Matricule</code>
+                                        </div>
+                                        <div class="status-badge @(isOnline ? "status-online" : "status-offline")">
+                                            @if(isOnline) { <span class="pulse-dot"></span> }
+                                            @(isOnline ? "En route" : "Déconnecté")
+                                        </div>
+                                    </div>
+                                    <div style="font-size:0.75rem; color:var(--text-muted); display:flex; gap:10px; align-items:center;">
+                                        <span>🚛 @v.TypeTransport</span>
+                                        @if(v.Latitude.HasValue) {
+                                            <span style="color:var(--accent-light);">📍 @v.Latitude.Value.ToString("F4"), @v.Longitude.Value.ToString("F4")</span>
+                                        }
+                                        <button type="button" class="btn-secondary" style="margin-left:auto; padding:4px 10px; font-size:0.7rem;" onclick="event.stopPropagation(); showQrCode('@v.Id', '@Html.Raw(v.Nom.Replace("'", "\\'"))')">
+                                            <svg style="width:12px; height:12px; margin-right:4px; display:inline-block; vertical-align:middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <rect x="7" y="7" width="3" height="3"></rect>
+                                                <rect x="14" y="7" width="3" height="3"></rect>
+                                                <rect x="7" y="14" width="3" height="3"></rect>
+                                                <rect x="14" y="14" width="3" height="3"></rect>
+                                            </svg>
+                                            QR Tracker
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div style="text-align:center; padding:40px 10px; color:var(--text-muted-2); font-size:0.85rem;">
+                                <p>Aucun véhicule enregistré.</p>
                             </div>
                         }
                     </div>
-                }
-            }
-            else
-            {
-                <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
-                    <p>Aucun véhicule enregistré.</p>
                 </div>
-            }
-        </div>
-    </div>
 
-    <!-- CARTE -->
-    <div id="map"></div>
+                <!-- COLONNE DROITE : CARTE -->
+                <div style="position: relative;">
+                    <div id="map" style="height: 100%; width: 100%;"></div>
+                    
+                    <!-- Overlay QR Code Preview (Placeholder) -->
+                    <div class="map-controls">
+                        <button class="header-btn" title="Générer Rapport" style="padding:10px; border-radius:12px;">📈</button>
+                        <button class="header-btn" title="Couches Carte" style="padding:10px; border-radius:12px;">🗺️</button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
 </div>
 
-<!-- MODAL AJOUT VÉHICULE -->
+<!-- MODAL : AJOUTER VÉHICULE (Design MRP) -->
 <div id="add-vehicule-modal" class="logout-overlay" style="display:none; z-index:9999;">
-    <div class="logout-modal" style="width:400px;">
-        <h3 style="margin-bottom:20px;">Ajouter un véhicule</h3>
-        <form method="post" asp-page-handler="AddVehicule">
-            <div style="margin-bottom:15px;">
-                <label style="display:block; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">Nom du véhicule</label>
-                <input type="text" name="nom" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:white;" placeholder="ex: Camion Livraison A">
+    <div class="logout-modal" style="max-width: 500px;">
+        <h3>Ajouter un nouveau véhicule</h3>
+        <p>Renseignez les informations pour intégrer le véhicule à la flotte.</p>
+
+        <form method="post" asp-page-handler="AddVehicule" class="logout-modal-actions" style="flex-direction:column; gap:16px; align-items:stretch;">
+            <div class="form-group">
+                <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Nom du véhicule</label>
+                <input name="nom" type="text" class="job-input" placeholder="Ex: Camion Livraison A" required 
+                       style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white;" />
             </div>
-            <div style="margin-bottom:15px;">
-                <label style="display:block; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">Matricule / Plaque</label>
-                <input type="text" name="matricule" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:white;" placeholder="ex: AB-123-CD">
+
+            <div class="form-group">
+                <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Plaque d'immatriculation</label>
+                <input name="matricule" type="text" class="job-input" placeholder="Ex: 12345-113-16" required 
+                       style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white;" />
             </div>
-            <div style="margin-bottom:20px;">
-                <label style="display:block; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">Type de transport</label>
-                <select name="type" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:white;">
+
+            <div class="form-group">
+                <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Type de transport</label>
+                <select name="type" class="job-input" style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; cursor:pointer;">
                     <option value="Camion">Camion</option>
                     <option value="Fourgonnette">Fourgonnette</option>
                     <option value="Moto">Moto</option>
                     <option value="Drone">Drone</option>
                 </select>
             </div>
-            <div style="display:flex; gap:10px; justify-content:flex-end;">
-                <button type="button" class="btn-secondary" onclick="document.getElementById('add-vehicule-modal').style.display='none'">Annuler</button>
-                <button type="submit" class="btn-primary">Enregistrer</button>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                <button type="button" class="btn-secondary" 
+                        onclick="document.getElementById('add-vehicule-modal').style.display='none'"
+                        style="padding: 10px 24px; border-radius: 999px; cursor: pointer; font-weight: 600;">
+                    Annuler
+                </button>
+                <button type="submit" class="btn-primary"
+                        style="padding: 10px 24px; border-radius: 999px; cursor: pointer; font-weight: 600; border: none;">
+                    Enregistrer le véhicule
+                </button>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Leaflet JS -->
+<!-- MODAL : QR CODE TRACKER -->
+<div id="qr-code-modal" class="logout-overlay" style="display:none; z-index:10000;">
+    <div class="logout-modal" style="max-width: 400px; text-align:center;">
+        <h3 id="qr-vehicule-name">Véhicule</h3>
+        <p style="margin-bottom:20px;">Scannez ce QR Code avec le téléphone du chauffeur pour démarrer le tracking instantanément.</p>
+
+        <div id="qrcode-container" style="background:white; padding:16px; border-radius:12px; display:inline-block; margin-bottom:24px;"></div>
+
+        <div style="display:flex; justify-content:center;">
+            <button type="button" class="btn-secondary" 
+                    onclick="document.getElementById('qr-code-modal').style.display='none'"
+                    style="padding: 10px 30px; border-radius: 999px; cursor: pointer; font-weight: 600;">
+                Fermer
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Scripts -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<!-- SignalR -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="~/js/Home.js"></script>
 
 <script>
-    var map = L.map('map').setView([46.603354, 1.888334], 6); // Centré sur la France par défaut
+    function showQrCode(vehiculeId, vehiculeName) {
+        document.getElementById('qr-vehicule-name').innerText = "QR Code : " + vehiculeName;
+        
+        // Nettoyer l'ancien QR code s'il existe
+        const container = document.getElementById('qrcode-container');
+        container.innerHTML = "";
+        
+        // Construire l'URL (en utilisant l'origine actuelle)
+        const baseUrl = window.location.origin;
+        const trackingUrl = baseUrl + "/Logistique/Tracking?vehiculeId=" + vehiculeId;
+        
+        // Générer le nouveau QR code
+        new QRCode(container, {
+            text: trackingUrl,
+            width: 200,
+            height: 200,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+        
+        // Afficher la modale
+        document.getElementById('qr-code-modal').style.display = 'flex';
+    }
+
+    var map = L.map('map').setView([46.603354, 1.888334], 6);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         className: 'map-tiles'
     }).addTo(map);
-
-    // Style sombre pour la carte (optionnel, via CSS filter)
-    document.querySelector('.leaflet-tile-container').style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)';
 
     var markers = {};
 
@@ -209,28 +394,40 @@
         if (lat && lon) {
             map.setView([lat, lon], 13);
             if (markers[id]) markers[id].openPopup();
+            
+            document.querySelectorAll('.vehicle-card').forEach(c => c.classList.remove('active'));
         }
     }
 
-    // Connexion SignalR
+    function filterVehicles(query) {
+        const q = query.toLowerCase();
+        document.querySelectorAll('.vehicle-card').forEach(card => {
+            const name = card.querySelector('h4').innerText.toLowerCase();
+            const matricule = card.querySelector('code').innerText.toLowerCase();
+            if (name.includes(q) || matricule.includes(q)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+
     const connection = new signalR.HubConnectionBuilder()
         .withUrl("/logistiquehub")
         .build();
 
     connection.on("ReceivePositionUpdate", function (vehiculeId, lat, lon) {
-        console.log("Update received for vehicle " + vehiculeId + ": " + lat + ", " + lon);
+        console.log("Update received: " + vehiculeId, lat, lon);
         addOrUpdateMarker(vehiculeId, lat, lon);
-        
-        // Optionnel : Notification visuelle sur la carte
     });
 
     connection.start().catch(err => console.error(err.toString()));
 
-    // Initialiser les marqueurs existants
+    // Initialiser les marqueurs
     @foreach(var v in Model.Vehicules.Where(x => x.Latitude.HasValue && x.Longitude.HasValue))
     {
-        <text>
-        addOrUpdateMarker(@v.Id, @v.Latitude, @v.Longitude, "@v.Nom");
-        </text>
+        <text>addOrUpdateMarker(@v.Id, @v.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), @v.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), "@v.Nom");</text>
     }
 </script>
+</body>
+</html>

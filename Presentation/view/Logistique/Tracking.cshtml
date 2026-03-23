@@ -113,15 +113,45 @@
             </svg>
         </div>
         <h1>Tracking Mobile</h1>
-        <p>Sélectionnez un véhicule pour démarrer l'envoi de votre position GPS.</p>
+        <p>Activez votre GPS et commencez à diffuser votre position en temps réel.</p>
 
-        <select id="vehicule-select">
-            <option value="">Sélectionner un véhicule...</option>
-            @foreach(var v in Model.VehiculesDisponibles)
+        @{
+            // Check if vehiculeId is provided in URL
+            var preSelectedVehiculeId = ViewContext.HttpContext.Request.Query["vehiculeId"].ToString();
+            var hasPreSelection = !string.IsNullOrEmpty(preSelectedVehiculeId);
+        }
+
+        <div id="vehicule-selection-area" style="@(hasPreSelection ? "display:none;" : "")">
+            <select id="vehicule-select">
+                <option value="">Sélectionner un véhicule...</option>
+                @foreach(var v in Model.VehiculesDisponibles)
+                {
+                    if (v.Id.ToString() == preSelectedVehiculeId)
+                    {
+                        <option value="@v.Id" selected>@v.Nom (@v.Matricule)</option>
+                    }
+                    else
+                    {
+                        <option value="@v.Id">@v.Nom (@v.Matricule)</option>
+                    }
+                }
+            </select>
+        </div>
+
+        @if(hasPreSelection)
+        {
+            var selectedV = Model.VehiculesDisponibles.FirstOrDefault(v => v.Id.ToString() == preSelectedVehiculeId);
+            if (selectedV != null)
             {
-                <option value="@v.Id">@v.Nom (@v.Matricule)</option>
+                <div style="background: rgba(123, 94, 255, 0.1); border: 1px solid var(--accent); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
+                    <span style="display:block; font-size: 0.8rem; color: #a5b4fc; margin-bottom: 4px;">Véhicule assigné :</span>
+                    <strong style="font-size: 1.1rem; color: white;">@selectedV.Nom</strong>
+                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 2px;">@selectedV.Matricule</div>
+                </div>
+                // Garder l'ID caché pour le JS
+                <input type="hidden" id="hidden-vehicule-id" value="@selectedV.Id" />
             }
-        </select>
+        }
 
         <button id="track-btn" class="btn-track btn-start">DÉMARRER LE SUIVI</button>
 
@@ -143,6 +173,7 @@
         const statusText = document.getElementById('status-text');
         const container = document.getElementById('main-container');
         const vehiculeSelect = document.getElementById('vehicule-select');
+        const hiddenVehiculeId = document.getElementById('hidden-vehicule-id');
 
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/logistiquehub")
@@ -152,7 +183,9 @@
 
         trackBtn.addEventListener('click', () => {
             if (!isTracking) {
-                selectedVehiculeId = vehiculeSelect.value;
+                // Récupérer l'ID depuis le champ caché (QR code) ou le select (manuel)
+                selectedVehiculeId = hiddenVehiculeId ? hiddenVehiculeId.value : vehiculeSelect.value;
+                
                 if (!selectedVehiculeId) {
                     alert("Veuillez sélectionner un véhicule.");
                     return;
