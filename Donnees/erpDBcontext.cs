@@ -1,5 +1,6 @@
-﻿// Fichier : Donnees/ErpDbContext.cs
+// Fichier : Donnees/ErpDbContext.cs
 using erp_pfc_20252026.Data.Entities;
+using Donnees.Logistique;
 using Microsoft.EntityFrameworkCore;
 
 namespace Donnees
@@ -36,6 +37,11 @@ namespace Donnees
 
         // Fichiers PDF MRP (OF) stockés en base
         public DbSet<MRPFichier> MRPFichiers { get; set; }
+
+        // LOGISTIQUE
+        public DbSet<Vehicule> LogistiqueVehicules { get; set; }
+        public DbSet<Capteur> LogistiqueCapteurs { get; set; }
+        public DbSet<Trajet> LogistiqueTrajets { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -337,6 +343,32 @@ namespace Donnees
 
                 entity.HasIndex(f => f.PlanificationId)
                       .HasDatabaseName("IX_MRPFichiers_PlanificationId");
+            });
+
+            // --- CONFIG LOGISTIQUE ---
+            modelBuilder.Entity<Vehicule>(entity =>
+            {
+                entity.ToTable("LogistiqueVehicules");
+                entity.HasKey(v => v.Id);
+                entity.Property(v => v.Nom).IsRequired().HasMaxLength(100);
+                entity.Property(v => v.Matricule).HasMaxLength(50);
+                entity.Property(v => v.TypeTransport).IsRequired().HasMaxLength(50);
+            });
+
+            modelBuilder.Entity<Capteur>(entity =>
+            {
+                entity.ToTable("LogistiqueCapteurs");
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.IdentifiantUnique).IsRequired().HasMaxLength(100);
+                entity.HasIndex(c => c.IdentifiantUnique).IsUnique();
+            });
+
+            modelBuilder.Entity<Trajet>(entity =>
+            {
+                entity.ToTable("LogistiqueTrajets");
+                entity.HasKey(t => t.Id);
+                entity.Property(t => t.Origine).HasMaxLength(255);
+                entity.Property(t => t.Destination).HasMaxLength(255);
             });
         }
     }

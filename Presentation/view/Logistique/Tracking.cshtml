@@ -1,0 +1,216 @@
+@page
+@model erp_pfc_20252026.Pages.Logistique.TrackingModel
+@{
+    Layout = null; // Page autonome pour mobile
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ERP Tracking - Capteur Mobile</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg: #020617;
+            --accent: #7b5eff;
+            --card-bg: rgba(30, 41, 59, 0.7);
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            text-align: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .icon-box {
+            width: 80px;
+            height: 80px;
+            background: rgba(123, 94, 255, 0.2);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: var(--accent);
+        }
+        h1 { font-size: 1.5rem; margin: 0 0 10px; }
+        p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 30px; }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 20px;
+            font-family: inherit;
+        }
+
+        .btn-track {
+            width: 100%;
+            padding: 16px;
+            border-radius: 16px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-start { background: var(--accent); color: white; }
+        .btn-stop { background: #ef4444; color: white; }
+
+        .status-info {
+            margin-top: 20px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+        }
+
+        .tracking-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            margin-right: 6px;
+        }
+        .is-tracking .tracking-dot {
+            background: #22c55e;
+            box-shadow: 0 0 10px #22c55e;
+            animation: pulse 1.5s infinite;
+        }
+
+        @@keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="main-container">
+        <div class="icon-box">
+            <svg style="width: 40px; height: 40px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"></path>
+                <circle cx="12" cy="9" r="3"></circle>
+            </svg>
+        </div>
+        <h1>Tracking Mobile</h1>
+        <p>Sélectionnez un véhicule pour démarrer l'envoi de votre position GPS.</p>
+
+        <select id="vehicule-select">
+            <option value="">Sélectionner un véhicule...</option>
+            @foreach(var v in Model.VehiculesDisponibles)
+            {
+                <option value="@v.Id">@v.Nom (@v.Matricule)</option>
+            }
+        </select>
+
+        <button id="track-btn" class="btn-track btn-start">DÉMARRER LE SUIVI</button>
+
+        <div class="status-info" id="status-info">
+            <span class="tracking-dot"></span>
+            <span id="status-text">Suivi inactif</span>
+        </div>
+    </div>
+
+    <!-- SignalR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+    <script>
+        let isTracking = false;
+        let watchId = null;
+        let selectedVehiculeId = null;
+
+        const trackBtn = document.getElementById('track-btn');
+        const statusText = document.getElementById('status-text');
+        const container = document.getElementById('main-container');
+        const vehiculeSelect = document.getElementById('vehicule-select');
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/logistiquehub")
+            .build();
+
+        connection.start().catch(err => console.error(err.toString()));
+
+        trackBtn.addEventListener('click', () => {
+            if (!isTracking) {
+                selectedVehiculeId = vehiculeSelect.value;
+                if (!selectedVehiculeId) {
+                    alert("Veuillez sélectionner un véhicule.");
+                    return;
+                }
+                startTracking();
+            } else {
+                stopTracking();
+            }
+        });
+
+        function startTracking() {
+            if ("geolocation" in navigator) {
+                isTracking = true;
+                trackBtn.innerText = "ARRÊTER LE SUIVI";
+                trackBtn.classList.remove('btn-start');
+                trackBtn.classList.add('btn-stop');
+                container.classList.add('is-tracking');
+                statusText.innerText = "Suivi en cours...";
+                vehiculeSelect.disabled = true;
+
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const { latitude, longitude } = position.coords;
+                        console.log("Position envoyée: ", latitude, longitude);
+                        
+                        // Envoyer au serveur via SignalR
+                        if (connection.state === signalR.HubConnectionState.Connected) {
+                            connection.invoke("UpdatePosition", parseInt(selectedVehiculeId), latitude, longitude)
+                                .catch(err => console.error(err.toString()));
+                        }
+                    },
+                    (error) => {
+                        console.error("Erreur GPS: ", error.message);
+                        alert("Erreur GPS : " + error.message);
+                        stopTracking();
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        maximumAge: 5000,
+                        timeout: 10000
+                    }
+                );
+            } else {
+                alert("La géolocalisation n'est pas supportée par ce navigateur.");
+            }
+        }
+
+        function stopTracking() {
+            isTracking = false;
+            if (watchId) navigator.geolocation.clearWatch(watchId);
+            
+            trackBtn.innerText = "DÉMARRER LE SUIVI";
+            trackBtn.classList.remove('btn-stop');
+            trackBtn.classList.add('btn-start');
+            container.classList.remove('is-tracking');
+            statusText.innerText = "Suivi inactif";
+            vehiculeSelect.disabled = false;
+        }
+    </script>
+</body>
+</html>

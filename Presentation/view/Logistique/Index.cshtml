@@ -1,0 +1,236 @@
+@page
+@model erp_pfc_20252026.Pages.Logistique.IndexModel
+@{
+    ViewData["Title"] = "Logistique - Flotte & Tracking";
+}
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+<style>
+    .logistique-container {
+        display: grid;
+        grid-template-columns: 350px 1fr;
+        gap: 20px;
+        height: calc(100vh - 140px);
+        padding: 20px;
+    }
+
+    .fleet-panel {
+        background: rgba(15, 23, 42, 0.6);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .fleet-header {
+        padding: 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .fleet-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+    }
+
+    .vehicule-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 12px;
+        margin-bottom: 12px;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .vehicule-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--accent);
+        transform: translateY(-2px);
+    }
+
+    .vehicule-card.active {
+        border-color: var(--accent);
+        background: rgba(123, 94, 255, 0.1);
+    }
+
+    .vehicule-info h4 {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #fff;
+    }
+
+    .vehicule-info p {
+        margin: 4px 0 0;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .status-disponible { background: rgba(34, 197, 94, 0.1); color: #4ade80; }
+    .status-en-trajet { background: rgba(59, 130, 246, 0.1); color: #60a5fa; }
+
+    #map {
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 1;
+    }
+
+    .btn-add {
+        background: var(--accent);
+        color: white;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+    }
+</style>
+
+<div class="logistique-container">
+    <!-- PANNEAU FLOTTE -->
+    <div class="fleet-panel">
+        <div class="fleet-header">
+            <h3 style="margin:0; font-size:1.1rem;">Ma Flotte</h3>
+            <button class="btn-add" onclick="document.getElementById('add-vehicule-modal').style.display='flex'">Ajouter</button>
+        </div>
+        
+        <div class="fleet-list">
+            @if (Model.Vehicules != null && Model.Vehicules.Any())
+            {
+                foreach (var v in Model.Vehicules)
+                {
+                    <div class="vehicule-card" onclick="focusVehicule(@v.Id, @(v.Latitude ?? 0), @(v.Longitude ?? 0))">
+                        <div style="display:flex; justify-content:space-between; align-items:start;">
+                            <div class="vehicule-info">
+                                <h4>@v.Nom</h4>
+                                <p>@v.Matricule • @v.TypeTransport</p>
+                            </div>
+                            <span class="status-badge status-@v.Statut.ToLower().Replace(" ", "-")">@v.Statut</span>
+                        </div>
+                        @if (v.DerniereMiseAJour.HasValue)
+                        {
+                            <div style="margin-top:8px; font-size:0.75rem; color:var(--text-muted-2);">
+                                Mis à jour le @v.DerniereMiseAJour.Value.ToString("HH:mm")
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div style="text-align:center; padding:40px 20px; color:var(--text-muted);">
+                    <p>Aucun véhicule enregistré.</p>
+                </div>
+            }
+        </div>
+    </div>
+
+    <!-- CARTE -->
+    <div id="map"></div>
+</div>
+
+<!-- MODAL AJOUT VÉHICULE -->
+<div id="add-vehicule-modal" class="logout-overlay" style="display:none; z-index:9999;">
+    <div class="logout-modal" style="width:400px;">
+        <h3 style="margin-bottom:20px;">Ajouter un véhicule</h3>
+        <form method="post" asp-page-handler="AddVehicule">
+            <div style="margin-bottom:15px;">
+                <label style="display:block; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">Nom du véhicule</label>
+                <input type="text" name="nom" required style="width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:white;" placeholder="ex: Camion Livraison A">
+            </div>
+            <div style="margin-bottom:15px;">
+                <label style="display:block; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">Matricule / Plaque</label>
+                <input type="text" name="matricule" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:white;" placeholder="ex: AB-123-CD">
+            </div>
+            <div style="margin-bottom:20px;">
+                <label style="display:block; font-size:0.8rem; margin-bottom:5px; color:var(--text-muted);">Type de transport</label>
+                <select name="type" style="width:100%; padding:10px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); border-radius:8px; color:white;">
+                    <option value="Camion">Camion</option>
+                    <option value="Fourgonnette">Fourgonnette</option>
+                    <option value="Moto">Moto</option>
+                    <option value="Drone">Drone</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn-secondary" onclick="document.getElementById('add-vehicule-modal').style.display='none'">Annuler</button>
+                <button type="submit" class="btn-primary">Enregistrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- SignalR -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+
+<script>
+    var map = L.map('map').setView([46.603354, 1.888334], 6); // Centré sur la France par défaut
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        className: 'map-tiles'
+    }).addTo(map);
+
+    // Style sombre pour la carte (optionnel, via CSS filter)
+    document.querySelector('.leaflet-tile-container').style.filter = 'invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)';
+
+    var markers = {};
+
+    function addOrUpdateMarker(vehiculeId, lat, lon, label) {
+        if (markers[vehiculeId]) {
+            markers[vehiculeId].setLatLng([lat, lon]);
+        } else {
+            markers[vehiculeId] = L.marker([lat, lon]).addTo(map)
+                .bindPopup(label || "Véhicule #" + vehiculeId);
+        }
+    }
+
+    function focusVehicule(id, lat, lon) {
+        if (lat && lon) {
+            map.setView([lat, lon], 13);
+            if (markers[id]) markers[id].openPopup();
+        }
+    }
+
+    // Connexion SignalR
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/logistiquehub")
+        .build();
+
+    connection.on("ReceivePositionUpdate", function (vehiculeId, lat, lon) {
+        console.log("Update received for vehicle " + vehiculeId + ": " + lat + ", " + lon);
+        addOrUpdateMarker(vehiculeId, lat, lon);
+        
+        // Optionnel : Notification visuelle sur la carte
+    });
+
+    connection.start().catch(err => console.error(err.toString()));
+
+    // Initialiser les marqueurs existants
+    @foreach(var v in Model.Vehicules.Where(x => x.Latitude.HasValue && x.Longitude.HasValue))
+    {
+        <text>
+        addOrUpdateMarker(@v.Id, @v.Latitude, @v.Longitude, "@v.Nom");
+        </text>
+    }
+</script>

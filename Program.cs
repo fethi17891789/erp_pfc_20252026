@@ -11,8 +11,8 @@ using WkHtmlToPdfDotNet.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// URL d'écoute par défaut
-var appUrl = "http://localhost:5000";
+// URL d'écoute par défaut (0.0.0.0 pour autoriser le réseau local/WiFi)
+var appUrl = "http://0.0.0.0:5000";
 builder.WebHost.UseUrls(appUrl);
 
 // Razor Pages – tes pages sont dans /Presentation/view
@@ -58,6 +58,7 @@ builder.Services.AddScoped<Metier.Messagerie.MessagerieService>();
 builder.Services.AddScoped<Metier.MRP.MRPConfigService>();
 builder.Services.AddScoped<Metier.MRP.OrdreFabricationService>();
 builder.Services.AddScoped<Metier.MRP.OrdreAchatService>();
+builder.Services.AddScoped<Metier.Logistique.LogistiqueService>();
 
 // SignalR
 builder.Services.AddSignalR();
@@ -660,6 +661,70 @@ using (var scope6 = app.Services.CreateScope())
 }
 // --------------------------------------------------------------------
 
+// ---------- 7. CREATION AUTOMATIQUE TABLES LOGISTIQUE ----------
+using (var scope7 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope7.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createLogistiqueTablesSql = @"
+                CREATE TABLE IF NOT EXISTS ""LogistiqueVehicules"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Nom"" VARCHAR(100) NOT NULL,
+                    ""Matricule"" VARCHAR(50),
+                    ""TypeTransport"" VARCHAR(50) NOT NULL,
+                    ""Statut"" VARCHAR(50) NOT NULL DEFAULT 'Disponible',
+                    ""Latitude"" DOUBLE PRECISION NULL,
+                    ""Longitude"" DOUBLE PRECISION NULL,
+                    ""DerniereMiseAJour"" TIMESTAMP WITHOUT TIME ZONE NULL,
+                    ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS ""LogistiqueCapteurs"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""IdentifiantUnique"" VARCHAR(100) NOT NULL,
+                    ""VehiculeId"" INT NULL,
+                    ""Description"" VARCHAR(255),
+                    ""IsActive"" BOOLEAN NOT NULL DEFAULT TRUE,
+                    ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    CONSTRAINT ""UQ_Capteurs_IdentifiantUnique"" UNIQUE (""IdentifiantUnique"")
+                );
+
+                CREATE TABLE IF NOT EXISTS ""LogistiqueTrajets"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""VehiculeId"" INT NOT NULL,
+                    ""CapteurId"" INT NOT NULL,
+                    ""DateDebut"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""DateFin"" TIMESTAMP WITHOUT TIME ZONE NULL,
+                    ""Origine"" VARCHAR(255),
+                    ""Destination"" VARCHAR(255),
+                    ""DistanceParcourueKm"" DOUBLE PRECISION NOT NULL DEFAULT 0,
+                    ""Statut"" VARCHAR(50) NOT NULL DEFAULT 'En Cours',
+                    ""TraceJson"" TEXT NULL
+                );";
+
+            using (var cmd = new NpgsqlCommand(createLogistiqueTablesSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création des tables Logistique...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Tables Logistique prêtes.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto des tables Logistique : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
@@ -678,8 +743,9 @@ app.UseAuthorization();
 app.MapRazorPages();
 
 app.MapHub<Metier.Messagerie.ChatHub>("/chathub");
+app.MapHub<Metier.Logistique.LogistiqueHub>("/logistiquehub");
 
-OpenBrowser(appUrl);
+OpenBrowser("http://localhost:5000");
 
 app.Run();
 
