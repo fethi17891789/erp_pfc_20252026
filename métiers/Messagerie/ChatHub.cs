@@ -1,4 +1,4 @@
-﻿// Fichier : Metier/Messagerie/ChatHub.cs
+// Fichier : Metier/Messagerie/ChatHub.cs
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -13,16 +13,18 @@ namespace Metier.Messagerie
     {
         private readonly MessagerieService _messagerieService;
         private readonly ErpDbContext _dbContext;
+        private readonly MRP.OrdreAchatService _oaService;
 
         // Dictionnaire global : userId -> liste de connectionIds
         // (un utilisateur peut avoir plusieurs onglets / navigateurs ouverts)
         private static readonly ConcurrentDictionary<int, ConcurrentBag<string>> _userConnections
             = new ConcurrentDictionary<int, ConcurrentBag<string>>();
 
-        public ChatHub(MessagerieService messagerieService, ErpDbContext dbContext)
+        public ChatHub(MessagerieService messagerieService, ErpDbContext dbContext, MRP.OrdreAchatService oaService)
         {
             _messagerieService = messagerieService;
             _dbContext = dbContext;
+            _oaService = oaService;
         }
 
         /// <summary>
@@ -235,6 +237,36 @@ namespace Metier.Messagerie
             try
             {
                 var updatedMsg = await _messagerieService.UpdateMessageHtmlAsync(messageId, newHtmlContent);
+
+                // --- DÉTECTION ACCEPTATION OA ---
+                if (newHtmlContent != null && newHtmlContent.Contains("oa-status-acceptee"))
+                {
+                    // Extraction des données via regex sur le HTML
+                    // Format attendu: data-plan-id="..." data-code="..." data-qty="..."
+                    // On supporte " ou ' pour les attributs
+                    var matchPlan = System.Text.RegularExpressions.Regex.Match(newHtmlContent, @"data-plan-id=[""'](\d+)[""']");
+                    var matchCode = System.Text.RegularExpressions.Regex.Match(newHtmlContent, @"data-code=[""']([^""']+)[""']");
+                    var matchQty = System.Text.RegularExpressions.Regex.Match(newHtmlContent, @"data-qty=[""']([\d\.,]+)[""']");
+
+                    if (matchPlan.Success && matchCode.Success && matchQty.Success)
+                    {
+                        int planId = int.Parse(matchPlan.Groups[1].Value);
+                        string code = matchCode.Groups[1].Value;
+                        string qtyRaw = matchQty.Groups[1].Value.Replace(',', '.'); // standardiser le séparateur décimal
+                        decimal qty = decimal.Parse(qtyRaw, System.Globalization.CultureInfo.InvariantCulture);
+
+                        // Lancement de la génération du PDF
+                        try
+                        {
+                            await _oaService.GenererOrdreAchatAsync(planId, code, qty);
+                        }
+                        catch (Exception exPdf)
+                        {
+                            Console.WriteLine($"[ERROR] Échec de génération PDF OA: {exPdf.Message}");
+                        }
+                    }
+                }
+
                 // Informe tous les gens dans la conversation que le HTML du message a été mis à jour
                 await Clients.Group($"conv-{updatedMsg.ConversationId}")
                              .SendAsync("MessageUpdated", updatedMsg);

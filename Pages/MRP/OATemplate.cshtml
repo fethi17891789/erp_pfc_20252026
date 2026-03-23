@@ -1,0 +1,145 @@
+@model Metier.MRP.OrdreAchatService.OrdreAchatPdfModel
+@{
+    Layout = null; // PDF autonome
+}
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <title>Ordre d'achat @Model.ReferenceOA</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            color: #333;
+        }
+
+        h1 {
+            font-size: 20px;
+            text-align: center;
+            margin-bottom: 5px;
+            color: #2563eb;
+        }
+
+        h2 {
+            font-size: 16px;
+            margin-top: 20px;
+            margin-bottom: 5px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 4px;
+        }
+
+        .header-info, .article-info, .quantite-info {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+            .header-info td,
+            .article-info td,
+            .quantite-info td {
+                padding: 6px 8px;
+                border: 1px solid #e5e7eb;
+            }
+
+        .label {
+            font-weight: bold;
+            background-color: #f9fafb;
+            width: 30%;
+        }
+
+        .value {
+            width: 70%;
+        }
+
+        .small {
+            font-size: 10px;
+            color: #6b7280;
+        }
+
+        .footer {
+            margin-top: 40px;
+            font-size: 10px;
+            text-align: center;
+            color: #9ca3af;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 10px;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .highlight {
+            font-weight: bold;
+            color: #1e40af;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ordre d'achat</h1>
+    <p style="text-align:center; margin-top:0;">
+        Référence OA : <strong class="highlight">@Model.ReferenceOA</strong>
+    </p>
+
+    <h2>Informations générales</h2>
+    <table class="header-info">
+        <tr>
+            <td class="label">Plan MRP associé</td>
+            <td class="value">@Model.ReferencePlan</td>
+        </tr>
+        <tr>
+            <td class="label">Date de l'ordre</td>
+            <td class="value">@Model.DateOrdre.ToString("dd/MM/yyyy HH:mm")</td>
+        </tr>
+        <tr>
+            <td class="label">Horizon MRP</td>
+            <td class="value">
+                Du @Model.DateHorizonDebut.ToString("dd/MM/yyyy")
+                au @Model.DateHorizonFin.ToString("dd/MM/yyyy")
+            </td>
+        </tr>
+    </table>
+
+    <h2>Détail de l'article</h2>
+    <table class="article-info">
+        <tr>
+            <td class="label">Référence article</td>
+            <td class="value">@Model.CodeArticle</td>
+        </tr>
+        <tr>
+            <td class="label">Désignation</td>
+            <td class="value">@Model.NomArticle</td>
+        </tr>
+        <tr>
+            <td class="label">Type produit</td>
+            <td class="value">@Model.TypeProduit</td>
+        </tr>
+    </table>
+
+    <h2>Quantité et Valorisation</h2>
+    <table class="quantite-info">
+        <tr>
+            <td class="label">Quantité commandée</td>
+            <td class="value"><strong class="highlight">@Model.Quantite</strong></td>
+        </tr>
+        <tr>
+            <td class="label">Prix d'achat unitaire (est.)</td>
+            <td class="value">@Model.PrixUnitaire.ToString("N2") €</td>
+        </tr>
+        <tr>
+            <td class="label">Total Hors Taxes (est.)</td>
+            <td class="value"><strong class="highlight">@Model.PrixTotal.ToString("N2") €</strong></td>
+        </tr>
+    </table>
+
+    <p class="small mt-20">
+        Cet ordre d'achat a été généré automatiquement suite à l'acceptation d'une proposition par le fournisseur via le module de messagerie ERP.
+    </p>
+
+    <div class="footer">
+        ERP PFC 2025-2026 - Document généré le @DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+    </div>
+</body>
+</html>

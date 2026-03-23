@@ -943,6 +943,7 @@ namespace erp_pfc_20252026.Pages
 
         public class SendOAProposalInput
         {
+            public int PlanId { get; set; }
             public string CodeArticle { get; set; } = string.Empty;
             public string LibelleArticle { get; set; } = string.Empty;
             public decimal Quantite { get; set; }
@@ -996,8 +997,10 @@ namespace erp_pfc_20252026.Pages
                 var quantiteStr = input.Quantite.ToString("0.##");
 
                 var html = new StringBuilder();
+                var dbPlan = await _db.MRPPlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == input.PlanId);
+                var planRef = dbPlan?.Reference ?? "-";
 
-                html.AppendLine("<div class=\"oa-preview-card\">");
+                html.AppendLine($"<div class=\"oa-preview-card\" data-plan-id=\"{input.PlanId}\" data-code=\"{code}\" data-qty=\"{quantiteStr}\">");
                 html.AppendLine("  <div>");
                 html.AppendLine("    <div class=\"oa-col-title\">Vue expediteur</div>");
                 html.AppendLine("    <div class=\"oa-col-sub\">Ce que voit le planificateur MRP.</div>");
@@ -1012,7 +1015,7 @@ namespace erp_pfc_20252026.Pages
                 html.AppendLine("        <div class=\"oa-product-line\">Quantite demandee : <strong>" + quantiteStr + " unites</strong></div>");
                 html.AppendLine("        <div class=\"oa-meta\">");
                 html.AppendLine("          Besoin pour le : <strong>-</strong><br />");
-                html.AppendLine("          Plan MRP : <strong>-</strong>");
+                html.AppendLine("          Plan MRP : <strong>" + planRef + "</strong>");
                 html.AppendLine("        </div>");
                 html.AppendLine("        <div class=\"oa-status-pill oa-status-en-attente\">");
                 html.AppendLine("          <span class=\"oa-status-pill-dot\"></span>");

@@ -1,4 +1,4 @@
-﻿// Fichier : Program.cs
+// Fichier : Program.cs
 using Donnees;
 using Metier;
 using Microsoft.AspNetCore.Http;
@@ -57,6 +57,7 @@ builder.Services.AddScoped<Metier.Messagerie.MessagerieService>();
 // MRP
 builder.Services.AddScoped<Metier.MRP.MRPConfigService>();
 builder.Services.AddScoped<Metier.MRP.OrdreFabricationService>();
+builder.Services.AddScoped<Metier.MRP.OrdreAchatService>();
 
 // SignalR
 builder.Services.AddSignalR();

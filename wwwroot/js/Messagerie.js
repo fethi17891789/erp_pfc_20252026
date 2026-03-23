@@ -641,6 +641,10 @@ window.handleOaAction = function (originalContentHtml, action, messageId) {
     const color = isAccepte ? "#10b981" : "#ef4444"; // Vert ou Rouge
     const texte = isAccepte ? "Acceptée ✅" : "Refusée ❌";
 
+    // Ajout d'une classe pour détection backend
+    if (isAccepte) card.classList.add('oa-status-acceptee');
+    else card.classList.remove('oa-status-acceptee');
+
     // MAJ de la vue de l'expéditeur
     const statusExpediteur = vueExpediteur.querySelector('.oa-status-pill');
     if (statusExpediteur) {
@@ -662,7 +666,6 @@ window.handleOaAction = function (originalContentHtml, action, messageId) {
     }
 
     const newHtmlContent = card.outerHTML;
-
     if (connection.state === signalR.HubConnectionState.Connected) {
         connection.invoke("UpdateOaHtml", parseInt(messageId), newHtmlContent)
             .catch(err => console.error("Erreur backend:", err));
