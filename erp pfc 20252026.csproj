@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 	<PropertyGroup>
 		<TargetFramework>net8.0</TargetFramework>
 		<Nullable>enable</Nullable>
@@ -32,4 +32,9 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
+
+	<!-- Exclure le dossier Launcher de la compilation du projet principal -->
+	<PropertyGroup>
+		<DefaultItemExcludes>$(DefaultItemExcludes);Launcher\**</DefaultItemExcludes>
+	</PropertyGroup>
 </Project>

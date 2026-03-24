@@ -1,4 +1,4 @@
-﻿/* ==== MODULE RAPPORTS - PLEINE PAGE ==== */
+/* ==== MODULE RAPPORTS - PLEINE PAGE ==== */
 
 .reports-full-shell {
     width: 100%;
@@ -27,9 +27,11 @@
     font-weight: 800;
     margin-bottom: 4px;
     background: linear-gradient(135deg, #ffffff 0%, #9c8cff 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    @supports (-webkit-background-clip: text) or (background-clip: text) {
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
 }
 
 .reports-full-header-left p {
