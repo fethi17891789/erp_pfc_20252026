@@ -330,11 +330,21 @@
 
         <div id="qrcode-container" style="background:white; padding:16px; border-radius:12px; display:inline-block; margin-bottom:24px;"></div>
 
-        <div style="display:flex; justify-content:center;">
+        <div style="display:flex; justify-content:center; gap: 10px;">
             <button type="button" class="btn-secondary" 
                     onclick="document.getElementById('qr-code-modal').style.display='none'"
-                    style="padding: 10px 30px; border-radius: 999px; cursor: pointer; font-weight: 600;">
+                    style="margin-top: 0;">
                 Fermer
+            </button>
+            <button type="button" class="btn-primary" 
+                    onclick="downloadQrPdf()"
+                    style="margin-top: 0;">
+                <svg style="width:16px; height:16px; margin-right:8px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="7 10 12 15 17 10"></polyline>
+                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Télécharger en PDF
             </button>
         </div>
     </div>
@@ -344,6 +354,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="~/js/Home.js"></script>
 
 <script>
@@ -370,6 +381,71 @@
         
         // Afficher la modale
         document.getElementById('qr-code-modal').style.display = 'flex';
+    }
+
+    function downloadQrPdf() {
+        const qrContainer = document.getElementById('qrcode-container');
+        const vehiculeName = document.getElementById('qr-vehicule-name').innerText.replace("QR Code : ", "");
+        
+        // Grab image data from canvas or img reliably
+        let imgData = null;
+        const canvas = qrContainer.querySelector('canvas');
+        if (canvas) {
+            imgData = canvas.toDataURL('image/png');
+        } else {
+            const img = qrContainer.querySelector('img');
+            if (img && img.src) imgData = img.src;
+        }
+
+        if(!imgData) {
+            alert("Erreur: Le QR code n'a pas encore été généré.");
+            return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+
+        // 1. Titre (Gros, Gras, Mauve)
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(26);
+        doc.setTextColor(123, 94, 255); // --accent: #7B5EFF
+        doc.text("SCANNER POUR TRACKING", 105, 40, { align: 'center' });
+        
+        // 2. Nom du Véhicule (Gris foncé)
+        doc.setFontSize(18);
+        doc.setTextColor(60, 60, 60);
+        doc.text(vehiculeName.toUpperCase(), 105, 52, { align: 'center' });
+
+        // 3. Ligne de séparation
+        doc.setDrawColor(230, 230, 230);
+        doc.setLineWidth(0.5);
+        doc.line(30, 62, 180, 62);
+
+        // 4. Instructions
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text("Scannez ce QR Code avec votre téléphone pour envoyer", 105, 75, { align: 'center' });
+        doc.text("instantanément votre position au centre de logistique.", 105, 82, { align: 'center' });
+
+        // 5. AJOUT DE L'IMAGE (QR CODE)
+        // doc.addImage(imgData, format, x, y, width, height)
+        doc.addImage(imgData, 'PNG', 55, 95, 100, 100);
+
+        // 6. Cadre pour le QR
+        doc.setDrawColor(123, 94, 255);
+        doc.setLineWidth(1);
+        doc.roundedRect(53, 93, 104, 104, 5, 5, 'D');
+
+        // 7. Footer
+        doc.setFontSize(9);
+        doc.setTextColor(160, 160, 160);
+        doc.text("Document généré par l'ERP Suite - Module Logistique", 105, 230, { align: 'center' });
+        doc.text("Date de génération : " + new Date().toLocaleString('fr-FR'), 105, 236, { align: 'center' });
+
+        // 8. Sauvegarde
+        const fileName = vehiculeName.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '_qr_code.pdf';
+        doc.save(fileName);
     }
 
     var map = L.map('map').setView([46.603354, 1.888334], 6);
