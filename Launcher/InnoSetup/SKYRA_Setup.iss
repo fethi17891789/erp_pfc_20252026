@@ -59,9 +59,8 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Raccourcis:"; Flags: unchecked
 
 [Files]
-; ── ERP ASP.NET Core (publié en Self-Contained) ──────────────
-Source: "..\..\publish\erp\erp pfc 20252026.exe"; DestDir: "{#MyInstallDir}\ERP"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
-Source: "..\..\publish\erp\*"; Excludes: "erp pfc 20252026.exe"; DestDir: "{#MyInstallDir}\ERP"; Flags: ignoreversion recursesubdirs createallsubdirs
+; ── ERP ASP.NET Core (maintenu léger, binaires téléchargés au boot) ──
+Source: "Assets\placeholder.txt"; DestDir: "{#MyInstallDir}\ERP"; Flags: ignoreversion
 
 ; ── Bootstrapper ─────────────────────────────────────────────
 Source: "..\..\publish\bootstrapper\*"; DestDir: "{#MyInstallDir}\Installer"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -69,8 +68,8 @@ Source: "..\..\publish\bootstrapper\*"; DestDir: "{#MyInstallDir}\Installer"; Fl
 ; ── Watchdog (Service Windows) ───────────────────────────────
 Source: "..\..\publish\watchdog\*"; DestDir: "{#MyInstallDir}\Watchdog"; Flags: ignoreversion recursesubdirs createallsubdirs
 
-; ── Ressources (PostgreSQL portable, wkhtmltopdf, etc.) ──────
-Source: "..\..\publish\Resources\*"; DestDir: "{#MyInstallDir}\Installer\Resources"; Flags: ignoreversion recursesubdirs createallsubdirs
+; ── Ressources (Légères - Les ZIPs lourds sont exclus car téléchargés) ──
+Source: "..\..\publish\Resources\*"; Excludes: "*.zip"; DestDir: "{#MyInstallDir}\Installer\Resources"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; ── Version initiale ─────────────────────────────────────────
 Source: "Assets\version.txt"; DestDir: "{#MyInstallDir}"; Flags: ignoreversion

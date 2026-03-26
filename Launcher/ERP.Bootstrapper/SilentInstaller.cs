@@ -19,6 +19,10 @@ public static class SilentInstaller
         Console.WriteLine("[INSTALL] Installation de PostgreSQL Portable en cours...");
 
         var pgZip = Path.Combine(ResourcesPath, "postgresql_portable.zip");
+        if (!File.Exists(pgZip))
+        {
+            pgZip = Path.Combine(installDir, "Database", "postgresql_portable.zip");
+        }
         var pgDir = Path.Combine(installDir, "Database", "PostgreSQL");
 
         try
@@ -225,5 +229,35 @@ public static class SilentInstaller
 
         // On donne 5 minutes (300 000 ms) pour cette installation système critique
         return RunProcess(installer, "/install /quiet /norestart", 300_000);
+    }
+
+    public static bool InstallErpBinaries(string installDir)
+    {
+        Console.WriteLine("[INSTALL] Extraction des binaires de l'ERP...");
+
+        var erpZip = Path.Combine(ResourcesPath, "erp_binaries.zip");
+        if (!File.Exists(erpZip))
+        {
+            erpZip = Path.Combine(installDir, "Database", "erp_binaries.zip");
+        }
+
+        try
+        {
+            if (!File.Exists(erpZip))
+            {
+                Console.WriteLine("[INSTALL] Aucun pack de binaires ERP trouvé. Ignoré (déjà présent ?).");
+                return true;
+            }
+
+            Console.WriteLine($"[INSTALL] Extraction de l'ERP vers {installDir}...");
+            System.IO.Compression.ZipFile.ExtractToDirectory(erpZip, installDir, overwriteFiles: true);
+            Console.WriteLine("[INSTALL] ✅ ERP extrait avec succès.");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERREUR] ÉCHEC DE L'EXTRACTION ERP : {ex.Message}");
+            return false;
+        }
     }
 }

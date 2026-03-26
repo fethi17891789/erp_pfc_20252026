@@ -21,6 +21,34 @@ try
     Console.ResetColor();
     Console.WriteLine();
 
+    // ── PHASE 0 : Téléchargement des ressources (Optionnel si manquant) ──
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine("╔═══════════════════════════════════════╗");
+    Console.WriteLine("║   Vérification des Ressources Distantes ║");
+    Console.WriteLine("╚═══════════════════════════════════════╝");
+    Console.ResetColor();
+
+    string pgZip = Path.Combine(InstallDir, "Database", "postgresql_portable.zip");
+    string erpZip = Path.Combine(InstallDir, "Database", "erp_binaries.zip");
+
+    // URLs à mettre à jour par l'utilisateur (Final)
+    string pgUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.0.0/postgresql_portable.zip";
+    string erpUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.0.0/erp_binaries.zip";
+
+    if (!File.Exists(pgZip))
+    {
+        Console.WriteLine("[INFO] Ressources PostgreSQL manquantes. Téléchargement...");
+        var success = await WebDownloader.DownloadFileAsync(pgUrl, pgZip);
+        if (!success) throw new Exception("Impossible de télécharger PostgreSQL.");
+    }
+
+    if (!File.Exists(erpZip))
+    {
+        Console.WriteLine("[INFO] Binaires ERP manquants. Téléchargement...");
+        var success = await WebDownloader.DownloadFileAsync(erpUrl, erpZip);
+        if (!success) throw new Exception("Impossible de télécharger les binaires ERP.");
+    }
+
     // ── PHASE 1 : Détection du port ───────────────────────────
     Console.ForegroundColor = ConsoleColor.Yellow;
     Console.WriteLine("► Étape 1/5 : Détection du port réseau disponible...");
@@ -47,6 +75,10 @@ try
         if (!SilentInstaller.InstallPostgresPortable(InstallDir))
             throw new Exception("Échec de l'installation de PostgreSQL.");
     }
+
+    // ── Étape 1.5 : Préparation des binaires de l'ERP ──
+    if (!SilentInstaller.InstallErpBinaries(InstallDir))
+        throw new Exception("Échec de l'extraction des binaires de l'ERP.");
 
     if (!DependencyChecker.IsWkhtmltopdfInstalled())
         SilentInstaller.InstallWkhtmltopdf();

@@ -18,7 +18,7 @@ public class WatchdogWorker : BackgroundService
 
     private const string ErpProcessName = "SkyraERP";
     private const string InstallDir = @"C:\SKYRA";
-    private const string VersionUrl = "https://sitevitrineerp.vercel.app/version.json";
+    private const string VersionUrl = "https://raw.githubusercontent.com/fethi17891789/erp_pfc_20252026/refs/heads/master/version.json";
     private const string CurrentVersionFile = @"C:\SKYRA\version.txt";
 
     private string erpExe = Path.Combine(InstallDir, "ERP", "SkyraERP.exe");
@@ -156,15 +156,14 @@ public class WatchdogWorker : BackgroundService
 
                 // Download the update package in background
                 var zipPath = Path.Combine(InstallDir, "update.zip");
-                using var response = await _http.GetAsync(remoteInfo.DownloadUrl);
-                response.EnsureSuccessStatusCode();
-
-                await using var fs = File.Create(zipPath);
-                await response.Content.CopyToAsync(fs);
-
-                _pendingUpdateZipPath = zipPath;
-                _updateReady = true;
-                _logger.LogInformation("Mise à jour téléchargée. Application prévue à 3:00.");
+                var success = await WebDownloader.DownloadFileAsync(remoteInfo.DownloadUrl, zipPath);
+                
+                if (success)
+                {
+                    _pendingUpdateZipPath = zipPath;
+                    _updateReady = true;
+                    _logger.LogInformation("Mise à jour téléchargée. Application prévue à 3:00.");
+                }
             }
             else
             {
