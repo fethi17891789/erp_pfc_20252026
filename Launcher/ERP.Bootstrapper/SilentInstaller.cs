@@ -241,22 +241,62 @@ public static class SilentInstaller
             erpZip = Path.Combine(installDir, "Database", "erp_binaries.zip");
         }
 
+        string erpTargetDir = Path.Combine(installDir, "ERP");
+        string tempExtractPath = Path.Combine(installDir, "TempERP");
+
         try
         {
             if (!File.Exists(erpZip))
             {
-                Console.WriteLine("[INSTALL] Aucun pack de binaires ERP trouvé. Ignoré (déjà présent ?).");
+                Console.WriteLine("[INSTALL] Aucun pack de binaires ERP trouvé. Ignoré.");
                 return true;
             }
 
-            Console.WriteLine($"[INSTALL] Extraction de l'ERP vers {installDir}...");
-            System.IO.Compression.ZipFile.ExtractToDirectory(erpZip, installDir, overwriteFiles: true);
-            Console.WriteLine("[INSTALL] ✅ ERP extrait avec succès.");
+            if (Directory.Exists(tempExtractPath)) Directory.Delete(tempExtractPath, true);
+            Directory.CreateDirectory(tempExtractPath);
+
+            Console.WriteLine("[INSTALL] Extraction temporaire de l'ERP...");
+            System.IO.Compression.ZipFile.ExtractToDirectory(erpZip, tempExtractPath, overwriteFiles: true);
+
+            // Trouver le dossier contenant le .exe principal (chercher un .deps.json pour identifier le projet .NET)
+            var depsFiles = Directory.GetFiles(tempExtractPath, "*.deps.json", SearchOption.AllDirectories);
+            if (depsFiles.Length == 0) throw new Exception("Aucun projet .NET trouvé dans le ZIP !");
+
+            // Le .deps.json nous donne le vrai nom du projet
+            string depsFile = depsFiles[0];
+            string sourceDir = Path.GetDirectoryName(depsFile)!;
+            string projectName = Path.GetFileNameWithoutExtension(depsFile).Replace(".deps", "");
+            string realExeName = projectName + ".exe";
+
+            Console.WriteLine($"[INSTALL] Projet détecté : {projectName}");
+
+            if (!Directory.Exists(erpTargetDir)) Directory.CreateDirectory(erpTargetDir);
+
+            // Copier TOUS les fichiers tels quels (sans renommer)
+            Console.WriteLine($"[INSTALL] Copie des binaires vers : {erpTargetDir}");
+            foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
+            {
+                string relPath = Path.GetRelativePath(sourceDir, file);
+                string destFile = Path.Combine(erpTargetDir, relPath);
+                string? destSubDir = Path.GetDirectoryName(destFile);
+                if (destSubDir != null && !Directory.Exists(destSubDir)) Directory.CreateDirectory(destSubDir);
+                File.Copy(file, destFile, true);
+            }
+
+            // Sauvegarder le vrai nom de l'EXE pour que le Bootstrapper et le Watchdog le retrouvent
+            string exeNameFile = Path.Combine(installDir, "erp_exe_name.txt");
+            File.WriteAllText(exeNameFile, realExeName);
+            Console.WriteLine($"[INSTALL] Nom de l'exécutable enregistré : {realExeName}");
+
+            // Nettoyage
+            Directory.Delete(tempExtractPath, true);
+
+            Console.WriteLine("[INSTALL] ✅ ERP installé avec succès.");
             return true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERREUR] ÉCHEC DE L'EXTRACTION ERP : {ex.Message}");
+            Console.WriteLine($"[ERREUR] ÉCHEC DE L'INSTALLATION ERP : {ex.Message}");
             return false;
         }
     }

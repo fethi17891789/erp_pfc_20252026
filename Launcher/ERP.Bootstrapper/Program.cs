@@ -28,8 +28,12 @@ try
     Console.WriteLine("╚═══════════════════════════════════════╝");
     Console.ResetColor();
 
-    string pgZip = Path.Combine(InstallDir, "Database", "postgresql_portable.zip");
-    string erpZip = Path.Combine(InstallDir, "Database", "erp_binaries.zip");
+    // Assurons-nous que le dossier destination existe
+    string dbDir = Path.Combine(InstallDir, "Database");
+    if (!Directory.Exists(dbDir)) Directory.CreateDirectory(dbDir);
+
+    string pgZip = Path.Combine(dbDir, "postgresql_portable.zip");
+    string erpZip = Path.Combine(dbDir, "erp_binaries.zip");
 
     // URLs à mettre à jour par l'utilisateur (Final)
     string pgUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.0.0/postgresql_portable.zip";
@@ -132,7 +136,14 @@ try
     if (!isReady)
     {
         Console.WriteLine("[INFO] L'ERP ne semble pas démarré par le service. Tentative de lancement manuel...");
-        string erpExe = Path.Combine(InstallDir, "ERP", "SkyraERP.exe");
+        
+        // Lire le vrai nom de l'EXE depuis le fichier de découverte
+        string exeNameFile = Path.Combine(InstallDir, "erp_exe_name.txt");
+        string erpExeName = File.Exists(exeNameFile) ? File.ReadAllText(exeNameFile).Trim() : "SkyraERP.exe";
+        string erpExe = Path.Combine(InstallDir, "ERP", erpExeName);
+        
+        Console.WriteLine($"[INFO] Exécutable détecté : {erpExeName}");
+        
         if (File.Exists(erpExe))
         {
             Process.Start(new ProcessStartInfo
@@ -143,6 +154,10 @@ try
             });
             // 2ème tentative : On redonne 30 secondes pour le démarrage manuel
             isReady = await PortScanner.WaitForPortReadyAsync(selectedPort, TimeSpan.FromSeconds(30));
+        }
+        else
+        {
+            Console.WriteLine($"[ERREUR] Fichier introuvable : {erpExe}");
         }
     }
 

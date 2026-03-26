@@ -20,8 +20,10 @@ public class WatchdogWorker : BackgroundService
     private const string InstallDir = @"C:\SKYRA";
     private const string VersionUrl = "https://raw.githubusercontent.com/fethi17891789/erp_pfc_20252026/refs/heads/master/version.json";
     private const string CurrentVersionFile = @"C:\SKYRA\version.txt";
+    private const string ExeNameFile = @"C:\SKYRA\erp_exe_name.txt";
 
-    private string erpExe = Path.Combine(InstallDir, "ERP", "SkyraERP.exe");
+    private string erpExe = "";
+    private string erpProcessName = "";
 
     // Self-Healing check every 5 seconds
     private readonly TimeSpan _healthCheckInterval = TimeSpan.FromSeconds(5);
@@ -41,6 +43,21 @@ public class WatchdogWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("SKYRA Watchdog démarré.");
+
+        // Découvrir le vrai nom de l'exécutable ERP
+        if (File.Exists(ExeNameFile))
+        {
+            string realExeName = File.ReadAllText(ExeNameFile).Trim();
+            erpExe = Path.Combine(InstallDir, "ERP", realExeName);
+            erpProcessName = Path.GetFileNameWithoutExtension(realExeName);
+            _logger.LogInformation($"Exécutable ERP détecté : {realExeName}");
+        }
+        else
+        {
+            erpExe = Path.Combine(InstallDir, "ERP", "SkyraERP.exe");
+            erpProcessName = "SkyraERP";
+            _logger.LogWarning("Fichier erp_exe_name.txt introuvable, utilisation du nom par défaut.");
+        }
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -69,7 +86,7 @@ public class WatchdogWorker : BackgroundService
     // ════════════════════════════════════════════════════════════
     private async Task EnsureErpIsRunningAsync()
     {
-        var processes = Process.GetProcessesByName(ErpProcessName);
+        var processes = Process.GetProcessesByName(erpProcessName);
         if (processes.Length > 0) return; // ERP is alive — nothing to do
 
         _logger.LogWarning("⚠ ERP SKYRA non détecté ! Relance en cours...");
