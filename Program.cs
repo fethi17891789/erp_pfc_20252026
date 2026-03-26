@@ -11,8 +11,9 @@ using WkHtmlToPdfDotNet.Contracts;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// URL d'écoute par défaut (0.0.0.0 pour autoriser le réseau local/WiFi)
-var appUrl = "http://0.0.0.0:5000";
+// URL d'écoute : Lecture depuis appsettings.json ou appsettings.Production.json
+// Si non trouvé, repli sur http://0.0.0.0:5000
+var appUrl = builder.Configuration["Urls"] ?? "http://0.0.0.0:5000";
 builder.WebHost.UseUrls(appUrl);
 
 // Razor Pages – tes pages sont dans /Presentation/view
@@ -745,7 +746,9 @@ app.MapRazorPages();
 app.MapHub<Metier.Messagerie.ChatHub>("/chathub");
 app.MapHub<Metier.Logistique.LogistiqueHub>("/logistiquehub");
 
-OpenBrowser("http://localhost:5000");
+// Ouvrir le navigateur sur l'URL configurée (mais en localhost pour le client local)
+var publicUrl = appUrl.Replace("0.0.0.0", "localhost");
+OpenBrowser(publicUrl);
 
 app.Run();
 

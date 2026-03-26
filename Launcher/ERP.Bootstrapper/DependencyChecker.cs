@@ -110,4 +110,15 @@ public static class DependencyChecker
         }
         return false;
     }
+    public static bool IsVCRedistInstalled()
+    {
+        // Check for the most common DLL in System32
+        string sys32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
+        bool exists = File.Exists(Path.Combine(sys32, "vcruntime140.dll"));
+        
+        if (exists) Console.WriteLine("[DEPS] Visual C++ Redistributable détecté — OK.");
+        else Console.WriteLine("[DEPS] Visual C++ Redistributable NON détecté.");
+        
+        return exists;
+    }
 }

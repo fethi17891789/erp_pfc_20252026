@@ -34,6 +34,28 @@ public static class PortScanner
         return fallback;
     }
 
+    /// <summary>
+    /// Waits for a local port to become active (accepting connections).
+    /// </summary>
+    public static async Task<bool> WaitForPortReadyAsync(int port, TimeSpan timeout)
+    {
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        while (stopwatch.Elapsed < timeout)
+        {
+            try
+            {
+                using var client = new System.Net.Sockets.TcpClient();
+                await client.ConnectAsync("127.0.0.1", port);
+                return true; 
+            }
+            catch
+            {
+                await Task.Delay(1000); // Wait 1s and retry
+            }
+        }
+        return false;
+    }
+
     private static HashSet<int> GetUsedPorts()
     {
         var props = IPGlobalProperties.GetIPGlobalProperties();

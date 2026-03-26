@@ -19,29 +19,81 @@ public static class SilentInstaller
         Console.WriteLine("[INSTALL] Installation de PostgreSQL Portable en cours...");
 
         var pgZip = Path.Combine(ResourcesPath, "postgresql_portable.zip");
-        if (!File.Exists(pgZip))
-        {
-            Console.WriteLine("[INSTALL] ERREUR : Fichier postgresql_portable.zip introuvable dans Resources/");
-            return false;
-        }
+        var pgDir = Path.Combine(installDir, "Database", "PostgreSQL");
 
         try
         {
-            var pgDir = Path.Combine(installDir, "Database", "PostgreSQL");
-            Directory.CreateDirectory(pgDir);
-            System.IO.Compression.ZipFile.ExtractToDirectory(pgZip, pgDir, overwriteFiles: true);
+            if (!Directory.Exists(pgDir)) Directory.CreateDirectory(pgDir);
 
-            // Initialize the database cluster
-            var initdbPath = Path.Combine(pgDir, "bin", "initdb.exe");
+            if (!File.Exists(pgZip))
+            {
+                throw new Exception($"Fichier ZIP introuvable : {pgZip}");
+            }
+            long zipSize = new FileInfo(pgZip).Length;
+            Console.WriteLine($"[DEBUG] Taille du ZIP détectée : {zipSize / (1024 * 1024)} Mo");
+
+            try
+            {
+                Console.WriteLine($"[INSTALL] Extraction de PostgreSQL vers {pgDir}...");
+                Console.WriteLine("[INSTALL] Cette opération est gourmande en ressources, veuillez patienter...");
+                System.IO.Compression.ZipFile.ExtractToDirectory(pgZip, pgDir, overwriteFiles: true);
+                Console.WriteLine("[INSTALL] ✅ Extraction terminée avec succès.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERREUR] ÉCHEC DE L'EXTRACTION ZIP : {ex.Message}");
+                throw;
+            }
+
+            // ── RECHERCHE DE initdb.exe ──
+            var allFiles = Directory.GetFiles(pgDir, "*.*", SearchOption.AllDirectories);
+            Console.WriteLine($"[DEBUG] Nombre de fichiers extraits : {allFiles.Length}");
+
+            // ── RECHERCHE AGRESSIVE DES BINAIRES ──
+            string? initdbPath = FindFileInDirectory(pgDir, "initdb.exe");
+            
+            if (string.IsNullOrEmpty(initdbPath))
+            {
+                // Si on ne trouve pas initdb, on cherche n'importe quel binaire postgres pour deviner
+                var postgresExe = FindFileInDirectory(pgDir, "postgres.exe");
+                if (!string.IsNullOrEmpty(postgresExe))
+                {
+                     var binFolder = Path.GetDirectoryName(postgresExe)!;
+                     initdbPath = Path.Combine(binFolder, "initdb.exe");
+                }
+            }
+
+            if (string.IsNullOrEmpty(initdbPath) || !File.Exists(initdbPath))
+            {
+                var allExes = Directory.GetFiles(pgDir, "*.exe", SearchOption.AllDirectories);
+                string foundFolders = string.Join("\n", allExes.Select(f => Path.GetDirectoryName(f)!).Distinct().Take(10).Select(d => "- " + Path.GetRelativePath(pgDir, d)));
+                
+                throw new Exception($"ERREUR CRITIQUE : 'initdb.exe' est introuvable.\n"
+                    + $"Votre pack PostgreSQL semble incomplet ou mal structuré.\n"
+                    + $"Dossiers contenant des exécutables trouvés :\n{foundFolders}");
+            }
+            
+            var binDir = Path.GetDirectoryName(initdbPath)!;
             var dataDir = Path.Combine(installDir, "Database", "data");
 
             if (!Directory.Exists(dataDir))
             {
-                RunProcess(initdbPath, $"-D \"{dataDir}\" -E UTF8 --locale=C -U skyra_admin");
+                Console.WriteLine("[INSTALL] Initialisation du cluster de données...");
+                bool initOk = RunProcess(initdbPath, $"-D \"{dataDir}\" -E UTF8 --locale=C -U postgres --auth=trust");
+                if (!initOk) throw new Exception("ÉCHEC de l'initialisation du cluster PostgreSQL (initdb).");
                 Console.WriteLine("[INSTALL] Cluster PostgreSQL initialisé avec succès.");
             }
 
-            Console.WriteLine("[INSTALL] PostgreSQL Portable installé.");
+            // Démarrage temporaire pour configuration
+            if (StartPostgresPortable(installDir))
+            {
+                ConfigureDatabase(installDir);
+            }
+            else
+            {
+                throw new Exception("Impossible de démarrer PostgreSQL pour la configuration initiale.");
+            }
+            
             return true;
         }
         catch (Exception ex)
@@ -78,17 +130,51 @@ public static class SilentInstaller
     /// </summary>
     public static bool StartPostgresPortable(string installDir)
     {
-        var pgCtl = Path.Combine(installDir, "Database", "PostgreSQL", "bin", "pg_ctl.exe");
+        var pgDir = Path.Combine(installDir, "Database", "PostgreSQL");
+        var pgCtl = FindFileInDirectory(pgDir, "pg_ctl.exe");
         var dataDir = Path.Combine(installDir, "Database", "data");
         var logFile = Path.Combine(installDir, "Database", "postgres.log");
 
-        if (!File.Exists(pgCtl)) return false;
+        if (string.IsNullOrEmpty(pgCtl)) 
+        {
+            Console.WriteLine("[ERREUR] pg_ctl.exe introuvable.");
+            return false;
+        }
+
+        // On vérifie si Postgres tourne déjà
+        var processes = Process.GetProcessesByName("postgres");
+        if (processes.Length > 0) return true;
 
         Console.WriteLine("[INSTALL] Démarrage de PostgreSQL...");
         return RunProcess(pgCtl, $"start -D \"{dataDir}\" -l \"{logFile}\" -w");
     }
 
-    private static bool RunProcess(string exe, string args)
+    /// <summary>
+    /// Configures the database (user password and database creation).
+    /// </summary>
+    private static void ConfigureDatabase(string installDir)
+    {
+        var pgDir = Path.Combine(installDir, "Database", "PostgreSQL");
+        var psql = FindFileInDirectory(pgDir, "psql.exe");
+        
+        if (string.IsNullOrEmpty(psql)) return;
+
+        Console.WriteLine("[INSTALL] Initialisation du rôle 'openpg'...");
+
+        // On crée l'utilisateur 'openpg' réclamé par votre ERP
+        RunProcess(psql, "-U postgres -d postgres -c \"CREATE ROLE openpg WITH LOGIN SUPERUSER;\"");
+        
+        Console.WriteLine("[INSTALL] Rôle configuré.");
+    }
+
+    private static string? FindFileInDirectory(string dir, string fileName)
+    {
+        if (!Directory.Exists(dir)) return null;
+        var files = Directory.GetFiles(dir, fileName, SearchOption.AllDirectories);
+        return files.Length > 0 ? files[0] : null;
+    }
+
+    private static bool RunProcess(string exe, string args, int timeoutMs = 60_000)
     {
         try
         {
@@ -100,18 +186,44 @@ public static class SilentInstaller
                     Arguments = args,
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true
+                    RedirectStandardOutput = false,
+                    RedirectStandardError = false
                 }
             };
             process.Start();
-            process.WaitForExit(60_000); // maximum 60 seconds
+            bool finished = process.WaitForExit(timeoutMs);
+            
+            if (!finished) 
+            {
+                Console.WriteLine($"[PROCESS] Timeout après {timeoutMs/1000}s pour : {Path.GetFileName(exe)}");
+                return false; 
+            }
+            
             return process.ExitCode == 0;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[PROCESS] Erreur : {ex.Message}");
+            Console.WriteLine($"[PROCESS] Erreur sur {Path.GetFileName(exe)} : {ex.Message}");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Installs VC++ Redist silently.
+    /// </summary>
+
+    public static bool InstallVCRedist()
+    {
+        Console.WriteLine("[INSTALL] Installation du Runtime Visual C++ (cela peut prendre 2-3 minutes)... ");
+
+        var installer = Path.Combine(ResourcesPath, "vc_redist.x64.exe");
+        if (!File.Exists(installer))
+        { 
+            Console.WriteLine("[AVERTISSEMENT] vc_redist.x64.exe introuvable dans Resources. Étape ignorée.");
+            return false; 
+        }
+
+        // On donne 5 minutes (300 000 ms) pour cette installation système critique
+        return RunProcess(installer, "/install /quiet /norestart", 300_000);
     }
 }

@@ -8,10 +8,10 @@
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "Votre Société"
 #define MyAppURL "https://sitevitrineerp.vercel.app/"
-#define MyAppExeName "erp_pfc_20252026.exe"
+#define MyAppExeName "SkyraERP.exe"
 #define MyBootstrapperExe "ERP.Bootstrapper.exe"
 #define MyWatchdogExe "ERP.Watchdog.exe"
-#define MyInstallDir "{pf}\SKYRA"
+#define MyInstallDir "C:\SKYRA"
 
 [Setup]
 ; ── Informations de base ─────────────────────────────────────
@@ -26,6 +26,8 @@ AppUpdatesURL={#MyAppURL}
 ; ── Dossier d'installation ───────────────────────────────────
 DefaultDirName={#MyInstallDir}
 DefaultGroupName={#MyAppName}
+ArchitecturesAllowed=x64
+ArchitecturesInstallIn64BitMode=x64
 DisableProgramGroupPage=yes
 
 ; ── Sortie ────────────────────────────────────────────────────
@@ -58,7 +60,8 @@ Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDesc
 
 [Files]
 ; ── ERP ASP.NET Core (publié en Self-Contained) ──────────────
-Source: "..\..\publish\erp\*"; DestDir: "{#MyInstallDir}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\publish\erp\erp pfc 20252026.exe"; DestDir: "{#MyInstallDir}\ERP"; DestName: "{#MyAppExeName}"; Flags: ignoreversion
+Source: "..\..\publish\erp\*"; Excludes: "erp pfc 20252026.exe"; DestDir: "{#MyInstallDir}\ERP"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; ── Bootstrapper ─────────────────────────────────────────────
 Source: "..\..\publish\bootstrapper\*"; DestDir: "{#MyInstallDir}\Installer"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -74,11 +77,11 @@ Source: "Assets\version.txt"; DestDir: "{#MyInstallDir}"; Flags: ignoreversion
 
 [Icons]
 ; Raccourci Bureau → ouvre l'ERP dans le navigateur
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{#MyInstallDir}\Installer\{#MyBootstrapperExe}"; \
-  Tasks: desktopicon; IconFilename: "{#MyInstallDir}\Installer\{#MyBootstrapperExe}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{#MyInstallDir}\ERP\{#MyAppExeName}"; \
+  Tasks: desktopicon; IconFilename: "{#MyInstallDir}\ERP\{#MyAppExeName}"
 
 ; Raccourci Menu Démarrer
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{#MyInstallDir}\Installer\{#MyBootstrapperExe}"
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{#MyInstallDir}\ERP\{#MyAppExeName}"
 
 [Run]
 ; ── Étape 1 : Enregistrer le Watchdog comme Service Windows ──

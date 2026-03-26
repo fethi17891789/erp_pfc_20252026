@@ -16,10 +16,12 @@ public class WatchdogWorker : BackgroundService
     private readonly ILogger<WatchdogWorker> _logger;
     private readonly HttpClient _http;
 
-    private const string ErpProcessName = "erp_pfc_20252026";
-    private const string InstallDir = @"C:\Program Files\SKYRA";
+    private const string ErpProcessName = "SkyraERP";
+    private const string InstallDir = @"C:\SKYRA";
     private const string VersionUrl = "https://sitevitrineerp.vercel.app/version.json";
-    private const string CurrentVersionFile = @"C:\Program Files\SKYRA\version.txt";
+    private const string CurrentVersionFile = @"C:\SKYRA\version.txt";
+
+    private string erpExe = Path.Combine(InstallDir, "ERP", "SkyraERP.exe");
 
     // Self-Healing check every 5 seconds
     private readonly TimeSpan _healthCheckInterval = TimeSpan.FromSeconds(5);
@@ -72,6 +74,14 @@ public class WatchdogWorker : BackgroundService
 
         _logger.LogWarning("⚠ ERP SKYRA non détecté ! Relance en cours...");
 
+        // On attend que le Bootstrapper ait au moins créé le fichier de config
+        var configPath = Path.Combine(InstallDir, "appsettings.Production.json");
+        if (!File.Exists(configPath))
+        {
+            _logger.LogInformation("Attente de la configuration initiale par le Bootstrapper...");
+            return;
+        }
+
         try
         {
             // Clean temp files
@@ -83,7 +93,6 @@ public class WatchdogWorker : BackgroundService
             await EnsurePostgresRunningAsync();
 
             // Restart the ERP
-            var erpExe = Path.Combine(InstallDir, $"{ErpProcessName}.exe");
             if (File.Exists(erpExe))
             {
                 Process.Start(new ProcessStartInfo
@@ -239,7 +248,7 @@ public class WatchdogWorker : BackgroundService
         var process = Process.Start(new ProcessStartInfo
         {
             FileName = pgDump,
-            Arguments = $"-U skyra_admin -d skyra_db -f \"{backupFile}\"",
+            Arguments = $"-U postgres -d postgres -f \"{backupFile}\"",
             UseShellExecute = false,
             CreateNoWindow = true
         });

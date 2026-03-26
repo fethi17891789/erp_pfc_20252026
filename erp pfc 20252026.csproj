@@ -35,6 +35,6 @@
 
 	<!-- Exclure le dossier Launcher de la compilation du projet principal -->
 	<PropertyGroup>
-		<DefaultItemExcludes>$(DefaultItemExcludes);Launcher\**</DefaultItemExcludes>
+		<DefaultItemExcludes>$(DefaultItemExcludes);Launcher\**;publish\**;publish_test\**</DefaultItemExcludes>
 	</PropertyGroup>
 </Project>
