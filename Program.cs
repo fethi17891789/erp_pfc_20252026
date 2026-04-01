@@ -43,7 +43,7 @@ builder.Services.AddDbContext<ErpDbContext>((sp, options) =>
 
     if (string.IsNullOrWhiteSpace(conn))
     {
-        conn = "Host=localhost;Port=5432;Database=postgres;Username=openpg;Password=faux";
+        conn = "Host=localhost;Port=5432;Database=fethifethifethi;Username=openpg;Password=openpgpwd";
     }
 
     options.UseNpgsql(conn);
@@ -87,6 +87,15 @@ using (var scope = app.Services.CreateScope())
     Console.WriteLine($"[DEBUG] Program - ConnectionString après Load : {savedConfig.ConnectionString}");
 
     var dynamicProvider = sp.GetRequiredService<DynamicConnectionProvider>();
+    
+    // Application du fallback universel si la configuration issue du bootstrapper est absente
+    if (string.IsNullOrWhiteSpace(savedConfig.ConnectionString))
+    {
+        savedConfig.ConnectionString = "Host=localhost;Port=5432;Database=fethifethifethi;Username=openpg;Password=openpgpwd";
+        configStorage.Save(savedConfig); // Crée le fichier erpconfig.json physiquement
+        Console.WriteLine("[DEBUG] Program - Configuration de secours sauvegardée dans erpconfig.json");
+    }
+        
     dynamicProvider.CurrentConnectionString = savedConfig.ConnectionString;
 }
 
@@ -732,7 +741,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();

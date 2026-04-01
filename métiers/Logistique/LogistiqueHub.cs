@@ -1,12 +1,19 @@
 using Microsoft.AspNetCore.SignalR;
 using Metier.Logistique;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using Donnees.Logistique;
 
 namespace Metier.Logistique
 {
     public class LogistiqueHub : Hub
     {
         private readonly LogistiqueService _logistiqueService;
+        
+        // Mapping statique pour savoir quel véhicule est lié à quelle connexion SignalR
+        // Cela permet de libérer le véhicule si le chauffeur ferme l'appli (OnDisconnected)
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _connectionMap 
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
 
         public LogistiqueHub(LogistiqueService logistiqueService)
         {
@@ -20,6 +27,59 @@ namespace Metier.Logistique
 
             // 2. Diffuser aux autres clients (la carte)
             await Clients.Others.SendAsync("ReceivePositionUpdate", vehiculeId, lat, lon);
+        }
+
+        public async Task<int> StartTrajet(int vehiculeId, string deviceId, string origine = "")
+        {
+            // Enregistrer ce véhicule pour cette connexion (pour OnDisconnected)
+            _connectionMap[Context.ConnectionId] = vehiculeId;
+            
+            var capteur = await _logistiqueService.GetOrCreateCapteurByUidAsync(deviceId ?? "web-tracker");
+            var trajet = await _logistiqueService.StartTrajetAsync(vehiculeId, capteur.Id, origine);
+            await Clients.Others.SendAsync("TrajetStarted", vehiculeId, trajet.Id, origine, trajet.DateDebut);
+            return trajet.Id;
+        }
+
+        public async Task UpdatePositionWithTrace(int vehiculeId, int trajetId, double lat, double lon, double speed, string duration, double distanceKm)
+        {
+            await _logistiqueService.UpdatePositionVehiculeAsync(vehiculeId, lat, lon);
+            // Diffuser le point GPS de la trace avec stats incluant la distance
+            await Clients.Others.SendAsync("ReceivePositionWithTrace", vehiculeId, trajetId, lat, lon, speed, duration, distanceKm);
+        }
+
+        public async Task EndTrajet(int vehiculeId, int trajetId, string destination, double distanceKm, string traceJson)
+        {
+            _connectionMap.TryRemove(Context.ConnectionId, out _); // Retirer du mapping (fin propre)
+            await _logistiqueService.EndTrajetAsync(trajetId, destination, distanceKm, traceJson);
+            await Clients.Others.SendAsync("TrajetEnded", vehiculeId, trajetId, traceJson, distanceKm);
+        }
+
+        public async Task<List<Trajet>> GetTrajetHistory()
+        {
+            return await _logistiqueService.GetTrajetsRecentsAsync(10);
+        }
+
+        public async Task ForceResetVehicule(int vehiculeId)
+        {
+            await _logistiqueService.ForceResetVehiculeAsync(vehiculeId);
+            // Informer tout le monde (y compris l'expéditeur pour MAJ locale)
+            await Clients.All.SendAsync("TrajetEnded", vehiculeId, 0, "[]", 0);
+        }
+
+        public override async Task OnDisconnectedAsync(System.Exception exception)
+        {
+            if (_connectionMap.TryRemove(Context.ConnectionId, out int vehiculeId))
+            {
+                // Le chauffeur a perdu sa connexion ou fermé son navigateur
+                // On libère le véhicule en base de données automatiquement
+                await _logistiqueService.ForceResetVehiculeAsync(vehiculeId);
+                
+                // Prévenir tout le monde (dont l'admin) pour que le badge passe en gris instantanément
+                await Clients.All.SendAsync("TrajetEnded", vehiculeId, 0, "[]", 0);
+                
+                System.Console.WriteLine($"[SIGNALR DISCONNECT] Véhicule {vehiculeId} libéré automatiquement.");
+            }
+            await base.OnDisconnectedAsync(exception);
         }
 
         public async Task JoinVehiculeGroup(int vehiculeId)

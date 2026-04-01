@@ -7,242 +7,376 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ERP Tracking - Capteur Mobile</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ERP Tracking - Chauffeur</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <style>
         :root {
             --bg: #020617;
             --accent: #7b5eff;
+            --accent-light: #a5b4fc;
             --card-bg: rgba(30, 41, 59, 0.7);
+            --danger: #ef4444;
+            --success: #22c55e;
+            --text-muted: #94a3b8;
         }
+        * { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
         body {
-            margin: 0;
-            padding: 20px;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: var(--bg);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            text-align: center;
+            margin: 0; padding: 20px;
+            background-color: var(--bg); color: white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh; text-align: center;
         }
         .container {
-            width: 100%;
-            max-width: 400px;
-            background: var(--card-bg);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            padding: 30px;
+            width: 100%; max-width: 400px;
+            background: var(--card-bg); backdrop-filter: blur(10px);
+            border-radius: 24px; padding: 30px;
             border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .icon-box {
-            width: 80px;
-            height: 80px;
-            background: rgba(123, 94, 255, 0.2);
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-            color: var(--accent);
-        }
-        h1 { font-size: 1.5rem; margin: 0 0 10px; }
-        p { color: #94a3b8; font-size: 0.9rem; margin-bottom: 30px; }
-
-        select {
-            width: 100%;
-            padding: 12px;
-            background: #0f172a;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            color: white;
-            margin-bottom: 20px;
-            font-family: inherit;
-        }
-
-        .btn-track {
-            width: 100%;
-            padding: 16px;
-            border-radius: 16px;
-            border: none;
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
+            position: relative; overflow: hidden;
             transition: all 0.3s ease;
         }
-
+        h1 { font-size: 1.5rem; margin: 0 0 5px; font-weight: 800; }
+        p.subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px; line-height: 1.4; }
+        .vehicule-box {
+            background: rgba(123, 94, 255, 0.1); border: 1px solid rgba(123, 94, 255, 0.3);
+            border-radius: 16px; padding: 15px; margin-bottom: 25px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .vehicule-label { font-size: 0.75rem; color: var(--accent-light); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+        .vehicule-name { font-size: 1.1rem; font-weight: 700; color: white; }
+        select {
+            width: 100%; padding: 12px; background: rgba(0,0,0,0.2); 
+            border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; color: white; font-size: 1rem;
+        }
+        .chrono-wrapper { position: relative; width: 180px; height: 180px; margin: 0 auto 25px; display: none; }
+        .is-tracking .chrono-wrapper { display: block; animation: fadeIn 0.5s ease forwards; }
+        .chrono-ring { transform: rotate(-90deg); width: 100%; height: 100%; }
+        .chrono-circle-bg { fill: none; stroke: rgba(255,255,255,0.05); stroke-width: 8; }
+        .chrono-circle-fg { 
+            fill: none; stroke: var(--accent); stroke-width: 8; 
+            stroke-dasharray: 440; stroke-dashoffset: 440; 
+            stroke-linecap: round; transition: stroke-dashoffset 1s linear; 
+        }
+        .chrono-text-container { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .chrono-time { font-size: 2.2rem; font-weight: 800; color: white; line-height: 1; font-variant-numeric: tabular-nums; }
+        .chrono-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 1px; }
+        .initial-icon { width: 80px; height: 80px; background: rgba(123, 94, 255, 0.2); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: var(--accent); }
+        .is-tracking .initial-icon { display: none; }
+        .stats-grid { display: none; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; }
+        .is-tracking .stats-grid { display: grid; animation: fadeIn 0.5s ease forwards; }
+        .stat-card { background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; padding: 15px; }
+        .stat-value { font-size: 1.5rem; font-weight: 800; color: white; display: flex; align-items: baseline; justify-content: center; gap: 2px; }
+        .stat-unit { font-size: 0.8rem; color: var(--accent-light); font-weight: 600; }
+        .stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+        .btn { width: 100%; padding: 16px; border-radius: 16px; border: none; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.3s ease; }
         .btn-start { background: var(--accent); color: white; }
-        .btn-stop { background: #ef4444; color: white; }
-
-        .status-info {
-            margin-top: 20px;
-            font-size: 0.8rem;
-            color: #94a3b8;
-        }
-
-        .tracking-dot {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #ef4444;
-            margin-right: 6px;
-        }
-        .is-tracking .tracking-dot {
-            background: #22c55e;
-            box-shadow: 0 0 10px #22c55e;
-            animation: pulse 1.5s infinite;
-        }
-
-        @@keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.5); opacity: 0.5; }
-            100% { transform: scale(1); opacity: 1; }
-        }
+        .btn-stop { background: var(--danger); color: white; display: none; }
+        .is-tracking .btn-start { display: none; }
+        .is-tracking .btn-stop { display: block; }
+        .status-info { margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
+        .is-tracking .status-dot { background: var(--success); box-shadow: 0 0 10px var(--success); animation: pulse 1.5s infinite; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(2, 6, 23, 0.9); backdrop-filter: blur(8px); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+        .modal.show { display: flex; animation: fadeIn 0.3s ease forwards; }
+        .modal-content { background: var(--card-bg); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 25px; width: 100%; max-width: 350px; text-align: center; }
+        .modal-stats { display: flex; justify-content: space-around; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 16px; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 10px; }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: white; flex: 1; }
+        @@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
     <div class="container" id="main-container">
-        <div class="icon-box">
+        <div class="initial-icon">
             <svg style="width: 40px; height: 40px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"></path>
                 <circle cx="12" cy="9" r="3"></circle>
             </svg>
         </div>
-        <h1>Tracking Mobile</h1>
-        <p>Activez votre GPS et commencez à diffuser votre position en temps réel.</p>
-
+        <h1>Assistant Trajet</h1>
+        <p class="subtitle" id="subtitle-text">Activez la localisation pour transmettre vos positions en direct.</p>
         @{
-            // Check if vehiculeId is provided in URL
             var preSelectedVehiculeId = ViewContext.HttpContext.Request.Query["vehiculeId"].ToString();
             var hasPreSelection = !string.IsNullOrEmpty(preSelectedVehiculeId);
         }
-
-        <div id="vehicule-selection-area" style="@(hasPreSelection ? "display:none;" : "")">
+        <div id="vehicule-selection-area" style="@(hasPreSelection ? "display:none;" : "margin-bottom:20px;")">
             <select id="vehicule-select">
-                <option value="">Sélectionner un véhicule...</option>
-                @foreach(var v in Model.VehiculesDisponibles)
-                {
-                    if (v.Id.ToString() == preSelectedVehiculeId)
-                    {
-                        <option value="@v.Id" selected>@v.Nom (@v.Matricule)</option>
-                    }
-                    else
-                    {
-                        <option value="@v.Id">@v.Nom (@v.Matricule)</option>
-                    }
+                <option value="">Sélectionner votre véhicule...</option>
+                @foreach(var v in Model.VehiculesDisponibles) {
+                    <option value="@v.Id">@v.Nom (@v.Matricule)</option>
                 }
             </select>
         </div>
-
-        @if(hasPreSelection)
-        {
+        @if(hasPreSelection) {
             var selectedV = Model.VehiculesDisponibles.FirstOrDefault(v => v.Id.ToString() == preSelectedVehiculeId);
-            if (selectedV != null)
-            {
-                <div style="background: rgba(123, 94, 255, 0.1); border: 1px solid var(--accent); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-                    <span style="display:block; font-size: 0.8rem; color: #a5b4fc; margin-bottom: 4px;">Véhicule assigné :</span>
-                    <strong style="font-size: 1.1rem; color: white;">@selectedV.Nom</strong>
-                    <div style="font-size: 0.85rem; color: #94a3b8; margin-top: 2px;">@selectedV.Matricule</div>
+            if (selectedV != null) {
+                <div class="vehicule-box">
+                    <span class="vehicule-label">Assignation active</span>
+                    <span class="vehicule-name">@selectedV.Nom</span>
                 </div>
-                // Garder l'ID caché pour le JS
                 <input type="hidden" id="hidden-vehicule-id" value="@selectedV.Id" />
             }
         }
-
-        <button id="track-btn" class="btn-track btn-start">DÉMARRER LE SUIVI</button>
-
-        <div class="status-info" id="status-info">
-            <span class="tracking-dot"></span>
-            <span id="status-text">Suivi inactif</span>
+        <div class="chrono-wrapper">
+            <svg class="chrono-ring" viewBox="0 0 160 160">
+                <circle class="chrono-circle-bg" cx="80" cy="80" r="70"></circle>
+                <circle class="chrono-circle-fg" cx="80" cy="80" r="70" id="chrono-progress"></circle>
+            </svg>
+            <div class="chrono-text-container">
+                <div class="chrono-time" id="chrono-display">00:00</div>
+                <div class="chrono-label">En cours</div>
+            </div>
+        </div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value"><span id="live-distance">0.00</span> <span class="stat-unit">km</span></div>
+                <div class="stat-label">Distance parcourue</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value"><span id="live-speed">0</span> <span class="stat-unit">km/h</span></div>
+                <div class="stat-label">Vitesse actuelle</div>
+            </div>
+        </div>
+        <button id="btn-start" class="btn btn-start">DÉMARRER LE TRAJET</button>
+        <button id="btn-stop" class="btn btn-stop">TERMINER LE TRAJET</button>
+        <div class="status-info">
+            <span class="status-dot"></span>
+            <span id="status-text">GPS en attente</span>
+        </div>
+    </div>
+    <div id="stop-modal" class="modal">
+        <div class="modal-content">
+            <h3>Clôturer le trajet</h3>
+            <p>Êtes-vous sûr d'être arrivé ? Le tracé sera enregistré dans l'historique.</p>
+            <div class="modal-stats">
+                <div>
+                    <strong style="display:block; font-size:1.2rem; color:white;" id="modal-time">00:00:00</strong>
+                    <span style="font-size:0.7rem; color:var(--text-muted);">Durée totale</span>
+                </div>
+                <div>
+                    <strong style="display:block; font-size:1.2rem; color:white;" id="modal-dist">0.00 km</strong>
+                    <span style="font-size:0.7rem; color:var(--text-muted);">Distance</span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="window.closeStopModal()">Annuler</button>
+                <button class="btn btn-start" onclick="window.confirmStop()">Confirmer l'arrêt</button>
+            </div>
         </div>
     </div>
 
-    <!-- SignalR -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
-
     <script>
-        let isTracking = false;
-        let watchId = null;
-        let selectedVehiculeId = null;
-
-        const trackBtn = document.getElementById('track-btn');
-        const statusText = document.getElementById('status-text');
+        // --- ÉLÉMENTS DOM ---
         const container = document.getElementById('main-container');
+        const btnStart = document.getElementById('btn-start');
+        const btnStop = document.getElementById('btn-stop');
+        const statusText = document.getElementById('status-text');
+        const subtitleText = document.getElementById('subtitle-text');
+        const chronoDisplay = document.getElementById('chrono-display');
+        const chronoProgress = document.getElementById('chrono-progress');
+        const uiLiveDistance = document.getElementById('live-distance');
+        const uiLiveSpeed = document.getElementById('live-speed');
         const vehiculeSelect = document.getElementById('vehicule-select');
         const hiddenVehiculeId = document.getElementById('hidden-vehicule-id');
+        const stopModal = document.getElementById('stop-modal');
 
+        // --- ÉTAT ---
+        let isTracking = false;
+        let watchId = null;
+        let activeVehiculeId = null;
+        let activeTrajetId = null;
+        let startTime = null;
+        let chronoInterval = null;
+        let totalDistanceKm = 0;
+        let lastPosition = null;
+        let tracePoints = [];
+        let deviceId = localStorage.getItem('erp_device_id') || ('web-' + Math.random().toString(36).substr(2, 9));
+        localStorage.setItem('erp_device_id', deviceId);
+
+        // --- SIGNALR ---
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/logistiquehub")
+            .withAutomaticReconnect()
             .build();
 
-        connection.start().catch(err => console.error(err.toString()));
+        connection.start().catch(err => console.error("SignalR Connection Error:", err));
 
-        trackBtn.addEventListener('click', () => {
-            if (!isTracking) {
-                // Récupérer l'ID depuis le champ caché (QR code) ou le select (manuel)
-                selectedVehiculeId = hiddenVehiculeId ? hiddenVehiculeId.value : vehiculeSelect.value;
-                
-                if (!selectedVehiculeId) {
-                    alert("Veuillez sélectionner un véhicule.");
-                    return;
-                }
-                startTracking();
-            } else {
-                stopTracking();
+        // --- ACTIONS BOUTONS ---
+        btnStart.onclick = async function() {
+            activeVehiculeId = hiddenVehiculeId ? hiddenVehiculeId.value : vehiculeSelect.value;
+            if (!activeVehiculeId) {
+                alert("Veuillez sélectionner un véhicule.");
+                return;
             }
-        });
+            
+            if(!("geolocation" in navigator)) {
+                alert("GPS non supporté.");
+                return;
+            }
 
-        function startTracking() {
-            if ("geolocation" in navigator) {
+            try {
+                btnStart.disabled = true;
+                btnStart.innerText = "CONNEXION...";
+
+                if (connection.state !== signalR.HubConnectionState.Connected) {
+                    await connection.start();
+                }
+
+                activeTrajetId = await connection.invoke("StartTrajet", parseInt(activeVehiculeId), deviceId, "Démarrage mobile");
+                
+                // État actif
                 isTracking = true;
-                trackBtn.innerText = "ARRÊTER LE SUIVI";
-                trackBtn.classList.remove('btn-start');
-                trackBtn.classList.add('btn-stop');
                 container.classList.add('is-tracking');
-                statusText.innerText = "Suivi en cours...";
-                vehiculeSelect.disabled = true;
+                subtitleText.innerText = `Trajet #${activeTrajetId} en cours...`;
+                
+                // Init Stats
+                startTime = Date.now();
+                totalDistanceKm = 0;
+                lastPosition = null;
+                tracePoints = [];
+                
+                chronoInterval = setInterval(updateChronomètre, 1000);
+                watchId = navigator.geolocation.watchPosition(onPositionReceived, onPositionError, { 
+                    enableHighAccuracy: true, 
+                    maximumAge: 3000, 
+                    timeout: 10000 
+                });
 
-                watchId = navigator.geolocation.watchPosition(
-                    (position) => {
-                        const { latitude, longitude } = position.coords;
-                        console.log("Position envoyée: ", latitude, longitude);
-                        
-                        // Envoyer au serveur via SignalR
-                        if (connection.state === signalR.HubConnectionState.Connected) {
-                            connection.invoke("UpdatePosition", parseInt(selectedVehiculeId), latitude, longitude)
-                                .catch(err => console.error(err.toString()));
-                        }
-                    },
-                    (error) => {
-                        console.error("Erreur GPS: ", error.message);
-                        alert("Erreur GPS : " + error.message);
-                        stopTracking();
-                    },
-                    {
-                        enableHighAccuracy: true,
-                        maximumAge: 5000,
-                        timeout: 10000
-                    }
-                );
+            } catch(e) {
+                alert("Erreur démarrage: " + e.message);
+                btnStart.disabled = false;
+                btnStart.innerText = "DÉMARRER LE TRAJET";
+            }
+        };
+
+        btnStop.onclick = function() {
+            document.getElementById('modal-time').innerText = getCurrentDurationFormatted();
+            document.getElementById('modal-dist').innerText = totalDistanceKm.toFixed(2) + " km";
+            stopModal.classList.add('show');
+        };
+
+        window.closeStopModal = function() {
+            stopModal.classList.remove('show');
+        };
+
+        window.confirmStop = async function() {
+            window.closeStopModal();
+            btnStop.disabled = true;
+            btnStop.innerText = "CLÔTURE...";
+            await stopTrackingAndSend();
+        };
+
+        // --- LOGIQUE CORE ---
+        function onPositionReceived(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const ts = position.timestamp;
+            
+            const now = Date.now();
+            let speedKmh = 0;
+            if (position.coords.speed && position.coords.speed > 0) {
+                speedKmh = (position.coords.speed * 3.6);
+            } else if (lastPosition) {
+                const d = haversineDistance(lastPosition.lat, lastPosition.lon, lat, lon);
+                const t = (now - lastPosition.sysTimestamp) / 1000;
+                if (t > 0 && d > 0.001) { // 1 mètre minimum pour la vitesse
+                    speedKmh = (d / (t / 3600));
+                }
+            }
+
+            if (speedKmh > 130) speedKmh = 0;
+            const speedDisplay = speedKmh.toFixed(0);
+            uiLiveSpeed.innerText = speedDisplay;
+            statusText.innerText = "Signal GPS Optimal";
+
+            if (lastPosition) {
+                const d = haversineDistance(lastPosition.lat, lastPosition.lon, lat, lon);
+                if (d > 0.001) { // 1 mètre minimum pour la distance
+                    totalDistanceKm += d;
+                    uiLiveDistance.innerText = totalDistanceKm.toFixed(2);
+                    lastPosition = { lat, lon, timestamp: ts, sysTimestamp: now }; // On ne met à jour la référence QUE si on a bougé
+                }
             } else {
-                alert("La géolocalisation n'est pas supportée par ce navigateur.");
+                lastPosition = { lat, lon, timestamp: ts, sysTimestamp: now };
+            }
+
+            // Sync Live Server (Inclut distance)
+            if (activeTrajetId && connection.state === signalR.HubConnectionState.Connected) {
+                connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), lat, lon, parseFloat(speedDisplay), chronoDisplay.innerText, totalDistanceKm).catch(err => {});
+            }
+
+            // Save Trace (Historique)
+            if (tracePoints.length === 0 || haversineDistance(tracePoints[tracePoints.length-1].lat, tracePoints[tracePoints.length-1].lon, lat, lon) > 0.015) {
+                tracePoints.push({ lat, lon, timestamp: ts });
             }
         }
 
-        function stopTracking() {
+        function onPositionError(err) {
+            statusText.innerText = "Perte signal GPS";
+            if(navigator.vibrate) navigator.vibrate(200);
+        }
+
+        async function stopTrackingAndSend() {
             isTracking = false;
             if (watchId) navigator.geolocation.clearWatch(watchId);
-            
-            trackBtn.innerText = "DÉMARRER LE SUIVI";
-            trackBtn.classList.remove('btn-stop');
-            trackBtn.classList.add('btn-start');
-            container.classList.remove('is-tracking');
-            statusText.innerText = "Suivi inactif";
-            vehiculeSelect.disabled = false;
+            if (chronoInterval) clearInterval(chronoInterval);
+
+            try {
+                let traceJson = JSON.stringify(tracePoints);
+                if (connection.state === signalR.HubConnectionState.Connected) {
+                    const tid = parseInt(activeTrajetId) || 0;
+                    const vid = parseInt(activeVehiculeId) || 0;
+                    try {
+                        await connection.invoke("EndTrajet", vid, tid, "Terminé", totalDistanceKm, traceJson);
+                    } catch(e) {
+                        // Secours si trace trop lourde
+                        await connection.invoke("EndTrajet", vid, tid, "Terminé (Léger)", totalDistanceKm, "[]");
+                    }
+                }
+                
+                container.classList.remove('is-tracking');
+                btnStop.style.display = 'none';
+                subtitleText.innerText = "Trajet terminé et véhicule libéré.";
+                statusText.innerText = "Disponible";
+            } catch(e) {
+                alert("Erreur lors de la clôture : " + e.message);
+                btnStop.disabled = false;
+                btnStop.innerText = "RÉESSAYER";
+            }
+        }
+
+        // --- UTILITAIRES ---
+        window.onbeforeunload = function() {
+            if (isTracking && typeof connection !== 'undefined' && connection.state === signalR.HubConnectionState.Connected) {
+                connection.stop();
+            }
+        };
+
+        function updateChronomètre() {
+            if(!startTime) return;
+            const diff = Date.now() - startTime;
+            const s = Math.floor((diff / 1000) % 60);
+            const m = Math.floor((diff / 60000) % 60);
+            const h = Math.floor(diff / 3600000);
+            chronoDisplay.innerText = h > 0 ? (pad(h) + ":" + pad(m) + ":" + pad(s)) : (pad(m) + ":" + pad(s));
+            chronoProgress.style.strokeDashoffset = 440 - ((s/60) * 440);
+        }
+
+        function pad(n) { return n < 10 ? '0'+n : n; }
+        
+        function getCurrentDurationFormatted() {
+            if(!startTime) return "00:00:00";
+            return new Date(Date.now() - startTime).toISOString().substring(11, 19);
+        }
+
+        function haversineDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2-lat1) * Math.PI/180;
+            const dLon = (lon2-lon1) * Math.PI/180;
+            const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
     </script>
 </body>

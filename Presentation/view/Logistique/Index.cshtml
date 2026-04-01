@@ -110,6 +110,58 @@
         flex-direction: column;
         gap: 8px;
     }
+
+    /* Panneau de stats live sur la carte */
+    .live-stats-panel {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 1001;
+        background: rgba(15, 20, 50, 0.9);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(123, 94, 255, 0.4);
+        border-radius: 16px;
+        padding: 15px;
+        color: white;
+        min-width: 200px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        display: none; /* Caché par défaut */
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .history-section {
+        margin-top: 25px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 20px;
+        padding: 20px;
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+    .history-table th {
+        text-align: left;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        padding: 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .history-table td {
+        padding: 12px 10px;
+        font-size: 0.85rem;
+        border-bottom: 1px solid rgba(255,255,255,0.02);
+    }
+
+    .history-row:hover {
+        background: rgba(123, 94, 255, 0.1);
+        cursor: pointer;
+    }
 </style>
 </head>
 <body class="erp-dark-mode">
@@ -222,8 +274,8 @@
                         {
                             foreach (var v in Model.Vehicules)
                             {
-                                var isOnline = v.Latitude.HasValue && v.DerniereMiseAJour > DateTime.UtcNow.AddMinutes(-10);
-                                <div class="vehicle-card @(isOnline ? "active" : "")" onclick="focusVehicule(@v.Id, @(v.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"), @(v.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"))">
+                                var isOnline = v.Statut == "En Trajet";
+                                <div class="vehicle-card @(isOnline ? "active" : "")" data-vehicule-id="@v.Id" onclick="focusVehicule(@v.Id, @(v.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"), @(v.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"))">
                                     <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
                                         <div>
                                             <h4 style="margin:0; font-size:0.95rem; font-weight:700;">@v.Nom</h4>
@@ -231,7 +283,7 @@
                                         </div>
                                         <div class="status-badge @(isOnline ? "status-online" : "status-offline")">
                                             @if(isOnline) { <span class="pulse-dot"></span> }
-                                            @(isOnline ? "En route" : "Déconnecté")
+                                            @(isOnline ? "En route" : "Disponible")
                                         </div>
                                     </div>
                                     <div style="font-size:0.75rem; color:var(--text-muted); display:flex; gap:10px; align-items:center;">
@@ -239,16 +291,16 @@
                                         @if(v.Latitude.HasValue) {
                                             <span style="color:var(--accent-light);">📍 @v.Latitude.Value.ToString("F4"), @v.Longitude.Value.ToString("F4")</span>
                                         }
-                                        <button type="button" class="btn-secondary" style="margin-left:auto; padding:4px 10px; font-size:0.7rem;" onclick="event.stopPropagation(); showQrCode('@v.Id', '@Html.Raw(v.Nom.Replace("'", "\\'"))')">
-                                            <svg style="width:12px; height:12px; margin-right:4px; display:inline-block; vertical-align:middle;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                                <rect x="7" y="7" width="3" height="3"></rect>
-                                                <rect x="14" y="7" width="3" height="3"></rect>
-                                                <rect x="7" y="14" width="3" height="3"></rect>
-                                                <rect x="14" y="14" width="3" height="3"></rect>
-                                            </svg>
-                                            QR Tracker
-                                        </button>
+                                        <div style="margin-left:auto; display:flex; gap:5px;">
+                                            <button type="button" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; border-color:rgba(255,100,100,0.3);" 
+                                                    onclick="event.stopPropagation(); forceResetVehicule(@v.Id)">
+                                                Reset
+                                            </button>
+                                            <button type="button" class="btn-primary" style="padding:4px 8px; font-size:0.65rem;" 
+                                                    onclick="event.stopPropagation(); showQrCode('@v.Id', '@Html.Raw(v.Nom.Replace("'", "\\'"))')">
+                                                QR
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             }
@@ -263,16 +315,64 @@
                 </div>
 
                 <!-- COLONNE DROITE : CARTE -->
-                <div style="position: relative;">
+                <div style="position: relative; border-radius: 24px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
                     <div id="map" style="height: 100%; width: 100%;"></div>
                     
-                    <!-- Overlay QR Code Preview (Placeholder) -->
+                    <!-- Panneau de Stats Live (Uniquement sur sélection) -->
+                    <div id="live-stats-panel" class="live-stats-panel">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <h5 id="live-stat-name" style="margin:0; font-size:1rem; color:var(--accent-light);">Véhicule</h5>
+                            <button onclick="closeLiveStats()" style="background:none; border:none; color:white; cursor:pointer; opacity:0.5;">✕</button>
+                        </div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                            <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
+                                <div style="font-size:0.7rem; color:var(--text-muted);">Vitesse</div>
+                                <div id="live-stat-speed" style="font-size:1.1rem; font-weight:700;">0 km/h</div>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
+                                <div style="font-size:0.7rem; color:var(--text-muted);">Distance</div>
+                                <div id="live-stat-distance" style="font-size:1.1rem; font-weight:700;">0.00 km</div>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
+                                <div style="font-size:0.7rem; color:var(--text-muted);">Temps</div>
+                                <div id="live-stat-duration" style="font-size:1.1rem; font-weight:700;">00:00</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="map-controls">
                         <button class="header-btn" title="Générer Rapport" style="padding:10px; border-radius:12px;">📈</button>
-                        <button class="header-btn" title="Couches Carte" style="padding:10px; border-radius:12px;">🗺️</button>
+                        <button class="header-btn" title="Couches Carte" style="padding:10px; border-radius:12px;" onclick="resetMapLayers()">🔁</button>
                     </div>
                 </div>
+            </div>
 
+            <!-- SECTION HISTORIQUE -->
+            <div class="history-section">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3 style="margin:0; font-size:1.2rem;">Historique Récent des Trajets</h3>
+                    <button class="btn-secondary" onclick="refreshHistory()" style="font-size: 0.75rem; padding: 6px 12px;">Actualiser</button>
+                </div>
+                <div id="history-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Véhicule</th>
+                                <th>Départ</th>
+                                <th>Arrivée</th>
+                                <th>Distance</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-tbody">
+                            <!-- Rempli en JS -->
+                            <tr>
+                                <td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Chargement de l'historique...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
     </main>
@@ -457,22 +557,81 @@
 
     var markers = {};
 
-    function addOrUpdateMarker(vehiculeId, lat, lon, label) {
+    function addOrUpdateMarker(vehiculeId, lat, lon, label, extraStats) {
+        let displayLabel = label || "Véhicule #" + vehiculeId;
+        if (extraStats && extraStats.distance !== undefined) {
+            displayLabel = `<strong>${label}</strong><br/>🏁 ${extraStats.distance.toFixed(2)} km`;
+        }
+
         if (markers[vehiculeId]) {
             markers[vehiculeId].setLatLng([lat, lon]);
+            if (markers[vehiculeId].getTooltip()) {
+                markers[vehiculeId].setTooltipContent(displayLabel);
+            } else {
+                markers[vehiculeId].bindTooltip(displayLabel, { permanent: true, direction: 'top', className: 'vehicle-label-tooltip' });
+            }
         } else {
             markers[vehiculeId] = L.marker([lat, lon]).addTo(map)
-                .bindPopup(label || "Véhicule #" + vehiculeId);
+                .bindTooltip(displayLabel, { permanent: true, direction: 'top', className: 'vehicle-label-tooltip' });
+        }
+
+        // MAJ du panneau Live Stats si c'est le véhicule sélectionné
+        if (selectedVehiculeId == vehiculeId && extraStats) {
+            document.getElementById('live-stats-panel').style.display = 'block';
+            document.getElementById('live-stat-speed').innerText = extraStats.speed + " km/h";
+            document.getElementById('live-stat-duration').innerText = extraStats.duration;
+            if (extraStats.distance !== undefined) {
+                document.getElementById('live-stat-distance').innerText = extraStats.distance.toFixed(2) + " km";
+            }
+            
+            // Animation pulse sur le panneau
+            document.getElementById('live-stats-panel').style.borderColor = 'rgba(34, 197, 94, 0.8)';
+            setTimeout(() => { document.getElementById('live-stats-panel').style.borderColor = 'rgba(123, 94, 255, 0.4)'; }, 500);
+        }
+
+        // MAJ de la carte latérale (sidebar) uniquement pour le badge "En route"
+        const card = document.querySelector(`.vehicle-card[data-vehicule-id="${vehiculeId}"]`);
+        if (card && extraStats) {
+            let statusBadge = card.querySelector('.status-badge');
+            if (statusBadge && !statusBadge.classList.contains('status-online')) {
+                statusBadge.innerHTML = `<span class="pulse-dot"></span> En route`;
+                statusBadge.className = "status-badge status-online";
+                card.classList.add('active');
+            }
         }
     }
 
+    var selectedVehiculeId = null;
+    var historyLayers = [];
+
     function focusVehicule(id, lat, lon) {
-        if (lat && lon) {
-            map.setView([lat, lon], 13);
+        selectedVehiculeId = id;
+        if (lat && lon && lat != 0) {
+            map.setView([lat, lon], 14);
             if (markers[id]) markers[id].openPopup();
-            
-            document.querySelectorAll('.vehicle-card').forEach(c => c.classList.remove('active'));
         }
+        
+        // Titre dans le panneau de stats
+        const card = document.querySelector(`.vehicle-card[data-vehicule-id="${id}"]`);
+        if (card) {
+            document.getElementById('live-stat-name').innerText = card.querySelector('h4').innerText;
+            // Si en route, on ouvre le panneau direct
+            if (card.classList.contains('active')) {
+                document.getElementById('live-stats-panel').style.display = 'block';
+            } else {
+                closeLiveStats();
+            }
+        }
+    }
+
+    function closeLiveStats() {
+        document.getElementById('live-stats-panel').style.display = 'none';
+        selectedVehiculeId = null;
+    }
+
+    function resetMapLayers() {
+        historyLayers.forEach(l => map.removeLayer(l));
+        historyLayers = [];
     }
 
     function filterVehicles(query) {
@@ -493,16 +652,203 @@
         .build();
 
     connection.on("ReceivePositionUpdate", function (vehiculeId, lat, lon) {
-        console.log("Update received: " + vehiculeId, lat, lon);
-        addOrUpdateMarker(vehiculeId, lat, lon);
+        const card = document.querySelector(`.vehicle-card[data-vehicule-id="${vehiculeId}"]`);
+        const label = card ? card.querySelector('h4').innerText : "Véhicule #" + vehiculeId;
+        addOrUpdateMarker(vehiculeId, lat, lon, label);
     });
 
-    connection.start().catch(err => console.error(err.toString()));
+    // --- LOGIQUE TRACÉ TEMPS RÉEL (FLUIDIFIÉE) ---
+    var activeTrajets = {}; // { trajetId : { polyline: L.polyline, startTime: Date } }
+
+    connection.on("TrajetStarted", function (vehiculeId, trajetId, origine, startTime) {
+        console.log("🚀 Trajet démarré :", vehiculeId, trajetId, "Début:", startTime);
+        
+        activeTrajets[trajetId] = {
+            polyline: L.polyline([], {
+                color: '#7b5eff', 
+                weight: 4, 
+                opacity: 0.8, 
+                lineCap: 'round', 
+                lineJoin: 'round',
+                dashArray: '10, 10'
+            }).addTo(map),
+            startTime: new Date(startTime)
+        };
+        
+        // 1. MAJ Badge et Classe pour passer au VERT immédiatement
+        const card = document.querySelector(`.vehicle-card[data-vehicule-id="${vehiculeId}"]`);
+        if (card) {
+            card.classList.add('active');
+            let statusBadge = card.querySelector('.status-badge');
+            if (statusBadge) {
+                statusBadge.innerHTML = `<span class="pulse-dot"></span> En route`;
+                statusBadge.className = "status-badge status-online";
+            }
+        }
+
+        // 2. Ouvrir le panneau de stats automatiquement pour ce véhicule
+        selectedVehiculeId = vehiculeId;
+        document.getElementById('live-stats-panel').style.display = 'block';
+        if (card) document.getElementById('live-stat-name').innerText = card.querySelector('h4').innerText;
+        document.getElementById('live-stat-speed').innerText = "0 km/h";
+        document.getElementById('live-stat-distance').innerText = "0.00 km";
+    });
+
+    // Timer Global pour fluidifier l'affichage du temps ( interpolation )
+    setInterval(() => {
+        if (!selectedVehiculeId) return;
+
+        // Trouver le trajet actif pour le véhicule sélectionné
+        let currentTrajet = null;
+        for (let tid in activeTrajets) {
+            // Note: On pourrait stocker le mapping vehiculeId -> trajetId pour aller plus vite
+            // mais ici on va simplement rafraîchir le temps si un trajet existe.
+        }
+        
+        // Pour faire simple et robuste : on met à jour le champ de durée 
+        // si le véhicule sélectionné a une classe "active"
+        const card = document.querySelector(`.vehicle-card[onclick*="focusVehicule(${selectedVehiculeId}"]`);
+        if (card && card.classList.contains('active')) {
+             // On cherche le début du trajet dans nos données actives
+             for (let tid in activeTrajets) {
+                 const t = activeTrajets[tid];
+                 // (Note: Idéalement vérifier que vehiculeId correspond)
+                 const now = new Date();
+                 const diff = Math.floor((now - t.startTime) / 1000);
+                 if (diff > 0) {
+                     const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+                     const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+                     const s = (diff % 60).toString().padStart(2, '0');
+                     const durationStr = (h !== "00" ? h + ":" : "") + m + ":" + s;
+                     
+                     const uiDuration = document.getElementById('live-stat-duration');
+                     if (uiDuration) uiDuration.innerText = durationStr;
+                 }
+             }
+        }
+    }, 1000);
+
+    connection.on("ReceivePositionWithTrace", function (vehiculeId, trajetId, lat, lon, speed, duration, distanceKm) {
+        // MAJ Marqueur avec Label et Distance
+        const card = document.querySelector(`.vehicle-card[data-vehicule-id="${vehiculeId}"]`);
+        const label = card ? card.querySelector('h4').innerText : "Véhicule #" + vehiculeId;
+        
+        addOrUpdateMarker(vehiculeId, lat, lon, label, { speed: speed, duration: duration, distance: distanceKm });
+        
+        // MAJ Tracé
+        if (activeTrajets[trajetId]) {
+            activeTrajets[trajetId].polyline.addLatLng([lat, lon]);
+            // Recalage éventuel de la startTime si le serveur envoie une info plus précise
+        }
+    });
+
+    connection.on("TrajetEnded", function (vehiculeId, trajetId, rawTraceJson, distanceKm) {
+        console.log("✅ Trajet terminé :", vehiculeId, trajetId, "Distance:", distanceKm);
+        
+        // 1. Reset Statut UI Direct et Instantané
+        const card = document.querySelector(`.vehicle-card[data-vehicule-id="${vehiculeId}"]`);
+        if (card) {
+            card.classList.remove('active');
+            let badge = card.querySelector('.status-badge');
+            if (badge) {
+                badge.innerHTML = "Disponible";
+                badge.className = "status-badge status-offline";
+            }
+        }
+        
+        // 2. Cacher le panneau si c'était le véhicule suivi
+        if (selectedVehiculeId == vehiculeId) closeLiveStats();
+
+        // 3. Dessiner le point final sur le tracé live
+        if (activeTrajets[trajetId]) {
+            activeTrajets[trajetId].polyline.setStyle({ dashArray: null, color: '#22c55e' });
+            delete activeTrajets[trajetId]; // Arrêter le timer local pour ce trajet
+        }
+
+        // 4. Actualiser l'historique
+        refreshHistory();
+    });
+
+    async function refreshHistory() {
+        try {
+            const history = await connection.invoke("GetTrajetHistory");
+            const tbody = document.getElementById('history-tbody');
+            tbody.innerHTML = "";
+
+            if (!history || history.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Aucun historique disponible.</td></tr>';
+                return;
+            }
+
+            history.forEach(t => {
+                const row = document.createElement('tr');
+                row.className = "history-row";
+                row.onclick = () => showHistoryTrace(t.traceJson);
+                
+                const dateStart = new Date(t.dateDebut).toLocaleString('fr-FR');
+                row.innerHTML = `
+                    <td>${dateStart}</td>
+                    <td><span style="background:rgba(123,94,255,0.2); color:var(--accent-light); padding:2px 8px; border-radius:4px; font-size:0.75rem;">ID #${t.vehiculeId}</span></td>
+                    <td>${t.origine || 'N/A'}</td>
+                    <td>${t.destination || 'N/A'}</td>
+                    <td><strong>${t.distanceParcourueKm.toFixed(2)} km</strong></td>
+                    <td style="color:var(--accent-light); font-weight:bold; font-size:0.75rem;">VOIR TRACÉ ➔</td>
+                `;
+                tbody.appendChild(row);
+            });
+        } catch (err) {
+            console.error("Error fetching history:", err);
+        }
+    }
+
+    function showHistoryTrace(traceJson) {
+        if (!traceJson) {
+            alert("Aucun tracé enregistré pour ce trajet.");
+            return;
+        }
+        resetMapLayers();
+        
+        try {
+            let poly;
+            // Est-ce du GeoJSON LineString ou du JSON brut ?
+            if (traceJson.trim().startsWith('{')) {
+                const geo = JSON.parse(traceJson);
+                poly = L.geoJSON(geo, { style: { color: '#94a3b8', weight: 5, opacity: 0.6 } }).addTo(map);
+            } else {
+                const points = JSON.parse(traceJson);
+                const latLons = points.map(p => [p.lat, p.lon]);
+                poly = L.polyline(latLons, { color: '#94a3b8', weight: 5, opacity: 0.6 }).addTo(map);
+            }
+            
+            historyLayers.push(poly);
+            map.fitBounds(poly.getBounds(), { padding: [50, 50] });
+        } catch (e) {
+            console.error("Erreur parsing trace:", e);
+        }
+    }
+
+    async function forceResetVehicule(id) {
+        if(!confirm("Voulez-vous forcer la remise à zéro de ce véhicule (Base de données) ?")) return;
+        try {
+            await connection.invoke("ForceResetVehicule", id);
+            // Pas besoin de MAJ locale ici, le signal "TrajetEnded" envoyé par 
+            // le serveur s'en chargera pour tout le monde (dont nous).
+            console.log("Ordre de Reset envoyé au serveur.");
+        } catch(e) { 
+            console.error(e); 
+            alert("Erreur lors du reset : " + e);
+        }
+    }
+
+    connection.start().then(() => {
+        console.log("SignalR Connected");
+        refreshHistory();
+    }).catch(err => console.error(err.toString()));
 
     // Initialiser les marqueurs
-    @foreach(var v in Model.Vehicules.Where(x => x.Latitude.HasValue && x.Longitude.HasValue))
+    @foreach(var veh in Model.Vehicules.Where(x => x.Latitude.HasValue && x.Longitude.HasValue))
     {
-        <text>addOrUpdateMarker(@v.Id, @v.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), @v.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), "@v.Nom");</text>
+        <text>addOrUpdateMarker(@veh.Id, @veh.Latitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), @veh.Longitude.Value.ToString(System.Globalization.CultureInfo.InvariantCulture), "@veh.Nom");</text>
     }
 </script>
 </body>

@@ -20,6 +20,9 @@ namespace erp_pfc_20252026.Pages.Logistique
 
         public async Task OnGetAsync()
         {
+            // Sentinelle : Nettoyage automatique des véhicules dont la connexion est perdue
+            await _logistiqueService.CleanupAbandonedTrajetsAsync(15);
+            
             Vehicules = await _logistiqueService.GetVehiculesAsync();
         }
 
