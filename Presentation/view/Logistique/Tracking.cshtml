@@ -73,6 +73,72 @@
         .btn-stop { background: var(--danger); color: white; display: none; }
         .is-tracking .btn-start { display: none; }
         .is-tracking .btn-stop { display: block; }
+        .btn-demo {
+            width: 100%; padding: 14px; border-radius: 16px; border: none;
+            font-size: 0.9rem; font-weight: 700; cursor: pointer;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            color: white; margin-top: 12px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-demo:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(245, 158, 11, 0.4); }
+        .btn-demo:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .is-tracking .btn-demo { display: none; }
+        .is-demo .btn-stop { display: none; } /* En démo, arrêt géré automatiquement */
+        .demo-badge {
+            position: absolute; top: 14px; right: 14px;
+            background: linear-gradient(135deg, #f59e0b, #ef4444);
+            color: white; font-size: 0.65rem; font-weight: 800;
+            padding: 4px 10px; border-radius: 20px;
+            text-transform: uppercase; letter-spacing: 1px;
+            display: none; animation: fadeIn 0.4s ease;
+        }
+        .is-demo .demo-badge { display: block; }
+        .demo-phase-banner {
+            width: 100%; padding: 10px 14px; border-radius: 12px;
+            font-size: 0.82rem; font-weight: 700;
+            display: none; margin-bottom: 14px;
+            animation: fadeIn 0.3s ease;
+            text-align: center; letter-spacing: 0.5px;
+        }
+        .demo-phase-banner.aller {
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.35);
+            color: #4ade80;
+        }
+        .demo-phase-banner.livraison {
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.35);
+            color: #fbbf24;
+        }
+        .demo-phase-banner.retour {
+            background: rgba(123, 94, 255, 0.15);
+            border: 1px solid rgba(123, 94, 255, 0.35);
+            color: #a78bfa;
+        }
+        .is-demo .demo-phase-banner { display: block; }
+        .demo-progress-bar {
+            width: 100%; height: 6px; background: rgba(255,255,255,0.1);
+            border-radius: 4px; margin-top: 12px;
+            display: none; overflow: hidden; position: relative;
+        }
+        .is-demo .demo-progress-bar { display: block; }
+        .demo-progress-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #22c55e, #f59e0b, #7b5eff);
+            border-radius: 4px;
+            transition: width 1.5s linear;
+        }
+        /* Marqueur mi-parcours (point de livraison) */
+        .demo-midpoint-marker {
+            position: absolute; top: -3px; left: 50%;
+            transform: translateX(-50%);
+            width: 12px; height: 12px;
+            background: #f59e0b; border-radius: 50%;
+            border: 2px solid #020617;
+            box-shadow: 0 0 6px #f59e0b;
+        }
         .status-info { margin-top: 20px; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; justify-content: center; gap: 6px; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); }
         .is-tracking .status-dot { background: var(--success); box-shadow: 0 0 10px var(--success); animation: pulse 1.5s infinite; }
@@ -138,8 +204,15 @@
                 <div class="stat-label">Vitesse actuelle</div>
             </div>
         </div>
+        <span class="demo-badge">🎬 SIMULATION</span>
+        <div class="demo-phase-banner aller" id="demo-phase-banner">🚚 En route vers le client...</div>
         <button id="btn-start" class="btn btn-start">DÉMARRER LE TRAJET</button>
         <button id="btn-stop" class="btn btn-stop">TERMINER LE TRAJET</button>
+        <button id="btn-demo" class="btn btn-demo">🎬 LANCER LA SIMULATION DÉMO</button>
+        <div class="demo-progress-bar">
+            <div class="demo-progress-fill" id="demo-progress-fill"></div>
+            <div class="demo-midpoint-marker" title="Point de livraison"></div>
+        </div>
         <div class="status-info">
             <span class="status-dot"></span>
             <span id="status-text">GPS en attente</span>
@@ -194,6 +267,12 @@
         let tracePoints = [];
         let deviceId = localStorage.getItem('erp_device_id') || ('web-' + Math.random().toString(36).substr(2, 9));
         localStorage.setItem('erp_device_id', deviceId);
+
+        // --- ÉTAT SIMULATION ---
+        let isDemoMode = false;
+        let demoInterval = null;
+        let demoRoutePoints = [];
+        let demoPointIndex = 0;
 
         // --- SIGNALR ---
         const connection = new signalR.HubConnectionBuilder()
@@ -268,6 +347,228 @@
             await stopTrackingAndSend();
         };
 
+        // ============================================================
+        // --- SIMULATION DÉMO (Sans GPS réel) ---
+        // ============================================================
+        const btnDemo = document.getElementById('btn-demo');
+        const demoProgressFill = document.getElementById('demo-progress-fill');
+
+        // Demander la position GPS réelle de l'utilisateur
+        function getCurrentGPS() {
+            return new Promise((resolve, reject) => {
+                if (!("geolocation" in navigator)) {
+                    reject(new Error("GPS non supporté"));
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+                    err => reject(err),
+                    { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+                );
+            });
+        }
+
+        // Générer une route de fallback (~150m) à partir d'une position réelle
+        function buildFallbackRoute(startLat, startLon) {
+            const deltaLat = 0.00067; // ~75m nord
+            const deltaLon = 0.00090; // ~75m est
+            const endLat = startLat + deltaLat;
+            const endLon = startLon + deltaLon;
+            const steps = 12;
+            const forward = [];
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                forward.push({
+                    lat: startLat + t * (endLat - startLat),
+                    lon: startLon + t * (endLon - startLon)
+                });
+            }
+            const backward = [...forward].slice(0, -1).reverse();
+            return [...forward, ...backward];
+        }
+
+        btnDemo.onclick = async function() {
+            activeVehiculeId = hiddenVehiculeId ? hiddenVehiculeId.value : (vehiculeSelect ? vehiculeSelect.value : null);
+            if (!activeVehiculeId) {
+                // Prendre le premier véhicule dispo si aucun sélectionné
+                if (vehiculeSelect && vehiculeSelect.options.length > 1) {
+                    activeVehiculeId = vehiculeSelect.options[1].value;
+                } else {
+                    alert("Veuillez sélectionner un véhicule pour la simulation.");
+                    return;
+                }
+            }
+
+            btnDemo.disabled = true;
+            btnDemo.innerHTML = '📍 Localisation en cours...';
+
+            try {
+                if (connection.state !== signalR.HubConnectionState.Connected) {
+                    await connection.start();
+                }
+
+                // Étape 1 : Récupérer la vraie position GPS
+                let myPos;
+                try {
+                    myPos = await getCurrentGPS();
+                    statusText.innerText = `📍 Position trouvée (${myPos.lat.toFixed(4)}, ${myPos.lon.toFixed(4)})`;
+                } catch(gpsErr) {
+                    console.warn('GPS indisponible, fallback Bouira :', gpsErr.message);
+                    myPos = { lat: 36.3736, lon: 3.8989 };
+                    statusText.innerText = "⚠️ GPS indisponible — position par défaut";
+                }
+
+                btnDemo.innerHTML = '⏳ Chargement de la route...';
+
+                // Étape 2 : Calculer la route depuis la vraie position
+                let routePoints = await fetchOSRMRoute(myPos.lat, myPos.lon);
+                if (!routePoints || routePoints.length < 3) {
+                    // Fallback : interpolation linéaire depuis la vraie position
+                    routePoints = buildFallbackRoute(myPos.lat, myPos.lon);
+                    console.log('Fallback sur route interpolée depuis position réelle');
+                }
+
+                activeTrajetId = await connection.invoke("StartTrajet", parseInt(activeVehiculeId), deviceId + '-DEMO', "Simulation Démo");
+
+                // Initialisation état
+                isDemoMode = true;
+                isTracking = true;
+                demoRoutePoints = routePoints;
+                demoPointIndex = 0;
+                startTime = Date.now();
+                totalDistanceKm = 0;
+                lastPosition = null;
+                tracePoints = [];
+
+                container.classList.add('is-tracking', 'is-demo');
+                subtitleText.innerText = `🎬 SIMULATION #${activeTrajetId} en cours...`;
+                statusText.innerText = "Simulation GPS Active";
+                btnDemo.innerHTML = '🎬 LANCER LA SIMULATION DÉMO';
+
+                chronoInterval = setInterval(updateChronomètre, 1000);
+
+                // Lancer la simulation point par point
+                const DEMO_STEP_MS = 2000; // 1 point GPS toutes les 2 secondes
+                const totalSteps = demoRoutePoints.length;
+                const midPoint = Math.floor(totalSteps / 2); // Point de livraison
+                let deliveryPauseDone = false;
+                const phaseBanner = document.getElementById('demo-phase-banner');
+
+                // Phase initiale : aller
+                phaseBanner.className = 'demo-phase-banner aller';
+                phaseBanner.innerText = '🚚 En route vers le client...';
+
+                const runDemoStep = async () => {
+                    if (demoPointIndex >= demoRoutePoints.length) {
+                        // Fin automatique de la simulation
+                        clearInterval(demoInterval);
+                        demoProgressFill.style.width = '100%';
+                        phaseBanner.className = 'demo-phase-banner livraison';
+                        phaseBanner.innerText = '\u2705 Arriv\u00e9 \u00e0 l\u2019entrep\u00f4t \u2014 Trajet cl\u00f4tur\u00e9';
+                        statusText.innerText = "Simulation termin\u00e9e !";
+                        await new Promise(r => setTimeout(r, 1500));
+                        btnStop.disabled = false;
+                        await stopTrackingAndSend();
+                        container.classList.remove('is-demo');
+                        isDemoMode = false;
+                        return;
+                    }
+
+                    // Pause au point de livraison (mi-parcours)
+                    if (demoPointIndex === midPoint && !deliveryPauseDone) {
+                        deliveryPauseDone = true;
+                        clearInterval(demoInterval);
+                        // Affichage : livraison en cours
+                        phaseBanner.className = 'demo-phase-banner livraison';
+                        phaseBanner.innerText = '\ud83d\udce6 Livraison en cours... Arr\u00eat 3s';
+                        statusText.innerText = "Arr\u00eat livraison";
+                        uiLiveSpeed.innerText = '0';
+                        if (activeTrajetId && connection.state === signalR.HubConnectionState.Connected) {
+                            const pt = demoRoutePoints[midPoint];
+                            connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), pt.lat, pt.lon, 0, chronoDisplay.innerText, totalDistanceKm).catch(() => {});
+                        }
+                        // Pause 3 secondes puis reprise phase retour
+                        await new Promise(r => setTimeout(r, 3000));
+                        phaseBanner.className = 'demo-phase-banner retour';
+                        phaseBanner.innerText = '\u21a9\ufe0f Retour vers l\u2019entrep\u00f4t...';
+                        statusText.innerText = "Simulation GPS Active";
+                        demoInterval = setInterval(runDemoStep, DEMO_STEP_MS);
+                        return;
+                    }
+
+                    const pt = demoRoutePoints[demoPointIndex];
+                    // Légère variation pour simuler imprécision GPS
+                    const jitterLat = (Math.random() - 0.5) * 0.00002;
+                    const jitterLon = (Math.random() - 0.5) * 0.00002;
+                    const lat = pt.lat + jitterLat;
+                    const lon = pt.lon + jitterLon;
+                    const ts = Date.now();
+
+                    // Calculer distance et vitesse
+                    let speedKmh = 0;
+                    if (lastPosition) {
+                        const d = haversineDistance(lastPosition.lat, lastPosition.lon, lat, lon);
+                        const tSec = (ts - lastPosition.sysTimestamp) / 1000;
+                        if (tSec > 0 && d > 0.0001) {
+                            speedKmh = Math.min((d / (tSec / 3600)), 60);
+                        }
+                        if (d > 0.001) {
+                            totalDistanceKm += d;
+                            uiLiveDistance.innerText = totalDistanceKm.toFixed(2);
+                            lastPosition = { lat, lon, sysTimestamp: ts };
+                        }
+                    } else {
+                        lastPosition = { lat, lon, sysTimestamp: ts };
+                    }
+
+                    // Vitesse simulée réaliste (30 +-10 km/h)
+                    if (speedKmh < 5) speedKmh = 25 + Math.random() * 15;
+                    uiLiveSpeed.innerText = speedKmh.toFixed(0);
+
+                    // Barre de progression
+                    const progress = ((demoPointIndex + 1) / totalSteps) * 100;
+                    demoProgressFill.style.width = progress + '%';
+
+                    // Envoyer aux dashboards via SignalR
+                    if (activeTrajetId && connection.state === signalR.HubConnectionState.Connected) {
+                        connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), lat, lon, parseFloat(speedKmh.toFixed(0)), chronoDisplay.innerText, totalDistanceKm).catch(() => {});
+                    }
+
+                    tracePoints.push({ lat, lon, timestamp: ts });
+                    demoPointIndex++;
+
+                };
+
+                demoInterval = setInterval(runDemoStep, DEMO_STEP_MS);
+
+            } catch(e) {
+                alert('Erreur simulation : ' + e.message);
+                btnDemo.disabled = false;
+                btnDemo.innerHTML = '🎬 LANCER LA SIMULATION DÉMO';
+            }
+        };
+
+        // Fetcher une route OSRM depuis la vraie position de l'utilisateur
+        async function fetchOSRMRoute(startLat, startLon) {
+            try {
+                // Destination : ~150m nord-est par rapport à la position réelle
+                const endLat = startLat + 0.00067;
+                const endLon = startLon + 0.00090;
+                const url = `https://router.project-osrm.org/route/v1/driving/${startLon},${startLat};${endLon},${endLat}?overview=full&geometries=geojson`;
+                const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                if (!data.routes || !data.routes[0]) return null;
+                const coords = data.routes[0].geometry.coordinates;
+                // OSRM retourne [lon, lat], on inverse + on ajoute le retour
+                const forward = coords.map(c => ({ lat: c[1], lon: c[0] }));
+                const backward = [...forward].slice(0, -1).reverse();
+                return [...forward, ...backward];
+            } catch(e) {
+                return null;
+            }
+        }
+
         // --- LOGIQUE CORE ---
         function onPositionReceived(position) {
             const lat = position.coords.latitude;
@@ -337,7 +638,7 @@
                 }
                 
                 container.classList.remove('is-tracking');
-                btnStop.style.display = 'none';
+                btnStop.style.display = ''; // Laisser le CSS gérer la visibilité
                 subtitleText.innerText = "Trajet terminé et véhicule libéré.";
                 statusText.innerText = "Disponible";
             } catch(e) {
