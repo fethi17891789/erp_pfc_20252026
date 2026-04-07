@@ -459,11 +459,9 @@ function updateRecordButton(isRec) {
     if (!btnRecordAudio) return;
 
     if (isRec) {
-        btnRecordAudio.style.color = "#f97373";
-        btnRecordAudio.style.backgroundColor = "rgba(248,113,113,0.12)";
+        btnRecordAudio.classList.add("is-recording");
     } else {
-        btnRecordAudio.style.color = "var(--text-muted-2)";
-        btnRecordAudio.style.backgroundColor = "transparent";
+        btnRecordAudio.classList.remove("is-recording");
     }
 }
 
@@ -657,11 +655,8 @@ function appendMessageToUi(message) {
     }
 
     if (messageType === "audio" && attachmentUrl) {
-        const audio = document.createElement("audio");
-        audio.controls = true;
-        audio.style.width = "200px";
-        audio.src = attachmentUrl;
-        bubble.appendChild(audio);
+        const player = createCustomAudioPlayer(attachmentUrl);
+        bubble.appendChild(player);
     } else if (messageType === "image" && attachmentUrl) {
         const img = document.createElement("img");
         img.src = attachmentUrl;
@@ -775,3 +770,89 @@ window.handleOaAction = function (originalContentHtml, action, messageId) {
             .catch(err => console.error("Erreur backend:", err));
     }
 };
+
+function createCustomAudioPlayer(url) {
+    const container = document.createElement("div");
+    container.className = "audio-player";
+
+    const playBtn = document.createElement("button");
+    playBtn.className = "audio-play-btn";
+    playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+
+    const rightCol = document.createElement("div");
+    rightCol.className = "audio-content-right";
+
+    const visualRow = document.createElement("div");
+    visualRow.className = "audio-visual-row";
+
+    const progressContainer = document.createElement("div");
+    progressContainer.className = "audio-progress-container";
+    const progressBar = document.createElement("div");
+    progressBar.className = "audio-progress-bar";
+    progressContainer.appendChild(progressBar);
+
+    const waves = document.createElement("div");
+    waves.className = "audio-waves";
+    for (let i = 0; i < 12; i++) {
+        const bar = document.createElement("div");
+        bar.className = "audio-wave-bar";
+        bar.style.height = (4 + Math.random() * 10) + "px";
+        waves.appendChild(bar);
+    }
+
+    visualRow.appendChild(progressContainer);
+    visualRow.appendChild(waves);
+
+    const infoRow = document.createElement("div");
+    infoRow.className = "audio-info-row";
+    const timeLabel = document.createElement("span");
+    timeLabel.textContent = "00:00";
+    const titleLabel = document.createElement("span");
+    titleLabel.textContent = "Vocal";
+    infoRow.appendChild(titleLabel);
+    infoRow.appendChild(timeLabel);
+
+    rightCol.appendChild(visualRow);
+    rightCol.appendChild(infoRow);
+
+    container.appendChild(playBtn);
+    container.appendChild(rightCol);
+
+    const audio = new Audio(url);
+
+    playBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (audio.paused) {
+            audio.play();
+            playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+        } else {
+            audio.pause();
+            playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        }
+    };
+
+    audio.ontimeupdate = () => {
+        const pct = (audio.currentTime / audio.duration) * 100;
+        progressBar.style.width = pct + "%";
+
+        const m = Math.floor(audio.currentTime / 60);
+        const s = Math.floor(audio.currentTime % 60);
+        timeLabel.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    audio.onended = () => {
+        playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        progressBar.style.width = "0%";
+    };
+
+    progressContainer.onclick = (e) => {
+        e.stopPropagation();
+        const rect = progressContainer.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        if (!isNaN(audio.duration)) {
+            audio.currentTime = pct * audio.duration;
+        }
+    };
+
+    return container;
+}
