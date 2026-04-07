@@ -60,7 +60,7 @@ namespace erp_pfc_20252026.Pages
                 .ToListAsync();
 
             Utilisateurs = allUsers
-                .Select(u => new ChatUserViewModel
+                .Where(u => u.Id != CurrentUserId).Select(u => new ChatUserViewModel
                 {
                     Id = u.Id,
                     Login = u.Login ?? string.Empty,
@@ -213,3 +213,4 @@ namespace erp_pfc_20252026.Pages
         }
     }
 }
+
