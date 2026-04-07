@@ -367,7 +367,50 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             fileInput.click();
         });
-        fileInput.addEventListener("change", handleChatFilesSelected);
+        fileInput.addEventListener("change", function (e) {
+            handleFileUploads(e.target.files);
+            e.target.value = "";
+        });
+    }
+
+    // --- Drag & Drop Support ---
+    const chatMain = document.querySelector(".chat-main");
+    const dropOverlay = document.getElementById("chatDropZoneOverlay");
+
+    if (chatMain && dropOverlay) {
+        chatMain.addEventListener("dragenter", function (e) {
+            if (!currentConversationId || !currentTargetUserId) return;
+            e.preventDefault();
+            e.stopPropagation();
+            dropOverlay.classList.add("drop-zone-active");
+        });
+
+        chatMain.addEventListener("dragover", function (e) {
+            if (!currentConversationId || !currentTargetUserId) return;
+            e.preventDefault();
+            e.stopPropagation();
+            dropOverlay.classList.add("drop-zone-active");
+        });
+
+        chatMain.addEventListener("dragleave", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // On ne cache l'overlay que si on sort vraiment du conteneur parent
+            if (!chatMain.contains(e.relatedTarget)) {
+                dropOverlay.classList.remove("drop-zone-active");
+            }
+        });
+
+        chatMain.addEventListener("drop", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            dropOverlay.classList.remove("drop-zone-active");
+
+            if (!currentConversationId || !currentTargetUserId) return;
+            if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+                handleFileUploads(e.dataTransfer.files);
+            }
+        });
     }
 });
 
@@ -447,8 +490,7 @@ async function uploadAudioBlob(blob) {
 
 // ====================== GESTION FICHIERS ======================
 
-function handleChatFilesSelected(e) {
-    const files = e.target.files;
+function handleFileUploads(files) {
     if (!files || files.length === 0 || !currentConversationId || !currentTargetUserId) return;
 
     const tokenInput = document.getElementById("__RequestVerificationToken");
@@ -467,8 +509,6 @@ function handleChatFilesSelected(e) {
             })
             .catch(err => console.error("Erreur upload fichier:", err));
     });
-
-    e.target.value = "";
 }
 
 // ====================== UTILITAIRES MESSAGES ======================
