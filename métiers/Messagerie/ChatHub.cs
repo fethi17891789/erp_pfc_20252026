@@ -200,6 +200,12 @@ namespace Metier.Messagerie
             }
         }
 
+        public async Task SendTypingStatus(int conversationId, int userId, bool isTyping)
+        {
+            await Clients.OthersInGroup($"conv-{conversationId}")
+                         .SendAsync("UserTypingStatus", new { ConversationId = conversationId, UserId = userId, IsTyping = isTyping });
+        }
+
         public async Task JoinConversation(int conversationId)
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, $"conv-{conversationId}");

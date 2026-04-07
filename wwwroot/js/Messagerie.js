@@ -12,6 +12,7 @@ let currentConversationId = null;
 let mediaRecorder = null;
 let recordedChunks = [];
 let isRecording = false;
+let typingTimeout = null;
 
 // Connexion SignalR (on passe le userId dans l'URL)
 const connection = new signalR.HubConnectionBuilder()
@@ -151,6 +152,44 @@ connection.on("UserOffline", function (info) {
     }
 });
 
+connection.on("UserTypingStatus", function (info) {
+    if (!info) return;
+    const convId = info.conversationId || info.ConversationId;
+    const userId = info.userId || info.UserId;
+    const isTyping = typeof info.isTyping !== "undefined" ? info.isTyping : info.IsTyping;
+
+    if (convId !== currentConversationId || userId === currentUserId) return;
+
+    showTypingIndicator(isTyping);
+});
+
+function showTypingIndicator(isTyping) {
+    const container = document.getElementById("messagesContainer");
+    if (!container) return;
+
+    let indicator = document.getElementById("typingIndicator");
+
+    if (isTyping) {
+        if (!indicator) {
+            indicator = document.createElement("div");
+            indicator.id = "typingIndicator";
+            indicator.className = "typing-indicator";
+            indicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+            container.appendChild(indicator);
+            container.scrollTop = container.scrollHeight;
+        }
+    } else {
+        if (indicator) indicator.remove();
+    }
+}
+
+function sendTypingStatus(isTyping) {
+    if (connection.state === signalR.HubConnectionState.Connected && currentConversationId) {
+        connection.invoke("SendTypingStatus", currentConversationId, currentUserId, isTyping)
+            .catch(err => console.warn("Erreur SendTypingStatus:", err));
+    }
+}
+
 connection.start().then(function () {
     console.log("SignalR connecté");
     connection.invoke("GetOnlineUsers")
@@ -222,6 +261,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (currentConversationId && connection.state === signalR.HubConnectionState.Connected) {
                 try {
+                    if (typingTimeout) {
+                        clearTimeout(typingTimeout);
+                        typingTimeout = null;
+                        sendTypingStatus(false);
+                    }
                     await connection.invoke("LeaveConversation", currentConversationId);
                 } catch (err) { }
             }
@@ -282,6 +326,12 @@ document.addEventListener("DOMContentLoaded", function () {
         connection.invoke("SendMessage", dto)
             .then(() => {
                 input.value = "";
+                // Arrêter l'indicateur de saisie après l'envoi
+                if (typingTimeout) {
+                    clearTimeout(typingTimeout);
+                    typingTimeout = null;
+                    sendTypingStatus(false);
+                }
             })
             .catch(err => console.error(err.toString()));
     }
@@ -289,6 +339,20 @@ document.addEventListener("DOMContentLoaded", function () {
     btnSend.addEventListener("click", send);
     input.addEventListener("keyup", function (e) {
         if (e.key === "Enter") send();
+    });
+
+    input.addEventListener("input", function () {
+        if (!currentConversationId) return;
+
+        if (!typingTimeout) {
+            sendTypingStatus(true);
+        }
+
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => {
+            sendTypingStatus(false);
+            typingTimeout = null;
+        }, 3000);
     });
 
     if (btnRecordAudio) {
