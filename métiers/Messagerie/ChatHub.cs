@@ -14,17 +14,19 @@ namespace Metier.Messagerie
         private readonly MessagerieService _messagerieService;
         private readonly ErpDbContext _dbContext;
         private readonly MRP.OrdreAchatService _oaService;
+        private readonly IAService _iaService;
 
         // Dictionnaire global : userId -> liste de connectionIds
         // (un utilisateur peut avoir plusieurs onglets / navigateurs ouverts)
         private static readonly ConcurrentDictionary<int, ConcurrentBag<string>> _userConnections
             = new ConcurrentDictionary<int, ConcurrentBag<string>>();
 
-        public ChatHub(MessagerieService messagerieService, ErpDbContext dbContext, MRP.OrdreAchatService oaService)
+        public ChatHub(MessagerieService messagerieService, ErpDbContext dbContext, MRP.OrdreAchatService oaService, IAService iaService)
         {
             _messagerieService = messagerieService;
             _dbContext = dbContext;
             _oaService = oaService;
+            _iaService = iaService;
         }
 
         /// <summary>
@@ -170,6 +172,43 @@ namespace Metier.Messagerie
 
                     await Clients.Group($"conv-{saved.ConversationId}")
                                  .SendAsync("ReceiveMessage", saved);
+
+                    // --- DETECTION DU CONTACT 'skyra-ia' ---
+                    var conv = await _dbContext.Conversations.FindAsync(saved.ConversationId);
+                    if (conv != null && conv.Type == "direct" && conv.Titre != null && conv.Titre.StartsWith("direct-"))
+                    {
+                        var parts = conv.Titre.Replace("direct-", "").Split('-');
+                        if (parts.Length == 2 && int.TryParse(parts[0], out int id1) && int.TryParse(parts[1], out int id2))
+                        {
+                            var otherUserId = (id1 == saved.SenderId) ? id2 : id1;
+                            
+                            var otherUser = await _dbContext.ErpUsers.FindAsync(otherUserId);
+                            if (otherUser != null && (otherUser.Login == "skyra-ia" || otherUser.Login?.ToUpper() == "GEMINI"))
+                            {
+                                // Simuler la frappe
+                                await SendTypingStatus(saved.ConversationId, otherUserId, true);
+                                
+                                // Appel à Gemini (asynchrone, peut prendre quelques secondes)
+                                var iaResponseText = await _iaService.CallGeminiAsync(saved.Content);
+                                
+                                // Arrêt de la frappe
+                                await SendTypingStatus(saved.ConversationId, otherUserId, false);
+
+                                // Sauvegarder la réponse de Gemini
+                                var iaSavedMsg = await _messagerieService.SaveMessageAsync(
+                                    saved.ConversationId,
+                                    otherUserId,
+                                    iaResponseText,
+                                    "text"
+                                );
+
+                                // Envoyer la réponse
+                                await Clients.Group($"conv-{saved.ConversationId}")
+                                             .SendAsync("ReceiveMessage", iaSavedMsg);
+                            }
+                        }
+                    }
+                    // ----------------------------------------
                 }
                 else
                 {

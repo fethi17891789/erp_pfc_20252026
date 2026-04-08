@@ -43,6 +43,9 @@ namespace Donnees
         public DbSet<Capteur> LogistiqueCapteurs { get; set; }
         public DbSet<Trajet> LogistiqueTrajets { get; set; }
 
+        // CONFIGURATION IA
+        public DbSet<IaConfiguration> IaConfigurations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

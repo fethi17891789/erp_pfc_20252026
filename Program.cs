@@ -61,6 +61,10 @@ builder.Services.AddScoped<Metier.MRP.OrdreFabricationService>();
 builder.Services.AddScoped<Metier.MRP.OrdreAchatService>();
 builder.Services.AddScoped<Metier.Logistique.LogistiqueService>();
 
+// IA
+builder.Services.AddHttpClient<Metier.IAService>();
+builder.Services.AddScoped<Metier.IAService>();
+
 // SignalR
 builder.Services.AddSignalR();
 
@@ -734,6 +738,65 @@ using (var scope7 = app.Services.CreateScope())
     }
 }
 // --------------------------------------------------------------------
+
+// ---------- 8. CREATION AUTOMATIQUE TABLE IA CONFIGURATION ----------
+using (var scope8 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope8.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        Console.WriteLine($"[DEBUG] Connexion utilisée pour IaConfiguration : {connString}");
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createIaConfigSql = @"
+                CREATE TABLE IF NOT EXISTS ""IaConfiguration"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Provider"" VARCHAR(255) NOT NULL DEFAULT 'Gemini',
+                    ""ApiKey"" VARCHAR(255) NULL,
+                    ""SystemPrompt"" TEXT NULL,
+                    ""ModelName"" VARCHAR(255) NOT NULL DEFAULT 'gemini-1.5-flash',
+                    ""IsEnabled"" BOOLEAN NOT NULL DEFAULT TRUE,
+                    ""DateDerniereModification"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+                );";
+
+            using (var cmd = new NpgsqlCommand(createIaConfigSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création de la table IaConfiguration...");
+                cmd.ExecuteNonQuery();
+                
+                // Insertion ligne par défaut si vide
+                const string seedSql = @"
+                    INSERT INTO ""IaConfiguration"" (""Provider"", ""ModelName"")
+                    SELECT 'Gemini', 'gemini-1.5-flash'
+                    WHERE NOT EXISTS (SELECT 1 FROM ""IaConfiguration"");";
+                using (var seedCmd = new NpgsqlCommand(seedSql, conn))
+                {
+                    seedCmd.ExecuteNonQuery();
+                }
+                
+                Console.WriteLine("[DEBUG] Table IaConfiguration prête.");
+                
+                // Renommage automatique de l'IA pour l'esthétique
+                using (var renameCmd = new NpgsqlCommand("UPDATE \"ErpUsers\" SET \"Login\"='GEMINI' WHERE \"Login\"='skyra-ia';", conn))
+                {
+                    renameCmd.ExecuteNonQuery();
+                }
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto de IaConfiguration : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
 
 if (!app.Environment.IsDevelopment())
 {

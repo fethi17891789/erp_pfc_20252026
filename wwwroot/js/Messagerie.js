@@ -281,8 +281,16 @@ document.addEventListener("DOMContentLoaded", function () {
             const otherName = conv.otherUserName || displayName;
             if (headerName) headerName.textContent = otherName;
             if (headerInitial) {
-                const initial = (otherName || "?").charAt(0).toUpperCase();
-                headerInitial.textContent = initial;
+                if ((otherName || "").toUpperCase() === "GEMINI") {
+                    headerInitial.innerHTML = '<img src="/images/gemini-logo.svg" style="width:20px; height:20px; object-fit:contain;" />';
+                    headerInitial.style.background = "#ffffff";
+                    headerInitial.style.boxShadow = "0 0 10px rgba(255,255,255,0.2)";
+                } else {
+                    const initial = (otherName || "?").charAt(0).toUpperCase();
+                    headerInitial.textContent = initial;
+                    headerInitial.style.background = "linear-gradient(135deg, var(--accent), var(--accent-hover))";
+                    headerInitial.style.boxShadow = "none";
+                }
             }
             if (headerStatusDot && headerStatusText) {
                 updateHeaderOnlineStatus(isOnline);
