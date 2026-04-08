@@ -19,7 +19,7 @@ namespace Metier
             _dbContext = dbContext;
         }
 
-        public async Task<string> CallGeminiAsync(string userMessage)
+        public async Task<string> CallGeminiAsync(int conversationId, string userMessage)
         {
             try
             {
@@ -35,27 +35,76 @@ namespace Metier
                 var apiKey = config.ApiKey?.Trim();
                 var modelName = (config.ModelName ?? "gemini-1.5-flash-latest").Trim();
                 
-                // Forcer le nom correct si l'ancien 'gemini-1.5-flash' classique bloque
-                if (modelName == "gemini-1.5-flash")
-                {
-                    modelName = "gemini-1.5-flash-latest";
-                }
+                // Forcer le nom correct
+                if (modelName == "gemini-1.5-flash") modelName = "gemini-1.5-flash-latest";
                 
+                // --- 1. GÉNÉRATION DU RAG / STATISTIQUES EN TEMPS RÉEL ---
+                int countProduits = await _dbContext.Produits.CountAsync();
+                int countUsers = await _dbContext.ErpUsers.CountAsync();
+                int countVehicules = await _dbContext.LogistiqueVehicules.CountAsync();
+                var topProduitsList = await _dbContext.Produits.OrderByDescending(p => p.Id).Take(5).Select(p => p.Nom).ToListAsync();
+                string nomsProduits = string.Join(", ", topProduitsList);
+
+                string defaultPrompt = "Tu es GEMINI, le brillant assistant virtuel de l'ERP SKYRA. Ton rôle est d'aider les employés à gérer l'entreprise du bout des doigts.";
+                string systemPromptText = string.IsNullOrWhiteSpace(config.SystemPrompt) ? defaultPrompt : config.SystemPrompt;
+
+                string contextualInstruction = $@"{systemPromptText}
+
+INFORMATIONS TEMPS RÉEL (BASE DE DONNÉES ERP) :
+- Heure du Serveur : {DateTime.Now:F}
+- Nombre total d'employés inscrits : {countUsers}
+- Nombre de produits au catalogue : {countProduits}
+- Les 5 derniers produits ajoutés sont : {nomsProduits}
+- Nombre de véhicules logistiques : {countVehicules}
+
+Utilise ces données uniquement si la question de l'utilisateur y fait référence. Sois toujours professionnel.";
+
+                // --- 2. HISTORIQUE DE CONVERSATION ---
+                var historyMessages = await _dbContext.Messages
+                    .Where(m => m.ConversationId == conversationId)
+                    .OrderByDescending(m => m.Timestamp)
+                    .Take(10)
+                    .ToListAsync();
+                
+                historyMessages.Reverse(); // Remettre dans l'ordre chronologique
+
+                var contentsList = new System.Collections.Generic.List<object>();
+                
+                // On peuple l'historique
+                foreach(var msg in historyMessages)
+                {
+                    // Ne pas s'inclure soi-même tout de suite
+                    if(msg.Content == userMessage) continue;
+
+                    var isHuman = msg.SenderId != 0; // Astuce simplifiée pour le test : si on trouve le sender on vérifie
+                    var senderUser = await _dbContext.ErpUsers.FindAsync(msg.SenderId);
+                    bool isIa = false;
+                    if(senderUser != null && (senderUser.Login == "skyra-ia" || senderUser.Login?.ToUpper() == "GEMINI")) {
+                        isIa = true;
+                    }
+
+                    contentsList.Add(new {
+                        role = isIa ? "model" : "user",
+                        parts = new[] { new { text = msg.Content } }
+                    });
+                }
+
+                // Message actuel
+                contentsList.Add(new {
+                    role = "user",
+                    parts = new[] { new { text = userMessage } }
+                });
+
                 var url = $"https://generativelanguage.googleapis.com/v1beta/models/{modelName}:generateContent?key={apiKey}";
 
+                // --- 3. PAYLOAD FINAL AVEC SYSTEM INTRUCTION ---
                 var payload = new
                 {
-                    contents = new[]
+                    system_instruction = new
                     {
-                        new
-                        {
-                            role = "user",
-                            parts = new[]
-                            {
-                                new { text = userMessage }
-                            }
-                        }
-                    }
+                        parts = new[] { new { text = contextualInstruction } }
+                    },
+                    contents = contentsList
                 };
 
                 var jsonPayload = JsonSerializer.Serialize(payload);
@@ -66,38 +115,6 @@ namespace Metier
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    // Si le modèle est introuvable (erreur 404 de l'API Gemini)
-                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                    {
-                        var listUrl = $"https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}";
-                        var listResponse = await _httpClient.GetAsync(listUrl);
-                        if (listResponse.IsSuccessStatusCode)
-                        {
-                            var listBody = await listResponse.Content.ReadAsStringAsync();
-                            using var listDoc = JsonDocument.Parse(listBody);
-                            var sbLog = new StringBuilder();
-                            sbLog.AppendLine("Erreur : Le nom de modèle paramétré n'existe pas ou n'est pas accessible avec cette clé.\n");
-                            sbLog.AppendLine("Voici la liste exacte des modèles que ta clé API supporte en ce moment : \n");
-                            
-                            foreach (var m in listDoc.RootElement.GetProperty("models").EnumerateArray())
-                            {
-                                var n = m.GetProperty("name").GetString();
-                                var supp = false;
-                                if (m.TryGetProperty("supportedGenerationMethods", out var methods))
-                                {
-                                    foreach (var method in methods.EnumerateArray())
-                                    {
-                                        if (method.GetString() == "generateContent") supp = true;
-                                    }
-                                }
-                                if (supp) sbLog.AppendLine($"- {n} (génère du texte)");
-                            }
-                            
-                            sbLog.AppendLine("\n**Copiez l'un des noms ci-dessus sans 'models/' (par exemple 'gemini-pro') et mettez-le dans le champ ModelName de pgAdmin.**");
-                            return sbLog.ToString();
-                        }
-                    }
-
                     var errorBody = await response.Content.ReadAsStringAsync();
                     return $"Erreur API ({response.StatusCode}) : {errorBody}";
                 }

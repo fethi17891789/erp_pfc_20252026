@@ -189,7 +189,7 @@ namespace Metier.Messagerie
                                 await SendTypingStatus(saved.ConversationId, otherUserId, true);
                                 
                                 // Appel à Gemini (asynchrone, peut prendre quelques secondes)
-                                var iaResponseText = await _iaService.CallGeminiAsync(saved.Content);
+                                var iaResponseText = await _iaService.CallGeminiAsync(saved.ConversationId, saved.Content);
                                 
                                 // Arrêt de la frappe
                                 await SendTypingStatus(saved.ConversationId, otherUserId, false);
