@@ -603,6 +603,10 @@ function appendMessageToUi(message) {
     wrapper.style.flexDirection = "column";
     wrapper.style.alignItems = isMe ? "flex-end" : "flex-start";
     wrapper.style.marginBottom = "4px";
+    
+    // Animation d'apparition
+    wrapper.style.animation = "msg-bubble-appear 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards";
+    wrapper.style.transformOrigin = isMe ? "bottom right" : "bottom left";
 
     wrapper.dataset.senderId = senderId.toString();
     wrapper.dataset.msgStatus = isMe ? (isReadByOther ? "read" : "sent") : "none";

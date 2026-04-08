@@ -460,6 +460,45 @@
         opacity: 0.4;
         transition: height 0.2s ease;
     }
+
+    /* ==== CSS USER LIST & AI MAGIC BORDER ==== */
+    .user-item {
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background: rgba(255, 255, 255, 0.02) !important;
+        transition: all 0.2s ease;
+        color: #ffffff !important;
+    }
+
+    .user-item:hover {
+        background: rgba(123, 94, 255, 0.1) !important;
+        border-color: rgba(123, 94, 255, 0.4) !important;
+        box-shadow: 0 0 12px rgba(123, 94, 255, 0.2) !important;
+    }
+
+    @@property --spin-angle {
+        syntax: '<angle>';
+        initial-value: 0deg;
+        inherits: false;
+    }
+
+    .ai-magic-card {
+        border: 1.5px solid transparent !important;
+        background-clip: padding-box, border-box !important;
+        background-origin: padding-box, border-box !important;
+        background-image: linear-gradient(rgba(4, 6, 20, 0.95), rgba(4, 6, 20, 0.95)), 
+                          conic-gradient(from var(--spin-angle), transparent 40%, var(--accent), #c084fc, var(--accent), transparent 60%) !important;
+        animation: spin-border-anim 3s linear infinite !important;
+        box-shadow: inset 0 0 10px rgba(123, 94, 255, 0.1);
+    }
+
+    @@keyframes spin-border-anim {
+        100% { --spin-angle: 360deg; }
+    }
+
+    @@keyframes msg-bubble-appear {
+        0% { opacity: 0; transform: translateY(20px) scale(0.95); }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
 </style>
 
 <div class="erp-shell">
@@ -614,14 +653,18 @@
                                     var statusText = u.IsOnline ? "En ligne" : "Hors ligne";
                                     var statusClass = u.IsOnline ? "online" : "offline";
 
+                                    var isAi = (displayName?.ToUpper() == "GEMINI");
+                                    var magicClass = isAi ? "ai-magic-card" : "";
+
                                     <button type="button"
-                                            class="user-item"
+                                            class="user-item @magicClass"
                                             data-user-id="@u.Id"
                                             data-login="@u.Login"
                                             data-email="@u.Email"
                                             data-poste="@u.Poste"
                                             data-isonline="@u.IsOnline"
                                             style="width:100%; text-align:left; border:none; background:transparent; padding:6px 8px; border-radius:10px; display:flex; gap:8px; align-items:center; cursor:pointer;">
+
                                         @if (displayName?.ToUpper() == "GEMINI")
                                         {
                                             <div style="width:28px; height:28px; border-radius:999px; overflow:hidden; background:#ffffff; display:flex; justify-content:center; align-items:center; box-shadow: 0 0 10px rgba(255,255,255,0.2);">
@@ -639,14 +682,20 @@
                                                 <div style="font-size:0.85rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                                                     @displayName
                                                 </div>
-                                                <span class="chat-user-status @statusClass"></span>
+                                                @if (!isAi)
+                                                {
+                                                    <span class="chat-user-status @statusClass"></span>
+                                                }
                                             </div>
-                                            <div style="font-size:0.75rem; color:var(--text-muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                                                @u.Email (@u.Poste)
-                                            </div>
-                                            <div class="chat-user-status-text @statusClass">
-                                                @statusText
-                                            </div>
+                                            @if (!isAi)
+                                            {
+                                                <div style="font-size:0.75rem; color:var(--text-muted-2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                                                    @u.Poste
+                                                </div>
+                                                <div class="chat-user-status-text @statusClass">
+                                                    @statusText
+                                                </div>
+                                            }
                                         </div>
                                     </button>
                                 }
