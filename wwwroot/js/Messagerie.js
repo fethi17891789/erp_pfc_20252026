@@ -311,15 +311,18 @@ document.addEventListener("DOMContentLoaded", function () {
             const otherName = conv.otherUserName || displayName;
             if (headerName) headerName.textContent = otherName;
             if (headerInitial) {
+                const callBtns = document.getElementById("chatCallButtons");
                 if ((otherName || "").toUpperCase() === "GEMINI") {
                     headerInitial.innerHTML = '<img src="/images/gemini-logo.svg" style="width:20px; height:20px; object-fit:contain;" />';
                     headerInitial.style.background = "#ffffff";
                     headerInitial.style.boxShadow = "0 0 10px rgba(255,255,255,0.2)";
+                    if (callBtns) callBtns.style.display = "none";
                 } else {
                     const initial = (otherName || "?").charAt(0).toUpperCase();
                     headerInitial.textContent = initial;
                     headerInitial.style.background = "linear-gradient(135deg, var(--accent), var(--accent-hover))";
                     headerInitial.style.boxShadow = "none";
+                    if (callBtns) callBtns.style.display = "flex";
                 }
             }
             if (headerStatusDot && headerStatusText) {
@@ -897,4 +900,187 @@ function createCustomAudioPlayer(url) {
     };
 
     return container;
+}
+
+// ==========================================
+// WEBRTC CALL LOGIC (AUDIO/VIDEO)
+// ==========================================
+
+let localStream = null;
+let rtcPeerConnection = null;
+let isCalling = false;
+let webrtcTargetId = null;
+
+// Configuration 100% Locale / Hors ligne (sans STUN Google)
+const rtcConfig = { iceServers: [] }; 
+
+const uiCallOverlay = document.getElementById("webrtcCallOverlay");
+const uiCallStatus = document.getElementById("callStatusText");
+const uiLocalVid = document.getElementById("localVideo");
+const uiRemoteVid = document.getElementById("remoteVideo");
+const uiWavePulse = document.getElementById("audioWavePulse");
+const btnAccept = document.getElementById("btnAcceptCall");
+const btnReject = document.getElementById("btnRejectCall");
+
+function showCallUI(statusText, showAccept) {
+    if(!uiCallOverlay) return;
+    uiCallOverlay.style.display = "flex";
+    uiCallStatus.textContent = statusText;
+    btnAccept.style.display = showAccept ? "block" : "none";
+    uiRemoteVid.style.display = "none";
+    uiWavePulse.style.display = "flex";
+}
+
+function closeCallUI() {
+    if(!uiCallOverlay) return;
+    uiCallOverlay.style.display = "none";
+    isCalling = false;
+    webrtcTargetId = null;
+    if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+    }
+    if (rtcPeerConnection) {
+        rtcPeerConnection.close();
+        rtcPeerConnection = null;
+    }
+    uiLocalVid.srcObject = null;
+    uiRemoteVid.srcObject = null;
+    uiLocalVid.style.display = "none";
+}
+
+async function setupMedia(video) {
+    try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: video, audio: true });
+        uiLocalVid.srcObject = localStream;
+        if (video) uiLocalVid.style.display = "block";
+        return true;
+    } catch (err) {
+        console.error("No media permission:", err);
+        alert("Impossible d'accéder à la caméra ou au microphone.");
+        return false;
+    }
+}
+
+function createRtcConnection() {
+    rtcPeerConnection = new RTCPeerConnection(rtcConfig);
+    
+    // Envoi des paquets P2P LAN locaux via SignalR
+    rtcPeerConnection.onicecandidate = event => {
+        if (event.candidate && webrtcTargetId) {
+            const sig = JSON.stringify({ type: 'ice', candidate: event.candidate });
+            connection.invoke("SendWebRTCSignal", parseInt(webrtcTargetId), sig);
+        }
+    };
+    
+    // Quand le flux vidéo/audio direct IP-IP arrive
+    rtcPeerConnection.ontrack = event => {
+        uiRemoteVid.srcObject = event.streams[0];
+        uiRemoteVid.style.display = "block";
+        uiWavePulse.style.display = "none";
+        uiCallStatus.textContent = "Connecté (Réseau Local)";
+    };
+    
+    if (localStream) {
+        localStream.getTracks().forEach(track => {
+            rtcPeerConnection.addTrack(track, localStream);
+        });
+    }
+}
+
+// 1. Boutons Header (Appel sortant)
+document.getElementById("btnAudioCall")?.addEventListener("click", () => initiateCall(false));
+document.getElementById("btnVideoCall")?.addEventListener("click", () => initiateCall(true));
+
+async function initiateCall(video) {
+    if (!currentTargetUserId) return;
+    const ok = await setupMedia(video);
+    if (!ok) return;
+    
+    isCalling = true;
+    webrtcTargetId = currentTargetUserId;
+    showCallUI("Appel intranet vers " + currentTargetUserName + "...", false);
+    
+    connection.invoke("InitiateCall", parseInt(webrtcTargetId), currentUserId, video);
+}
+
+// 2. Boutons Modal
+if(btnReject) {
+    btnReject.addEventListener("click", () => {
+        if (isCalling && webrtcTargetId) {
+            connection.invoke("EndCall", parseInt(webrtcTargetId));
+        }
+        closeCallUI();
+    });
+}
+
+if(btnAccept) {
+    btnAccept.addEventListener("click", async () => {
+        btnAccept.style.display = "none";
+        uiCallStatus.textContent = "Connexion...";
+        
+        const isVideo = window._incomingIsVideo || false;
+        const ok = await setupMedia(isVideo);
+        if (!ok) {
+            connection.invoke("RejectCall", parseInt(webrtcTargetId), currentUserId);
+            closeCallUI();
+            return;
+        }
+        
+        isCalling = true;
+        createRtcConnection();
+        await connection.invoke("AcceptCall", parseInt(webrtcTargetId), currentUserId);
+    });
+}
+
+// 3. Réception des signaux (SignalR)
+if (typeof connection !== 'undefined') {
+    connection.on("ReceiveCall", (data) => {
+        if (isCalling) {
+            connection.invoke("RejectCall", data.callerId, currentUserId);
+            return;
+        }
+        webrtcTargetId = data.callerId;
+        window._incomingIsVideo = data.isVideo;
+        showCallUI("Appel local entrant...", true);
+    });
+    
+    connection.on("CallAccepted", async (responderId) => {
+        if (!isCalling || webrtcTargetId != responderId) return;
+        uiCallStatus.textContent = "Appel accepté, négociation P2P directe...";
+        
+        createRtcConnection();
+        const offer = await rtcPeerConnection.createOffer();
+        await rtcPeerConnection.setLocalDescription(offer);
+        
+        connection.invoke("SendWebRTCSignal", parseInt(webrtcTargetId), JSON.stringify({ type: 'sdp', sdp: rtcPeerConnection.localDescription }));
+    });
+    
+    connection.on("CallRejected", (responderId) => {
+        alert("L'utilisateur est occupé, a refusé l'appel ou est déconnecté.");
+        closeCallUI();
+    });
+    
+    connection.on("CallEnded", () => {
+        closeCallUI();
+    });
+    
+    connection.on("ReceiveWebRTCSignal", async (sigStr) => {
+        if (!rtcPeerConnection) return;
+        try {
+            const sig = JSON.parse(sigStr);
+            if (sig.type === 'sdp') {
+                await rtcPeerConnection.setRemoteDescription(new RTCSessionDescription(sig.sdp));
+                if (sig.sdp.type === 'offer') {
+                    const answer = await rtcPeerConnection.createAnswer();
+                    await rtcPeerConnection.setLocalDescription(answer);
+                    connection.invoke("SendWebRTCSignal", parseInt(webrtcTargetId), JSON.stringify({ type: 'sdp', sdp: rtcPeerConnection.localDescription }));
+                }
+            } else if (sig.type === 'ice') {
+                await rtcPeerConnection.addIceCandidate(new RTCIceCandidate(sig.candidate));
+            }
+        } catch (e) {
+            console.error("Erreur negociation WebRTC P2P:", e);
+        }
+    });
 }

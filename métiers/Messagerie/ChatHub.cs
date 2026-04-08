@@ -327,5 +327,63 @@ namespace Metier.Messagerie
                 Console.WriteLine($"Erreur UpdateOaHtml: {ex}");
             }
         }
+        // ==========================================
+        // SIGNALISATION WEBRTC (APPELS AUDIO/VIDEO)
+        // ==========================================
+
+        public async Task InitiateCall(int targetUserId, int callerUserId, bool isVideo)
+        {
+            if (_userConnections.TryGetValue(targetUserId, out var connectionIds))
+            {
+                foreach (var cid in connectionIds)
+                {
+                    await Clients.Client(cid).SendAsync("ReceiveCall", new { CallerId = callerUserId, IsVideo = isVideo });
+                }
+            }
+        }
+
+        public async Task AcceptCall(int targetUserId, int responderUserId)
+        {
+            if (_userConnections.TryGetValue(targetUserId, out var connectionIds))
+            {
+                foreach (var cid in connectionIds)
+                {
+                    await Clients.Client(cid).SendAsync("CallAccepted", responderUserId);
+                }
+            }
+        }
+
+        public async Task RejectCall(int targetUserId, int responderUserId)
+        {
+            if (_userConnections.TryGetValue(targetUserId, out var connectionIds))
+            {
+                foreach (var cid in connectionIds)
+                {
+                    await Clients.Client(cid).SendAsync("CallRejected", responderUserId);
+                }
+            }
+        }
+
+        public async Task EndCall(int targetUserId)
+        {
+            if (_userConnections.TryGetValue(targetUserId, out var connectionIds))
+            {
+                foreach (var cid in connectionIds)
+                {
+                    await Clients.Client(cid).SendAsync("CallEnded");
+                }
+            }
+        }
+
+        public async Task SendWebRTCSignal(int targetUserId, string signalData)
+        {
+            if (_userConnections.TryGetValue(targetUserId, out var connectionIds))
+            {
+                foreach (var cid in connectionIds)
+                {
+                    await Clients.Client(cid).SendAsync("ReceiveWebRTCSignal", signalData);
+                }
+            }
+        }
     }
 }
