@@ -3,6 +3,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text;
 using Donnees;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -185,26 +186,42 @@ namespace Metier.Messagerie
                             var otherUser = await _dbContext.ErpUsers.FindAsync(otherUserId);
                             if (otherUser != null && (otherUser.Login == "skyra-ia" || otherUser.Login?.ToUpper() == "GEMINI"))
                             {
-                                // Simuler la frappe
+                                // Simuler la frappe dès le début
                                 await SendTypingStatus(saved.ConversationId, otherUserId, true);
-                                
-                                // Appel à Gemini (asynchrone, peut prendre quelques secondes)
-                                var iaResponseText = await _iaService.CallGeminiAsync(saved.ConversationId, saved.Content);
-                                
-                                // Arrêt de la frappe
-                                await SendTypingStatus(saved.ConversationId, otherUserId, false);
 
-                                // Sauvegarder la réponse de Gemini
+                                // 1. Créer la bulle immédiatement (mais invisible pour l'œil humain)
                                 var iaSavedMsg = await _messagerieService.SaveMessageAsync(
                                     saved.ConversationId,
                                     otherUserId,
-                                    iaResponseText,
+                                    "\u200B", // Invisible !
                                     "text"
                                 );
 
-                                // Envoyer la réponse
+                                // 2. Notifier les clients : La bulle est prête à recevoir le stream
                                 await Clients.Group($"conv-{saved.ConversationId}")
                                              .SendAsync("ReceiveMessage", iaSavedMsg);
+
+                                // 3. Lancer le stream
+                                var fullResponse = new StringBuilder();
+                                await foreach (var chunk in _iaService.CallGeminiStreamAsync(saved.ConversationId, saved.Content))
+                                {
+                                    // Premier chunk reçu : on coupe l'animation de réflexion
+                                    if (fullResponse.Length == 0) {
+                                        await SendTypingStatus(saved.ConversationId, otherUserId, false);
+                                    }
+
+                                    fullResponse.Append(chunk);
+                                    
+                                    // Envoyer le morceau au client
+                                    await Clients.Group($"conv-{saved.ConversationId}")
+                                                 .SendAsync("ReceiveMessageChunk", iaSavedMsg.Id, chunk);
+                                }
+
+                                // 4. Sauvegarde finale en base de données
+                                await _messagerieService.UpdateMessageHtmlAsync(iaSavedMsg.Id, fullResponse.ToString());
+
+                                // Arrêt de la frappe (sécurité finale)
+                                await SendTypingStatus(saved.ConversationId, otherUserId, false);
                             }
                         }
                     }

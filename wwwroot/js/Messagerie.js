@@ -89,6 +89,32 @@ connection.on("ReceiveMessage", function (message) {
     }
 });
 
+// Écouteur pour les morceaux de messages (Streaming IA)
+connection.on("ReceiveMessageChunk", function (messageId, part) {
+    const bubble = document.querySelector(`[data-msg-id="${messageId}"]`);
+    if (bubble) {
+        // Retenir le texte complet caché pour éviter que marked ne buggue sur des mots coupés
+        if (typeof bubble.dataset.rawText === "undefined") {
+            bubble.dataset.rawText = (bubble.textContent === "\u200B" || bubble.textContent === "...") ? "" : bubble.textContent;
+        }
+        
+        bubble.dataset.rawText += part;
+        
+        if (typeof marked !== 'undefined') {
+            marked.setOptions({ breaks: true });
+            bubble.innerHTML = marked.parse(bubble.dataset.rawText);
+        } else {
+            bubble.textContent = bubble.dataset.rawText;
+        }
+        
+        // Auto-scroll vers le bas pour suivre l'écriture
+        const container = document.getElementById("messagesContainer");
+        if (container) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+});
+
 connection.on("MessageUpdated", function (message) {
     if (currentTargetUserId) {
         const activeUserItem = document.querySelector(`.user-item[data-user-id='${currentTargetUserId}']`);
@@ -686,6 +712,10 @@ function appendMessageToUi(message) {
     // Bulle standard pour les Mots Normaux / Fichiers / etc.
     // =========================================================
     const bubble = document.createElement("div");
+    const msgId = message.id || message.Id;
+    if (msgId) {
+        bubble.setAttribute("data-msg-id", msgId);
+    }
     bubble.style.maxWidth = "70%";
     bubble.style.padding = "8px 10px";
     bubble.style.borderRadius = "14px";
@@ -733,7 +763,13 @@ function appendMessageToUi(message) {
         link.appendChild(nameSpan);
         bubble.appendChild(link);
     } else {
-        bubble.textContent = content;
+        if (typeof marked !== 'undefined' && !isMe) {
+            marked.setOptions({ breaks: true });
+            bubble.dataset.rawText = content;
+            bubble.innerHTML = marked.parse(content);
+        } else {
+            bubble.textContent = content;
+        }
     }
 
     wrapper.appendChild(bubble);
