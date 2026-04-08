@@ -157,13 +157,16 @@ connection.on("UserTypingStatus", function (info) {
     const convId = info.conversationId || info.ConversationId;
     const userId = info.userId || info.UserId;
     const isTyping = typeof info.isTyping !== "undefined" ? info.isTyping : info.IsTyping;
+    const isAiBackend = typeof info.isAi !== "undefined" ? info.isAi : (info.IsAi || false);
 
     if (convId !== currentConversationId || userId === currentUserId) return;
 
-    showTypingIndicator(isTyping);
+    showTypingIndicator(isTyping, isAiBackend);
 });
 
-function showTypingIndicator(isTyping) {
+window.aiThinkingInterval = null;
+
+function showTypingIndicator(isTyping, isAiBackend = false) {
     const container = document.getElementById("messagesContainer");
     if (!container) return;
 
@@ -174,12 +177,39 @@ function showTypingIndicator(isTyping) {
             indicator = document.createElement("div");
             indicator.id = "typingIndicator";
             indicator.className = "typing-indicator";
-            indicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+            
+            let extraHtml = "";
+            let isAi = isAiBackend || (currentTargetUserName && currentTargetUserName.toUpperCase() === "GEMINI");
+            
+            if (isAi) {
+                extraHtml = `<div id="aiThinkingStatus" style="font-size:0.7rem; color:var(--text-muted-2); margin-left:8px; font-style:italic; font-weight:500; transition:opacity 0.3s ease; opacity:0.8;">Analyse de la demande...</div>`;
+            }
+            
+            indicator.innerHTML = '<div style="display:flex; align-items:center; gap:4px; margin-right:4px;"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>' + extraHtml;
             container.appendChild(indicator);
             container.scrollTop = container.scrollHeight;
+
+            if (isAi) {
+                const phrases = ["Génération de la réponse...", "Consultation des bases...", "Réflexion en cours...", "Optimisation du code...", "Presque prêt..."];
+                let pIndex = 0;
+                if (window.aiThinkingInterval) clearInterval(window.aiThinkingInterval);
+                window.aiThinkingInterval = setInterval(() => {
+                    const el = document.getElementById("aiThinkingStatus");
+                    if (el) {
+                        el.style.opacity = "0";
+                        setTimeout(() => {
+                            pIndex = (pIndex + 1) % phrases.length;
+                            if (el) { el.textContent = phrases[pIndex]; el.style.opacity = "0.8"; }
+                        }, 300);
+                    } else {
+                        clearInterval(window.aiThinkingInterval);
+                    }
+                }, 2500);
+            }
         }
     } else {
         if (indicator) indicator.remove();
+        if (window.aiThinkingInterval) clearInterval(window.aiThinkingInterval);
     }
 }
 

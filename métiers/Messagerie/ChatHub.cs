@@ -241,8 +241,14 @@ namespace Metier.Messagerie
 
         public async Task SendTypingStatus(int conversationId, int userId, bool isTyping)
         {
-            await Clients.OthersInGroup($"conv-{conversationId}")
-                         .SendAsync("UserTypingStatus", new { ConversationId = conversationId, UserId = userId, IsTyping = isTyping });
+            bool isAi = false;
+            try {
+                var u = await _dbContext.ErpUsers.FindAsync(userId);
+                if (u != null && u.Login?.ToUpper() == "GEMINI") isAi = true;
+            } catch { }
+
+            await Clients.Group($"conv-{conversationId}")
+                         .SendAsync("UserTypingStatus", new { ConversationId = conversationId, UserId = userId, IsTyping = isTyping, IsAi = isAi });
         }
 
         public async Task JoinConversation(int conversationId)
