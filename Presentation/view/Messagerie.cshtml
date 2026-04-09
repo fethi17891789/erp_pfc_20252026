@@ -249,6 +249,15 @@
         40% { transform: scale(1.1); opacity: 1; }
     }
 
+    @@keyframes moduleEntrance {
+        from { opacity: 0; transform: scale(0.98) translateY(10px); }
+        to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .module-entrance-fade {
+        animation: moduleEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
     /* ==== FIX LAYOUT MESSAGERIE (No Global Scroll) ==== */
     .erp-main {
         overflow: hidden !important;
@@ -507,6 +516,15 @@
         0% { opacity: 0; transform: translateY(20px) scale(0.95); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
     }
+
+    @@keyframes module-entrance-fade {
+        0% { opacity: 0; transform: translateY(10px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+
+    .module-entrance-fade {
+        animation: module-entrance-fade 0.5s ease-out forwards;
+    }
     </style>
 }
 
@@ -516,10 +534,8 @@
 }
 
 <section class="erp-content">
-
-
-            <div class="chat-layout">
-                <!-- COLONNE GAUCHE : recherche + liste utilisateurs -->
+            <div class="chat-layout module-entrance-fade">
+                <!-- SIDEBAR UTILISATEURS -->
                 <aside class="chat-sidebar" style="gap:12px; padding:12px; border-radius:16px; background:rgba(4,6,20,0.9); border:1px solid rgba(255,255,255,0.06);">
 
                     <div>

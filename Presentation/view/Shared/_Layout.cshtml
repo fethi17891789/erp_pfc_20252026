@@ -7,8 +7,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - ERP Suite</title>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="~/css/Common.css" />
-    <link rel="stylesheet" href="~/css/Home.css" />
+    <link rel="stylesheet" href="~/css/Common.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/Home.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
@@ -127,6 +127,31 @@
                     </a>
                     <!-- FIN BOUTON MESSAGERIE -->
 
+                    <!-- BOUTON NOTIFICATIONS (CLOCHE) -->
+                    <div class="header-notif-wrapper">
+                        <button class="header-btn header-notif-btn" type="button" id="header-notification-btn" onclick="toggleNotifDrawer()">
+                            <svg style="width:16px;height:16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                        </button>
+                        <span id="notif-badge" class="notif-badge">0</span>
+                        
+                        <!-- Le petit tiroir qui descend à la réception d'un message -->
+                        <div id="iphone-mini-toast" class="iphone-mini-toast"></div>
+
+                        <!-- Historique des notifications -->
+                        <div id="notif-drawer" class="notif-drawer">
+                            <div class="notif-drawer-header">
+                                <h3>Notifications</h3>
+                                <button onclick="clearAllNotifications()" style="background:none;border:none;color:var(--accent,#7B5EFF);font-size:11px;cursor:pointer;">Tout effacer</button>
+                            </div>
+                            <div id="notif-list" class="notif-list">
+                                <div class="notif-empty">Aucune notification</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <button class="header-profile-btn" type="button">
                         <div class="header-avatar">P</div>
                     </button>
@@ -174,6 +199,7 @@
     @if (currentUserId > 0)
     {
         <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+        <script src="~/js/Notifications.js" asp-append-version="true"></script>
         <script src="~/js/Presence.js" asp-append-version="true"></script>
     }
 

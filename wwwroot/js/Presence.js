@@ -29,6 +29,24 @@
         console.log("[Presence] Reconnecté. ConnectionID:", connectionId);
     });
 
+    // Écoute globale des notifications de messages
+    connection.on("ReceiveNotification", function (data) {
+        if (!data) return;
+
+        // Si on est déjà sur la messagerie avec cet utilisateur, on ignore le toast
+        var senderId = data.SenderId || data.senderId;
+        if (window.location.pathname.indexOf("/Messagerie") !== -1) {
+            var params = new URLSearchParams(window.location.search);
+            var chatUserId = params.get("userId");
+            if (chatUserId && parseInt(chatUserId) === senderId) return;
+        }
+
+        // Afficher le toast iPhone (défini dans Notifications.js)
+        if (typeof showNotificationToast === "function") {
+            showNotificationToast(data);
+        }
+    });
+
     // Démarrage de la connexion
     connection.start()
         .then(() => {

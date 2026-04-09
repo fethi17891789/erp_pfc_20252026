@@ -67,6 +67,9 @@ namespace Metier.Messagerie
                             UserId = userId.Value
                         });
                     }
+
+                    // Ajout au groupe personnel pour les notifications globales
+                    await Groups.AddToGroupAsync(connId, $"user-{userId.Value}");
                 }
             }
             catch (Exception ex)
@@ -173,6 +176,25 @@ namespace Metier.Messagerie
 
                     await Clients.Group($"conv-{saved.ConversationId}")
                                  .SendAsync("ReceiveMessage", saved);
+
+                    // --- NOTIFICATION GLOBALE ---
+                    // Identifier le destinataire via le titre de la conversation directe
+                    var notifConv = await _dbContext.Conversations.FindAsync(saved.ConversationId);
+                    if (notifConv != null && notifConv.Type == "direct" && notifConv.Titre != null && notifConv.Titre.StartsWith("direct-"))
+                    {
+                        var idParts = notifConv.Titre.Replace("direct-", "").Split('-');
+                        if (idParts.Length == 2 && int.TryParse(idParts[0], out int uid1) && int.TryParse(idParts[1], out int uid2))
+                        {
+                            var recipientId = (uid1 == saved.SenderId) ? uid2 : uid1;
+                            await Clients.Group($"user-{recipientId}").SendAsync("ReceiveNotification", new
+                            {
+                                SenderId = saved.SenderId,
+                                SenderName = saved.SenderName,
+                                Content = saved.Content,
+                                ConversationId = saved.ConversationId
+                            });
+                        }
+                    }
 
                     // --- DETECTION DU CONTACT 'skyra-ia' ---
                     var conv = await _dbContext.Conversations.FindAsync(saved.ConversationId);
