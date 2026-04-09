@@ -1,3 +1,5 @@
+@using Microsoft.AspNetCore.Http
+@inject IHttpContextAccessor HttpContextAccessor
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -162,6 +164,19 @@
             if(overlay) overlay.style.display = 'none';
         }
     </script>
+    @{
+        var currentUserId = HttpContextAccessor.HttpContext?.Session.GetInt32("CurrentUserId") ?? 0;
+    }
+    <script>
+        window.currentUserIdFromServer = @currentUserId;
+    </script>
+
+    @if (currentUserId > 0)
+    {
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+        <script src="~/js/Presence.js" asp-append-version="true"></script>
+    }
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
