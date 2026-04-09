@@ -52,109 +52,19 @@
     }
 }
 
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" />
-<link rel="stylesheet" href="~/css/Common.css" />
-<link rel="stylesheet" href="~/css/Home.css" />
-<link rel="stylesheet" href="~/css/Fabrication.css" />
+@section Styles {
+    <link rel="stylesheet" href="~/css/Fabrication.css" />
+}
 
-<div class="erp-shell">
-    <!-- BARRE LATERALE GAUCHE -->
-    <aside class="erp-sidebar">
-        <div class="erp-logo">
-            <span class="erp-logo-mark">E</span>
-            <span class="erp-logo-text">ERP Suite</span>
-        </div>
+@section HeaderLeft {
+    <h1>Detail planification MRP</h1>
+    <p>
+        Visualisation des besoins pour
+        <strong>@Model.Planification?.Reference</strong>.
+    </p>
+}
 
-        <nav class="erp-nav">
-            <a asp-page="/Home" class="nav-item">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                <span>Accueil</span>
-            </a>
-            <a asp-page="/MRP" class="nav-item nav-item-active">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1-2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
-                </svg>
-                <span>MRP</span>
-            </a>
-            <button class="nav-item" type="button">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 1-4 4v2"></path>
-                    <circle cx="12" cy="7" r="4"></circle>
-                </svg>
-                <span>Profils</span>
-            </button>
-            <button class="nav-item" type="button">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                </svg>
-                <span>Bases ERP</span>
-            </button>
-            <button class="nav-item" type="button">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="1"></circle>
-                    <path d="M12 1v6m6.07 6.07h-6.14M12 19v4m6.07-6.07v0"></path>
-                    <path d="M19 5l-4.24 4.24M5 19l-4.24-4.24M19 19l-4.24-4.24M5 5l4.24 4.24"></path>
-                </svg>
-                <span>Parametres</span>
-            </button>
-        </nav>
-
-        <div class="erp-sidebar-footer">
-            <button class="sidebar-quick" type="button">
-                <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                Nouveau profil
-            </button>
-            <button class="sidebar-quick secondary" type="button" onclick="openLogoutModal()">
-                <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 3 16 10 13 7"></polyline>
-                    <path d="M16 10v7a2 2 0 0 1-2 2h-2"></path>
-                </svg>
-                Deconnexion
-            </button>
-        </div>
-    </aside>
-
-    <!-- CONTENU PRINCIPAL -->
-    <main class="erp-main">
-        <header class="erp-header">
-            <div class="header-left">
-                <h1>Detail planification MRP</h1>
-                <p>
-                    Visualisation des besoins pour
-                    <strong>@Model.Planification?.Reference</strong>.
-                </p>
-            </div>
-
-            <div class="header-right">
-                <div class="header-db">
-                    <span class="header-db-label">Base active</span>
-                    <span class="header-db-name">erp_db</span>
-                </div>
-
-                <button class="header-btn" type="button" onclick="window.location.href='@Url.Page("/MRP")'">
-                    <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                        <path d="M20 19V5"></path>
-                    </svg>
-                    Retour aux planifications
-                </button>
-                <button class="header-profile-btn" type="button">
-                    <div class="header-avatar">P</div>
-                </button>
-            </div>
-        </header>
-
-        <section class="erp-content" style="display:flex; flex-direction:column; gap:16px;">
+<section class="erp-content" style="display:flex; flex-direction:column; gap:16px;">
             <!-- RECTANGLE RESUME -->
             <div class="mrp-plan-resume">
                 <div class="mrp-plan-resume-left">
@@ -464,9 +374,8 @@
             </div>
 
         </section>
-    </main>
-</div>
 
+@section Popups {
 <!-- POPUP MRP PAR PRODUIT -->
 <div id="mrp-product-overlay" class="logout-overlay" style="display:none;">
     <div class="logout-modal" style="max-width: 1000px; width: 95%; max-height: 90vh; display:flex; flex-direction:column;">
@@ -566,21 +475,9 @@
         </div>
     </div>
 </div>
+}
 
-<!-- POPUP DECONNEXION -->
-<div id="logout-overlay" class="logout-overlay" style="display:none;">
-    <div class="logout-modal">
-        <h3>Confirmer la deconnexion</h3>
-        <p>Voulez-vous vraiment vous deconnecter et revenir a l ecran de choix du profil ?</p>
-
-        <form method="post" asp-page-handler="Logout" class="logout-modal-actions">
-            <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
-            <button type="submit" class="btn-primary">Oui, se deconnecter</button>
-        </form>
-    </div>
-</div>
-
-<script src="~/js/Home.js"></script>
+@section Scripts {
 
 <form id="antiForgeryForm" method="post" style="display:none;">
     @Html.AntiForgeryToken()
@@ -1701,4 +1598,5 @@
         transform: translateY(0) !important;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
     }
-</style>
+</style>
+}

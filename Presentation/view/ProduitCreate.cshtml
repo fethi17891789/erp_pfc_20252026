@@ -1,106 +1,22 @@
-﻿@page
+@page
 @model erppfc20252026.Pages.ProduitsModel
 @{
     ViewData["Title"] = "Produits";
 }
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/Common.css">
-<link rel="stylesheet" href="/css/Home.css">
+@section Styles {
+    <style>
+        .product-item {
+            /* Styles additionnels si nécessaires */
+        }
+    </style>
+}
 
-<div class="erp-shell">
-    <!-- BARRE LATÉRALE GAUCHE (identique) -->
-    <aside class="erp-sidebar">
-        <div class="erp-logo">
-            <span class="erp-logo-mark">E</span>
-            <span class="erp-logo-text">ERP Suite</span>
-        </div>
-        <nav class="erp-nav">
-            <a asp-page="/Home" class="nav-item">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                    <polyline points="9 22 9 12 15 12 15 22" />
-                </svg>
-                <span>Accueil</span>
-            </a>
-            <a asp-page="/Fabrication" class="nav-item nav-item-active">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
-                </svg>
-                <span>Modules</span>
-            </a>
-            <button class="nav-item" type="button">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 1-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                </svg>
-                <span>Profils</span>
-            </button>
-            <button class="nav-item" type="button">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="3" width="7" height="7" />
-                    <rect x="14" y="3" width="7" height="7" />
-                    <rect x="14" y="14" width="7" height="7" />
-                    <rect x="3" y="14" width="7" height="7" />
-                </svg>
-                <span>Bases ERP</span>
-            </button>
-            <button class="nav-item" type="button">
-                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="1" />
-                    <path d="M12 1v6m6.07 6.07h-6.14M12 19v4m6.07-6.07v0" />
-                    <path d="M19 5l-4.24 4.24M5 19l4.24-4.24" />
-                    <path d="M19 19l-4.24-4.24M5 5l4.24 4.24" />
-                </svg>
-                <span>Paramètres</span>
-            </button>
-        </nav>
-        <div class="erp-sidebar-footer">
-            <button class="sidebar-quick" type="button">
-                <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="12" y1="15" x2="12" y2="21" />
-                    <line x1="15" y1="11" x2="21" y2="12" />
-                </svg>
-                Nouveau profil
-            </button>
-            <button class="sidebar-quick secondary" type="button" onclick="openLogoutModal()">
-                <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                    <polyline points="16 3 16 10 13 7" />
-                    <path d="M16 10v7a2 2 0 0 1-2 2h-2" />
-                </svg>
-                Déconnexion
-            </button>
-        </div>
-    </aside>
+@section HeaderLeft {
+    <h1>Produits</h1>
+    <p>Créer et administrer les fiches produits.</p>
+}
 
-    <!-- CONTENU PRINCIPAL -->
-    <main class="erp-main">
-        <header class="erp-header">
-            <div class="header-left">
-                <h1>Produits</h1>
-                <p>Créer et administrer les fiches produits.</p>
-            </div>
-            <div class="header-right">
-                <div class="header-db">
-                    <span class="header-db-label">Base active</span>
-                    <span class="header-db-name">erpdb</span>
-                </div>
-                <button class="header-btn" type="button">
-                    <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M1 4v6h6" />
-                        <path d="M23 20v-6h-6" />
-                        <path d="M20.49 9A9 9 0 0 0 5.64 5.64" />
-                        <path d="M3.51 15A9 9 0 0 0 18.36 18.36" />
-                    </svg>
-                    Changer de base
-                </button>
-                <button class="header-profile-btn" type="button">
-                    <div class="header-avatar">P</div>
-                </button>
-            </div>
-        </header>
-
-        <section class="erp-content">
+<section class="erp-content">
             @* Messages succès / erreur suppression *@
             @if (TempData["Error"] is string err && !string.IsNullOrEmpty(err))
             {
@@ -259,22 +175,6 @@
                 }
             </div>
         </section>
-    </main>
-</div>
-
-<!-- POPUP DÉCONNEXION -->
-<div id="logout-overlay" class="logout-overlay" style="display:none;">
-    <div class="logout-modal">
-        <h3>Confirmer la déconnexion</h3>
-        <p>Voulez-vous vraiment vous déconnecter et revenir à l'écran de choix du profil ?</p>
-        <form method="post" asp-page-handler="Logout">
-            <div class="logout-modal-actions">
-                <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
-                <button type="submit" class="btn-primary">Oui, se déconnecter</button>
-            </div>
-        </form>
-    </div>
-</div>
 
 <!-- POPUP SUPPRESSION PRODUIT -->
 <div id="delete-overlay" class="logout-overlay" style="display:none;">
@@ -318,22 +218,42 @@
     </div>
 </div>
 
-<script src="/js/Home.js"></script>
+
+@section Scripts {
 <script>
     function filterProducts(searchTerm) {
         const container = document.getElementById('productsContainer');
+        if (!container) return;
+        const term = searchTerm.toLowerCase().trim();
         const items = container.querySelectorAll('.product-item');
 
-        items.forEach(item => {
-            const ref = (item.dataset.ref || '').toLowerCase();
-            const nameEl = item.querySelector('.product-card-title');
-            const name = nameEl ? nameEl.textContent.toLowerCase() : '';
-            if (ref.includes(searchTerm.toLowerCase()) || name.includes(searchTerm.toLowerCase())) {
-                item.style.display = '';
+        items.forEach(el => {
+            const ref = el.getAttribute('data-ref') || '';
+            if (term === '' || ref.toLowerCase().includes(term)) {
+                el.style.display = 'block';
             } else {
-                item.style.display = 'none';
+                el.style.display = 'none';
             }
         });
+    }
+
+    // Modal Suppression
+    const overlay = document.getElementById('delete-overlay');
+    const deleteIdInput = document.getElementById('deleteProductId');
+    const deleteRefSpan = document.getElementById('delete-product-ref');
+
+    function closeDeleteModal() {
+        overlay.style.display = 'none';
+        deleteIdInput.value = '';
+        deleteRefSpan.innerText = '';
+    }
+
+    function openDeleteModal(id, ref) {
+        event.stopPropagation();
+        event.preventDefault();
+        deleteIdInput.value = id;
+        deleteRefSpan.innerText = ref;
+        overlay.style.display = 'flex';
     }
 
     function toggleProductMenu(event, id) {
@@ -386,3 +306,4 @@
         overlay.style.display = 'flex';
     }
 </script>
+}
