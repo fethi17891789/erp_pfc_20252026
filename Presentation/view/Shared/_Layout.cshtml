@@ -12,7 +12,12 @@
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    <div class="erp-shell">
+    <div class="erp-shell" id="erp-shell">
+        <script>
+            if (localStorage.getItem('sidebar-collapsed') === 'true') {
+                document.getElementById('erp-shell').classList.add('sidebar-collapsed');
+            }
+        </script>
         <!-- BARRE LATERALE GAUCHE -->
         <aside class="erp-sidebar">
             <div class="erp-logo">
@@ -97,8 +102,17 @@
         <main class="erp-main">
             <!-- HEADER GLOBAL -->
             <header class="erp-header">
-                <div class="header-left">
-                    @await RenderSectionAsync("HeaderLeft", required: false)
+                <div class="header-left" style="display: flex; align-items: center; gap: 12px;">
+                    <button class="header-btn" type="button" onclick="toggleSidebar()" title="Rétracter/Ouvrir la barre latérale">
+                        <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div>
+                        @await RenderSectionAsync("HeaderLeft", required: false)
+                    </div>
                 </div>
 
                 <div class="header-right">
@@ -187,6 +201,14 @@
         function closeLogoutModal() {
             var overlay = document.getElementById('logout-overlay');
             if(overlay) overlay.style.display = 'none';
+        }
+        function toggleSidebar() {
+            var shell = document.getElementById('erp-shell');
+            if(shell) {
+                shell.classList.toggle('sidebar-collapsed');
+                var isCollapsed = shell.classList.contains('sidebar-collapsed');
+                localStorage.setItem('sidebar-collapsed', isCollapsed ? 'true' : 'false');
+            }
         }
     </script>
     @{
