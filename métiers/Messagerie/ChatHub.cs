@@ -22,6 +22,10 @@ namespace Metier.Messagerie
         private static readonly ConcurrentDictionary<int, ConcurrentBag<string>> _userConnections
             = new ConcurrentDictionary<int, ConcurrentBag<string>>();
 
+        // Stockage temporaire (mémoire) du modèle choisi par conversation
+        private static readonly ConcurrentDictionary<int, string> _conversationAiModels
+            = new ConcurrentDictionary<int, string>();
+
         public ChatHub(MessagerieService messagerieService, ErpDbContext dbContext, MRP.OrdreAchatService oaService, IAService iaService)
         {
             _messagerieService = messagerieService;
@@ -225,7 +229,11 @@ namespace Metier.Messagerie
 
                                 // 3. Lancer le stream
                                 var fullResponse = new StringBuilder();
-                                await foreach (var chunk in _iaService.CallGeminiStreamAsync(saved.ConversationId, saved.Content))
+                                
+                                // Récupérer le modèle choisi pour cette conversation (sinon null -> défaut)
+                                _conversationAiModels.TryGetValue(saved.ConversationId, out var modelOverride);
+
+                                await foreach (var chunk in _iaService.CallGeminiStreamAsync(saved.ConversationId, saved.Content, modelOverride))
                                 {
                                     // Premier chunk reçu : on coupe l'animation de réflexion
                                     if (fullResponse.Length == 0) {
@@ -439,6 +447,21 @@ namespace Metier.Messagerie
                     await Clients.Client(cid).SendAsync("ReceiveWebRTCSignal", signalData);
                 }
             }
+        }
+
+        // --- GESTION DES MODÈLES IA ---
+        public async Task<List<string>> GetAvailableAiModels()
+        {
+            return await _iaService.GetAvailableChatModelsAsync();
+        }
+
+        public Task SetConversationAiModel(int conversationId, string modelName)
+        {
+            if (conversationId > 0 && !string.IsNullOrWhiteSpace(modelName))
+            {
+                _conversationAiModels[conversationId] = modelName;
+            }
+            return Task.CompletedTask;
         }
     }
 }

@@ -30,6 +30,8 @@ let typingTimeout = null;
 
 let currentEditingMessageId = null;
 
+let aiModelsLoaded = false;
+
 
 
 // Utilisation de la connexion globale définie dans Presence.js
@@ -696,18 +698,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     if (callBtns) callBtns.style.display = "none";
 
+                    // Afficher le sélecteur de modèle IA
+                    const aiSelector = document.getElementById("aiModelSelectorContainer");
+                    if (aiSelector) {
+                        aiSelector.style.display = "flex";
+                        if (!aiModelsLoaded) loadAiModels();
+                    }
                 } else {
-
                     const initial = (otherName || "?").charAt(0).toUpperCase();
-
                     headerInitial.textContent = initial;
-
                     headerInitial.style.background = "linear-gradient(135deg, var(--accent), var(--accent-hover))";
-
                     headerInitial.style.boxShadow = "none";
-
                     if (callBtns) callBtns.style.display = "flex";
 
+                    // Cacher le sélecteur de modèle IA
+                    const aiSelector = document.getElementById("aiModelSelectorContainer");
+                    if (aiSelector) aiSelector.style.display = "none";
                 }
 
             }
@@ -2428,5 +2434,72 @@ connection.on("ReceiveMessageEdited", function (message) {
                 }
             }
         }
+    }
+});
+// --- GESTION DU SÉLECTEUR DE MODÈLE IA ---
+function loadAiModels() {
+    if (connection.state !== signalR.HubConnectionState.Connected) return;
+
+    connection.invoke("GetAvailableAiModels")
+        .then(models => {
+            const dropdown = document.getElementById("aiModelDropdown");
+            if (!dropdown) return;
+
+            dropdown.innerHTML = "";
+            models.forEach((model, index) => {
+                const opt = document.createElement("div");
+                opt.className = "ai-model-option" + (index === 0 ? " active" : "");
+                opt.dataset.model = model;
+                
+                // Formattage plus joli du nom
+                let displayName = model.replace("gemini-1.5-", "").replace("-latest", "").toUpperCase();
+                opt.innerHTML = `<span>${displayName}</span>`;
+                
+                opt.onclick = (e) => {
+                    e.stopPropagation();
+                    selectAiModel(model, displayName);
+                };
+                dropdown.appendChild(opt);
+            });
+
+            if (models.length > 0) {
+                const firstDisplay = models[0].replace("gemini-1.5-", "").replace("-latest", "").toUpperCase();
+                document.getElementById("aiActiveModelName").textContent = firstDisplay;
+            }
+
+            aiModelsLoaded = true;
+        })
+        .catch(err => console.error("Erreur chargement modèles IA:", err));
+}
+
+function selectAiModel(modelName, displayName) {
+    if (!currentConversationId) return;
+
+    connection.invoke("SetConversationAiModel", currentConversationId, modelName)
+        .then(() => {
+            document.getElementById("aiActiveModelName").textContent = displayName;
+            
+            // Update UI Active State
+            const options = document.querySelectorAll(".ai-model-option");
+            options.forEach(opt => {
+                opt.classList.toggle("active", opt.dataset.model === modelName);
+            });
+
+            // Fermer le dropdown
+            document.getElementById("aiModelDropdown").style.display = "none";
+        })
+        .catch(err => console.error("Erreur changement modèle IA:", err));
+}
+
+// TOGGLE DROPDOWN
+document.addEventListener("click", (e) => {
+    const btn = e.target.closest("#aiActiveModelBtn");
+    const dropdown = document.getElementById("aiModelDropdown");
+    
+    if (btn && dropdown) {
+        dropdown.style.display = (dropdown.style.display === "flex") ? "none" : "flex";
+        e.stopPropagation();
+    } else if (dropdown && !e.target.closest(".ai-model-selector")) {
+        dropdown.style.display = "none";
     }
 });

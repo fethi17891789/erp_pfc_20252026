@@ -535,6 +535,88 @@
     .module-entrance-fade {
         animation: module-entrance-fade 0.5s ease-out forwards;
     }
+
+    /* AI Model Selector Dropdown */
+    .ai-model-selector {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    .ai-model-btn {
+        background: rgba(123, 94, 255, 0.12);
+        border: 1px solid rgba(123, 94, 255, 0.3);
+        border-radius: 999px;
+        padding: 4px 12px;
+        color: #c084fc;
+        font-size: 0.7rem;
+        font-weight: 700;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .ai-model-btn:hover {
+        background: rgba(123, 94, 255, 0.2);
+        border-color: var(--accent);
+        box-shadow: 0 0 15px rgba(123, 94, 255, 0.3);
+    }
+
+    .ai-model-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        min-width: 180px;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        padding: 6px;
+        z-index: 1000;
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        animation: dropdown-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .ai-model-option {
+        padding: 8px 12px;
+        border-radius: 8px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .ai-model-option:hover {
+        background: rgba(123, 94, 255, 0.15);
+        color: white;
+    }
+
+    .ai-model-option.active {
+        background: rgba(123, 94, 255, 0.25);
+        color: white;
+        font-weight: 600;
+    }
+
+    .ai-model-option.active::after {
+        content: "✓";
+        font-size: 0.8rem;
+        color: #22c55e;
+    }
+
+    @@keyframes dropdown-fade-in {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
     </style>
 }
 
@@ -685,6 +767,19 @@
                                         <polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
                                     </svg>
                                 </button>
+                            </div>
+                            <div id="aiModelSelectorContainer" style="display:none; align-items:center; gap:8px;">
+                                <div class="ai-model-selector">
+                                    <button type="button" class="ai-model-btn" id="aiActiveModelBtn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px; height:12px;">
+                                            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+                                        </svg>
+                                        <span id="aiActiveModelName">MODÈLE IA</span>
+                                    </button>
+                                    <div class="ai-model-dropdown" id="aiModelDropdown">
+                                        <!-- Rempli en JS -->
+                                    </div>
+                                </div>
                             </div>
                             <span style="font-size:0.7rem; padding:4px 10px; border-radius:999px; border:1px solid rgba(255,255,255,0.16); color:var(--text-muted);">
                                 Chat en temps réel

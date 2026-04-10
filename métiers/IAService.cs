@@ -71,17 +71,29 @@ namespace Metier
             }
         }
 
-        public async Task<string> CallGeminiAsync(int conversationId, string userMessage)
+        public async Task<List<string>> GetAvailableChatModelsAsync()
+        {
+            IaConfiguration? config = null;
+            try {
+                config = await _dbContext.IaConfigurations.FirstOrDefaultAsync(c => c.IsEnabled);
+            } catch { }
+            
+            if (config == null || string.IsNullOrWhiteSpace(config.ApiKey)) return new List<string>();
+            return await DiscoverModelsAsync(config.ApiKey.Trim());
+        }
+
+
+        public async Task<string> CallGeminiAsync(int conversationId, string userMessage, string? modelOverride = null)
         {
             var sb = new StringBuilder();
-            await foreach (var chunk in CallGeminiStreamAsync(conversationId, userMessage))
+            await foreach (var chunk in CallGeminiStreamAsync(conversationId, userMessage, modelOverride))
             {
                 sb.Append(chunk);
             }
             return sb.ToString();
         }
 
-        public async IAsyncEnumerable<string> CallGeminiStreamAsync(int conversationId, string userMessage)
+        public async IAsyncEnumerable<string> CallGeminiStreamAsync(int conversationId, string userMessage, string? modelOverride = null)
         {
             IaConfiguration? config = null;
             bool dbError = false;
@@ -107,7 +119,11 @@ namespace Metier
             }
 
             var apiKey = config.ApiKey.Trim();
-            var modelName = (config.ModelName ?? "gemini-1.5-flash-latest").Trim();
+            
+            var modelName = !string.IsNullOrWhiteSpace(modelOverride) 
+                ? modelOverride.Trim() 
+                : (config.ModelName ?? "gemini-1.5-flash-latest").Trim();
+
             if (modelName == "gemini-1.5-flash") modelName = "gemini-1.5-flash-latest";
 
             // --- RAG / CONTEXTE ---
