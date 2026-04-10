@@ -263,6 +263,22 @@ namespace Metier.Messagerie
             }
         }
 
+        public async Task EditMessage(int messageId, int userId, string newContent)
+        {
+            try
+            {
+                var editedMessage = await _messagerieService.EditMessageTextAsync(messageId, userId, newContent);
+
+                await Clients.Group($"conv-{editedMessage.ConversationId}")
+                             .SendAsync("ReceiveMessageEdited", editedMessage);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Erreur ChatHub.EditMessage: {ex}");
+                throw;
+            }
+        }
+
         // Notification pour un message audio déjà créé côté Razor
         public async Task SendAudioMessage(ChatMessageDto message)
         {

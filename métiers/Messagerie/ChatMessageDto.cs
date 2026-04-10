@@ -1,4 +1,4 @@
-﻿// Fichier : Metier/Messagerie/ChatMessageDto.cs
+// Fichier : Metier/Messagerie/ChatMessageDto.cs
 using System;
 
 namespace Metier.Messagerie
@@ -23,5 +23,7 @@ namespace Metier.Messagerie
 
         // Optionnel : permet plus tard d'afficher "Vu" ou non
         public bool IsReadByOther { get; set; } = false;
+
+        public bool IsEdited { get; set; } = false;
     }
 }

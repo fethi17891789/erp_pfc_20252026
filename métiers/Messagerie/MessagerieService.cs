@@ -1,4 +1,4 @@
-﻿// Fichier : Metier/Messagerie/MessagerieService.cs
+// Fichier : Metier/Messagerie/MessagerieService.cs
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -138,7 +138,8 @@ namespace Metier.Messagerie
                         FROM ""MessageReadStates"" r
                         WHERE r.""MessageId"" = m.""Id""
                           AND r.""UserId"" = @otherUserId
-                    ) AS ""IsReadByOther""
+                    ) AS ""IsReadByOther"",
+                    m.""IsEdited""
                 FROM ""Messages"" m
                 LEFT JOIN ""MessageAttachments"" a ON a.""MessageId"" = m.""Id""
                 WHERE m.""ConversationId"" = @convId
@@ -163,6 +164,7 @@ namespace Metier.Messagerie
                     var messageType = reader.IsDBNull(4) ? "text" : reader.GetString(4);
                     var attachmentUrl = reader.IsDBNull(5) ? null : reader.GetString(5);
                     var isReadByOther = reader.GetBoolean(6);
+                    var isEdited = reader.IsDBNull(7) ? false : reader.GetBoolean(7);
 
                     temp.Add(new ChatMessageDto
                     {
@@ -174,7 +176,8 @@ namespace Metier.Messagerie
                         Timestamp = ts,
                         MessageType = messageType,
                         AttachmentUrl = attachmentUrl,
-                        IsReadByOther = isReadByOther
+                        IsReadByOther = isReadByOther,
+                        IsEdited = isEdited
                     });
                 }
 
@@ -614,6 +617,59 @@ namespace Metier.Messagerie
                 Content = newHtmlContent,
                 Timestamp = ts,
                 MessageType = mType
+            };
+        }
+
+        /// <summary>
+        /// Modifie le contenu texte d'un message existant.
+        /// </summary>
+        public async Task<ChatMessageDto> EditMessageTextAsync(int messageId, int userId, string newContent)
+        {
+            if (string.IsNullOrWhiteSpace(newContent)) throw new ArgumentException("Le nouveau contenu ne peut être vide.");
+
+            var connString = GetConnectionString();
+            await using var conn = new NpgsqlConnection(connString);
+            await conn.OpenAsync();
+
+            const string getSql = @"SELECT ""ConversationId"", ""SenderId"", ""Timestamp"", ""MessageType"", ""IsEdited"" FROM ""Messages"" WHERE ""Id"" = @mid FOR UPDATE;";
+            int convId = 0, senderId = 0; DateTime ts = DateTime.UtcNow; string mType = ""; bool isEdited = false;
+
+            await using (var getCmd = new NpgsqlCommand(getSql, conn))
+            {
+                getCmd.Parameters.AddWithValue("mid", messageId);
+                await using var reader = await getCmd.ExecuteReaderAsync();
+                if (await reader.ReadAsync())
+                {
+                    convId = reader.GetInt32(0);
+                    senderId = reader.GetInt32(1);
+                    ts = reader.GetDateTime(2);
+                    mType = reader.IsDBNull(3) ? "text" : reader.GetString(3);
+                    isEdited = reader.IsDBNull(4) ? false : reader.GetBoolean(4);
+                }
+                else throw new InvalidOperationException("Message introuvable.");
+            }
+
+            // Vérifications de sécurité
+            if (senderId != userId) throw new UnauthorizedAccessException("Vous ne pouvez pas modifier un message que vous n'avez pas envoyé.");
+            if (mType != "text") throw new InvalidOperationException("Seuls les messages textes peuvent être modifiés.");
+
+            const string updateSql = @"UPDATE ""Messages"" SET ""Content"" = @c, ""IsEdited"" = TRUE, ""EditedAt"" = NOW() WHERE ""Id"" = @mid;";
+            await using (var updCmd = new NpgsqlCommand(updateSql, conn))
+            {
+                updCmd.Parameters.AddWithValue("c", newContent);
+                updCmd.Parameters.AddWithValue("mid", messageId);
+                await updCmd.ExecuteNonQueryAsync();
+            }
+
+            return new ChatMessageDto
+            {
+                Id = messageId,
+                ConversationId = convId,
+                SenderId = senderId,
+                Content = newContent,
+                Timestamp = ts,
+                MessageType = mType,
+                IsEdited = true
             };
         }
     }

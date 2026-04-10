@@ -28,6 +28,8 @@ let isRecording = false;
 
 let typingTimeout = null;
 
+let currentEditingMessageId = null;
+
 
 
 // Utilisation de la connexion globale définie dans Presence.js
@@ -770,45 +772,84 @@ document.addEventListener("DOMContentLoaded", function () {
 
 
 
-        const dto = {
+        if (currentEditingMessageId) {
 
-            conversationId: currentConversationId,
+            // Logique d'édition
 
-            senderId: currentUserId,
+            connection.invoke("EditMessage", currentEditingMessageId, currentUserId, content)
 
-            senderName: currentUserName,
+                .then(() => {
 
-            content: content,
+                    input.value = "";
 
-            messageType: "text",
+                    currentEditingMessageId = null;
 
-            attachmentUrl: null
+                    
 
-        };
+                    // Remettre l'UI d'envoi normal
+
+                    // Remettre l'UI d'envoi normal
+                    btnSend.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px; transform: rotate(45deg) translate(-1px, 1px);"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
+
+                    
+
+                    if (typingTimeout) {
+
+                        clearTimeout(typingTimeout);
+
+                        typingTimeout = null;
+
+                        sendTypingStatus(false);
+
+                    }
+
+                })
+
+                .catch(err => console.error("Erreur édition:", err));
+
+        } else {
+
+            // Envoi d'un nouveau message
+
+            const dto = {
+
+                conversationId: currentConversationId,
+
+                senderId: currentUserId,
+
+                senderName: currentUserName,
+
+                content: content,
+
+                messageType: "text",
+
+                attachmentUrl: null
+
+            };
 
 
 
-        connection.invoke("SendMessage", dto)
+            connection.invoke("SendMessage", dto)
 
-            .then(() => {
+                .then(() => {
 
-                input.value = "";
+                    input.value = "";
 
-                // Arrêter l'indicateur de saisie après l'envoi
+                    if (typingTimeout) {
 
-                if (typingTimeout) {
+                        clearTimeout(typingTimeout);
 
-                    clearTimeout(typingTimeout);
+                        typingTimeout = null;
 
-                    typingTimeout = null;
+                        sendTypingStatus(false);
 
-                    sendTypingStatus(false);
+                    }
 
-                }
+                })
 
-            })
+                .catch(err => console.error(err.toString()));
 
-            .catch(err => console.error(err.toString()));
+        }
 
     }
 
@@ -1598,9 +1639,94 @@ function appendMessageToUi(message) {
 
             dateLine.appendChild(statusSpan);
 
+
+
+            // Bouton Éditer
+
+            if (messageType === "text" && !attachmentUrl && msgId) {
+
+                const editBtn = document.createElement("button");
+
+                editBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:10px;height:10px;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>`;
+
+                editBtn.style.background = "none";
+
+                editBtn.style.border = "none";
+
+                editBtn.style.color = "rgba(255,255,255,0.4)";
+
+                editBtn.style.cursor = "pointer";
+
+                editBtn.style.padding = "2px 4px";
+
+                editBtn.style.marginLeft = "4px";
+
+                editBtn.title = "Modifier";
+
+                editBtn.onmouseenter = () => editBtn.style.color = "var(--accent)";
+
+                editBtn.onmouseleave = () => editBtn.style.color = "rgba(255,255,255,0.4)";
+
+                
+
+                editBtn.onclick = function() {
+
+                    const chatInput = document.getElementById("chatInput");
+
+                    const btnSend = document.getElementById("btnSend");
+
+                    if (chatInput && btnSend) {
+
+                        currentEditingMessageId = msgId;
+
+                        chatInput.value = bubble.dataset.rawText || bubble.textContent;
+
+                        chatInput.focus();
+
+                        
+
+                        // Changer l'icône du bouton en check ("Valider édition")
+
+                        // Changer l'icône du bouton en check ("Valider édition")
+                        btnSend.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:18px;height:18px; color:#22c55e;"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+
+                    }
+
+                };
+
+                dateLine.appendChild(editBtn);
+
+            }
+
+        }
+
+        
+
+        // Afficher (modifié) si IsEdited = true
+
+        const isEdited = typeof message.isEdited !== "undefined" ? message.isEdited : message.IsEdited;
+
+        if (isEdited) {
+
+            const editedSpan = document.createElement("span");
+
+            editedSpan.className = "msg-edited-badge";
+
+            editedSpan.style.fontStyle = "italic";
+
+            editedSpan.style.color = "rgba(255,255,255,0.5)";
+
+            editedSpan.style.marginLeft = "4px";
+
+            editedSpan.textContent = "(modifié)";
+
+            dateLine.appendChild(editedSpan);
+
         }
 
 
+
+        dateLine.className = "msg-date-line";
 
         wrapper.appendChild(dateLine);
 
@@ -2259,5 +2385,48 @@ document.addEventListener("DOMContentLoaded", function () {
                 targetItem.click();
             }
         }, 150);
+    }
+});
+
+connection.on("ReceiveMessageEdited", function (message) {
+    if (!message) return;
+    
+    const msgId = message.id || message.Id;
+    if (!msgId) return;
+    
+    // Trouver la bulle avec ce message ID
+    const bubble = document.querySelector(`[data-msg-id='${msgId}']`);
+    if (bubble) {
+        let content = message.content || message.Content || "";
+        
+        // Mettre à jour le texte
+        if (typeof marked !== 'undefined' && bubble.style.background !== "linear-gradient(135deg, #4f46e5, #6366f1)") {
+            // Si marked est utilisé (et ce n'est pas le sender direct, car isMe = pas de markdown ici)
+            marked.setOptions({ breaks: true });
+            bubble.dataset.rawText = content;
+            bubble.innerHTML = marked.parse(content);
+        } else {
+            bubble.textContent = content;
+            bubble.dataset.rawText = content;
+        }
+
+        // Ajouter (modifié) s'il n'existe pas déjà
+        let wrapper = bubble.closest("div[data-sender-id]");
+        if (wrapper) {
+            let editedSpan = wrapper.querySelector(".msg-edited-badge");
+            if (!editedSpan) {
+                const dateLine = wrapper.querySelector(".msg-date-line");
+                if (dateLine) {
+                    editedSpan = document.createElement("span");
+                    editedSpan.className = "msg-edited-badge";
+                    editedSpan.style.fontStyle = "italic";
+                    editedSpan.style.color = "rgba(255,255,255,0.5)";
+                    editedSpan.style.marginLeft = "4px";
+                    editedSpan.style.fontSize = "0.7rem";
+                    editedSpan.textContent = "(modifié)";
+                    dateLine.appendChild(editedSpan);
+                }
+            }
+        }
     }
 });
