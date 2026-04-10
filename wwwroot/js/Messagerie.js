@@ -160,6 +160,7 @@ connection.on("ReceiveMessage", function (message) {
 
 
 
+
     const senderId = message.senderId || message.SenderId;
 
     if (senderId && senderId !== currentUserId) {
@@ -1461,11 +1462,13 @@ function appendMessageToUi(message) {
 
 
 
+        if (returnOnly) return wrapper;
+
         container.appendChild(wrapper);
 
         container.scrollTop = container.scrollHeight;
 
-        return;
+        return wrapper;
 
     }
 
@@ -1743,6 +1746,8 @@ function appendMessageToUi(message) {
     container.appendChild(wrapper);
 
     container.scrollTop = container.scrollHeight;
+
+    return;
 
 }
 

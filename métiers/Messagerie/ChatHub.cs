@@ -228,6 +228,8 @@ namespace Metier.Messagerie
                                              .SendAsync("ReceiveMessage", iaSavedMsg);
 
                                 // 3. Lancer le stream
+
+
                                 var fullResponse = new StringBuilder();
                                 
                                 // Récupérer le modèle choisi pour cette conversation (sinon null -> défaut)
