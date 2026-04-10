@@ -571,6 +571,9 @@
         top: calc(100% + 8px);
         right: 0;
         min-width: 180px;
+        max-height: 320px;
+        overflow-y: auto;
+        overflow-x: hidden;
         background: rgba(15, 23, 42, 0.95);
         backdrop-filter: blur(12px);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -582,6 +585,23 @@
         flex-direction: column;
         gap: 2px;
         animation: dropdown-fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .ai-model-dropdown::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .ai-model-dropdown::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .ai-model-dropdown::-webkit-scrollbar-thumb {
+        background: rgba(123, 94, 255, 0.3);
+        border-radius: 10px;
+    }
+
+    .ai-model-dropdown::-webkit-scrollbar-thumb:hover {
+        background: var(--accent);
     }
 
     .ai-model-option {
