@@ -1,4 +1,4 @@
-﻿@model Metier.MRP.OrdreFabricationService.OrdreFabricationPdfModel
+@model Metier.MRP.OrdreFabricationService.OrdreFabricationPdfModel
 @{
     Layout = null; // PDF autonome
 }
@@ -7,129 +7,308 @@
 <html lang="fr">
 <head>
     <meta charset="utf-8" />
-    <title>Ordre de fabrication @Model.ReferenceOF</title>
+    <title>Ordre de Fabrication @Model.ReferenceOF</title>
     <style>
+        @@page {
+            size: A4;
+            margin: 15mm;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            color: #3f3f46;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            display: table;
+            width: 100%;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #059669; /* Vert pour OF */
+            padding-bottom: 15px;
+        }
+        .header-left {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+        }
+        .header-right {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+            text-align: right;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+            color: #059669;
+            letter-spacing: -1px;
+            margin: 0 0 5px 0;
+        }
+        .company-details {
             font-size: 12px;
-            color: #333;
+            color: #71717a;
+            line-height: 1.5;
         }
-
-        h1 {
-            font-size: 20px;
-            text-align: center;
+        .document-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #18181b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0 0 10px 0;
+        }
+        .ref-table {
+            float: right;
+            border-collapse: collapse;
+        }
+        .ref-table td {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+        .ref-label {
+            font-weight: 600;
+            color: #52525b;
+            background: #f4f4f5;
+            border: 1px solid #e4e4e7;
+        }
+        .ref-value {
+            font-weight: bold;
+            color: #18181b;
+            border: 1px solid #e4e4e7;
+        }
+        .addresses {
+            display: table;
+            width: 100%;
+            margin-bottom: 40px;
+        }
+        .address-box {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+        }
+        .address-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #a1a1aa;
             margin-bottom: 5px;
         }
-
-        h2 {
-            font-size: 16px;
-            margin-top: 20px;
-            margin-bottom: 5px;
+        .address-content {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #27272a;
         }
-
-        .header-info, .article-info, .quantite-info {
+        .address-content strong {
+            font-size: 15px;
+            color: #18181b;
+        }
+        .clear { clear: both; }
+        .main-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 30px;
         }
-
-            .header-info td,
-            .article-info td,
-            .quantite-info td {
-                padding: 4px 6px;
-                border: 1px solid #ccc;
-            }
-
-        .label {
+        .main-table th {
+            background-color: #059669;
+            color: #ffffff;
+            font-weight: 600;
+            text-align: left;
+            padding: 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .main-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e4e4e7;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        .main-table tr:nth-child(even) td {
+            background-color: #fafafa;
+        }
+        .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
+        
+        .totals-box {
+            float: right;
+            width: 350px;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+        .totals-box td {
+            padding: 8px 10px;
+            font-size: 13px;
+            border-bottom: 1px solid #e4e4e7;
+        }
+        .total-label {
+            font-weight: 600;
+            color: #52525b;
+        }
+        .total-value {
+            text-align: right;
             font-weight: bold;
-            background-color: #f5f5f5;
-            width: 30%;
+            color: #18181b;
         }
-
-        .value {
-            width: 70%;
+        .total-final {
+            font-size: 16px;
+            color: #059669;
+            border-bottom: 2px solid #059669;
         }
-
-        .small {
-            font-size: 10px;
-            color: #777;
+        .signature-section {
+            display: table;
+            width: 100%;
+            margin-top: 50px; /* reduced from above */
         }
-
-        .footer {
-            margin-top: 30px;
-            font-size: 10px;
+        .signature-box {
+            display: table-cell;
+            width: 33%;
             text-align: center;
-            color: #999;
         }
-
-        .mt-20 {
-            margin-top: 20px;
+        .signature-title {
+            font-weight: 600;
+            color: #71717a;
+            margin-bottom: 50px;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        .signature-line {
+            width: 80%;
+            margin: 0 auto;
+            border-bottom: 1px solid #d4d4d8;
+        }
+        .footer {
+            margin-top: 60px;
+            padding-top: 15px;
+            border-top: 1px solid #e4e4e7;
+            text-align: center;
+            font-size: 10px;
+            color: #a1a1aa;
+            clear: both;
+        }
+        .footer p { margin: 2px 0; }
+        .instructions-box {
+            background: #f8fafc;
+            border-left: 4px solid #059669;
+            padding: 10px 15px;
+            color: #475569;
+            font-size: 12px;
+            line-height: 1.5;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>Ordre de fabrication</h1>
-    <p style="text-align:center; margin-top:0;">
-        Référence OF : <strong>@Model.ReferenceOF</strong>
-    </p>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-left">
+                <h1 class="logo">SKYRA ERP</h1>
+                <div class="company-details">
+                    123 Avenue de l'Industrie, 75000 Paris<br />
+                    Département Production & Logistique<br />
+                    Tél : +33 1 23 45 67 90  |  Email : prod@skyra.erp
+                </div>
+            </div>
+            <div class="header-right">
+                <h2 class="document-title">ORDRE DE FABRICATION</h2>
+                <table class="ref-table">
+                    <tr>
+                        <td class="ref-label">N° Document (OF)</td>
+                        <td class="ref-value">@Model.ReferenceOF</td>
+                    </tr>
+                    <tr>
+                        <td class="ref-label">Date de lancement</td>
+                        <td class="ref-value">@Model.DateOrdre.ToString("dd/MM/yyyy")</td>
+                    </tr>
+                    <tr>
+                        <td class="ref-label">Réf. Plan MRP</td>
+                        <td class="ref-value">@Model.ReferencePlan</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
 
-    <h2>Planification</h2>
-    <table class="header-info">
-        <tr>
-            <td class="label">Plan MRP</td>
-            <td class="value">@Model.ReferencePlan</td>
-        </tr>
-        <tr>
-            <td class="label">Date de l'ordre</td>
-            <td class="value">@Model.DateOrdre.ToString("dd/MM/yyyy HH:mm")</td>
-        </tr>
-        <tr>
-            <td class="label">Horizon de planification</td>
-            <td class="value">
-                Du @Model.DateHorizonDebut.ToString("dd/MM/yyyy")
-                au @Model.DateHorizonFin.ToString("dd/MM/yyyy")
-            </td>
-        </tr>
-    </table>
+        <!-- ADDRESSES -->
+        <div class="addresses">
+            <div class="address-box">
+                <div class="address-title">DONNEUR D'ORDRE :</div>
+                <div class="address-content">
+                    <strong>Service Planification MRP</strong><br />
+                    Bureau des Méthodes<br />
+                    SKYRA ERP
+                </div>
+            </div>
+            <div class="address-box" style="padding-left: 40px;">
+                <div class="address-title">ATELIER CIBLE :</div>
+                <div class="address-content">
+                    <strong>Atelier Principal d'Assemblage</strong><br />
+                    Responsable de la chaîne de production<br />
+                    Zone A - Bâtiment C
+                </div>
+            </div>
+        </div>
 
-    <h2>Article à fabriquer</h2>
-    <table class="article-info">
-        <tr>
-            <td class="label">Référence article</td>
-            <td class="value">@Model.CodeArticle</td>
-        </tr>
-        <tr>
-            <td class="label">Désignation</td>
-            <td class="value">@Model.NomArticle</td>
-        </tr>
-        <tr>
-            <td class="label">Type produit</td>
-            <td class="value">@Model.TypeProduit</td>
-        </tr>
-    </table>
+        <!-- MAIN TABLE -->
+        <table class="main-table">
+            <thead>
+                <tr>
+                    <th>Réf. Produit Fini</th>
+                    <th>Désignation</th>
+                    <th>Type</th>
+                    <th class="text-center">Qté à Produire</th>
+                    <th class="text-right">Coût BOM Unitaire</th>
+                    <th class="text-right">Coût Total Estimé</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>@Model.CodeArticle</strong></td>
+                    <td>@Model.NomArticle</td>
+                    <td>@Model.TypeProduit</td>
+                    <td class="text-center" style="font-size: 15px;"><strong>@Model.Quantite</strong></td>
+                    <td class="text-right">@Model.CoutBom.ToString("N2") €</td>
+                    <td class="text-right"><strong>@Model.CoutTotalTheorique.ToString("N2") €</strong></td>
+                </tr>
+            </tbody>
+        </table>
 
-    <h2>Quantité et coûts</h2>
-    <table class="quantite-info">
-        <tr>
-            <td class="label">Quantité à fabriquer</td>
-            <td class="value">@Model.Quantite</td>
-        </tr>
-        <tr>
-            <td class="label">Coût BOM unitaire</td>
-            <td class="value">@Model.CoutBom.ToString("N2")</td>
-        </tr>
-        <tr>
-            <td class="label">Coût total théorique</td>
-            <td class="value">@Model.CoutTotalTheorique.ToString("N2")</td>
-        </tr>
-    </table>
+        <!-- TOTALS & INFO -->
+        <div class="instructions-box">
+            <strong>INSTRUCTIONS DE PLANIFICATION :</strong><br />
+            Cet ordre de fabrication a été généré automatiquement par le module MRP basé sur les besoins en capacité.<br />
+            La production doit impérativement être réalisée dans l'horizon allant du <strong>@Model.DateHorizonDebut.ToString("dd/MM/yyyy")</strong> au <strong>@Model.DateHorizonFin.ToString("dd/MM/yyyy")</strong>.<br />
+            Veuillez déclarer les nomenclatures (BOM) consommées et assurer la traçabilité des lots en sortie d'atelier.
+        </div>
 
-    <p class="small mt-20">
-        Cet ordre de fabrication a été généré automatiquement par le module MRP de l'ERP.
-    </p>
+        <div class="clear"></div>
 
-    <div class="footer">
-        ERP PFC 2025-2026 - Ordre de fabrication @Model.ReferenceOF
+        <!-- SIGNATURES -->
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-title">Validé par (Planification)</div>
+                <div class="signature-line"></div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-title">Chef d'atelier (Prise en charge)</div>
+                <div class="signature-line"></div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-title">Contrôle Qualité (Fin de prod)</div>
+                <div class="signature-line"></div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <p><strong>SKYRA ERP Enterprise Solutions</strong> - Module de Fabrication Avancé.</p>
+            <p>Document interne et confidentiel. Généré informatiquement le @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss")</p>
+        </div>
     </div>
 </body>
 </html>

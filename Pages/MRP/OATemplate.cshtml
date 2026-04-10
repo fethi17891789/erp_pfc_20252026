@@ -7,139 +7,309 @@
 <html lang="fr">
 <head>
     <meta charset="utf-8" />
-    <title>Ordre d'achat @Model.ReferenceOA</title>
+    <title>Ordre d'Achat @Model.ReferenceOA</title>
     <style>
+        @@page {
+            size: A4;
+            margin: 15mm;
+        }
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 13px;
+            color: #3f3f46;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            display: table;
+            width: 100%;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #4f46e5;
+            padding-bottom: 15px;
+        }
+        .header-left {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+        }
+        .header-right {
+            display: table-cell;
+            vertical-align: top;
+            width: 50%;
+            text-align: right;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: 800;
+            color: #4f46e5;
+            letter-spacing: -1px;
+            margin: 0 0 5px 0;
+        }
+        .company-details {
             font-size: 12px;
-            color: #333;
+            color: #71717a;
+            line-height: 1.5;
         }
-
-        h1 {
-            font-size: 20px;
-            text-align: center;
+        .document-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #18181b;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin: 0 0 10px 0;
+        }
+        .ref-table {
+            float: right;
+            border-collapse: collapse;
+        }
+        .ref-table td {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+        .ref-label {
+            font-weight: 600;
+            color: #52525b;
+            background: #f4f4f5;
+            border: 1px solid #e4e4e7;
+        }
+        .ref-value {
+            font-weight: bold;
+            color: #18181b;
+            border: 1px solid #e4e4e7;
+        }
+        .addresses {
+            display: table;
+            width: 100%;
+            margin-bottom: 40px;
+        }
+        .address-box {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+        }
+        .address-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #a1a1aa;
             margin-bottom: 5px;
-            color: #2563eb;
         }
-
-        h2 {
-            font-size: 16px;
-            margin-top: 20px;
-            margin-bottom: 5px;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 4px;
+        .address-content {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #27272a;
         }
-
-        .header-info, .article-info, .quantite-info {
+        .address-content strong {
+            font-size: 15px;
+            color: #18181b;
+        }
+        .clear { clear: both; }
+        .main-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 10px;
+            margin-bottom: 30px;
         }
-
-            .header-info td,
-            .article-info td,
-            .quantite-info td {
-                padding: 6px 8px;
-                border: 1px solid #e5e7eb;
-            }
-
-        .label {
+        .main-table th {
+            background-color: #4f46e5;
+            color: #ffffff;
+            font-weight: 600;
+            text-align: left;
+            padding: 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .main-table td {
+            padding: 12px 10px;
+            border-bottom: 1px solid #e4e4e7;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        .main-table tr:nth-child(even) td {
+            background-color: #fafafa;
+        }
+        .text-right { text-align: right !important; }
+        .text-center { text-align: center !important; }
+        
+        .totals-box {
+            float: right;
+            width: 350px;
+            border-collapse: collapse;
+            margin-bottom: 40px;
+        }
+        .totals-box td {
+            padding: 8px 10px;
+            font-size: 13px;
+            border-bottom: 1px solid #e4e4e7;
+        }
+        .total-label {
+            font-weight: 600;
+            color: #52525b;
+        }
+        .total-value {
+            text-align: right;
             font-weight: bold;
-            background-color: #f9fafb;
-            width: 30%;
+            color: #18181b;
         }
-
-        .value {
-            width: 70%;
+        .total-final {
+            font-size: 16px;
+            color: #4f46e5;
+            border-bottom: 2px solid #4f46e5;
         }
-
-        .small {
-            font-size: 10px;
-            color: #6b7280;
+        .signature-section {
+            display: table;
+            width: 100%;
+            margin-top: 50px;
         }
-
-        .footer {
-            margin-top: 40px;
-            font-size: 10px;
+        .signature-box {
+            display: table-cell;
+            width: 33%;
             text-align: center;
-            color: #9ca3af;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 10px;
         }
-
-        .mt-20 {
-            margin-top: 20px;
+        .signature-title {
+            font-weight: 600;
+            color: #71717a;
+            margin-bottom: 50px;
+            font-size: 11px;
+            text-transform: uppercase;
         }
-
-        .highlight {
-            font-weight: bold;
-            color: #1e40af;
+        .signature-line {
+            width: 80%;
+            margin: 0 auto;
+            border-bottom: 1px solid #d4d4d8;
         }
+        .footer {
+            margin-top: 60px;
+            padding-top: 15px;
+            border-top: 1px solid #e4e4e7;
+            text-align: center;
+            font-size: 10px;
+            color: #a1a1aa;
+            clear: both;
+        }
+        .footer p { margin: 2px 0; }
     </style>
 </head>
 <body>
-    <h1>Ordre d'achat</h1>
-    <p style="text-align:center; margin-top:0;">
-        Référence OA : <strong class="highlight">@Model.ReferenceOA</strong>
-    </p>
+    <div class="container">
+        <!-- HEADER -->
+        <div class="header">
+            <div class="header-left">
+                <h1 class="logo">SKYRA ERP</h1>
+                <div class="company-details">
+                    123 Avenue de l'Industrie, 75000 Paris<br />
+                    Tél : +33 1 23 45 67 89  |  Email : achat@skyra.erp<br />
+                    SIRET : 123 456 789 00012
+                </div>
+            </div>
+            <div class="header-right">
+                <h2 class="document-title">ORDRE D'ACHAT</h2>
+                <table class="ref-table">
+                    <tr>
+                        <td class="ref-label">N° Document</td>
+                        <td class="ref-value">@Model.ReferenceOA</td>
+                    </tr>
+                    <tr>
+                        <td class="ref-label">Date d'émission</td>
+                        <td class="ref-value">@Model.DateOrdre.ToString("dd/MM/yyyy")</td>
+                    </tr>
+                    <tr>
+                        <td class="ref-label">Réf. Plan MRP</td>
+                        <td class="ref-value">@Model.ReferencePlan</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
 
-    <h2>Informations générales</h2>
-    <table class="header-info">
-        <tr>
-            <td class="label">Plan MRP associé</td>
-            <td class="value">@Model.ReferencePlan</td>
-        </tr>
-        <tr>
-            <td class="label">Date de l'ordre</td>
-            <td class="value">@Model.DateOrdre.ToString("dd/MM/yyyy HH:mm")</td>
-        </tr>
-        <tr>
-            <td class="label">Horizon MRP</td>
-            <td class="value">
-                Du @Model.DateHorizonDebut.ToString("dd/MM/yyyy")
-                au @Model.DateHorizonFin.ToString("dd/MM/yyyy")
-            </td>
-        </tr>
-    </table>
+        <!-- ADDRESSES -->
+        <div class="addresses">
+            <div class="address-box">
+                <div class="address-title">FACTURER ET LIVRER À :</div>
+                <div class="address-content">
+                    <strong>SKYRA - Site de Production Principal</strong><br />
+                    Département Réception Matériaux<br />
+                    123 Avenue de l'Industrie<br />
+                    75000 Paris, France
+                </div>
+            </div>
+            <div class="address-box" style="padding-left: 40px;">
+                <div class="address-title">ADRESSÉ AU FOURNISSEUR :</div>
+                <div class="address-content">
+                    <strong>Fournisseur Agrée</strong><br />
+                    (Identifié via Messagerie ERP)<br />
+                    Conditions de paiement : 30 jours net
+                </div>
+            </div>
+        </div>
 
-    <h2>Détail de l'article</h2>
-    <table class="article-info">
-        <tr>
-            <td class="label">Référence article</td>
-            <td class="value">@Model.CodeArticle</td>
-        </tr>
-        <tr>
-            <td class="label">Désignation</td>
-            <td class="value">@Model.NomArticle</td>
-        </tr>
-        <tr>
-            <td class="label">Type produit</td>
-            <td class="value">@Model.TypeProduit</td>
-        </tr>
-    </table>
+        <!-- MAIN TABLE -->
+        <table class="main-table">
+            <thead>
+                <tr>
+                    <th>Réf. Article</th>
+                    <th>Désignation</th>
+                    <th>Type</th>
+                    <th class="text-center">Quantité</th>
+                    <th class="text-right">Prix Unitaire</th>
+                    <th class="text-right">Total HT</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>@Model.CodeArticle</strong></td>
+                    <td>@Model.NomArticle</td>
+                    <td>@Model.TypeProduit</td>
+                    <td class="text-center"><strong>@Model.Quantite</strong></td>
+                    <td class="text-right">@Model.PrixUnitaire.ToString("N2") €</td>
+                    <td class="text-right">@Model.PrixTotal.ToString("N2") €</td>
+                </tr>
+            </tbody>
+        </table>
 
-    <h2>Quantité et Valorisation</h2>
-    <table class="quantite-info">
-        <tr>
-            <td class="label">Quantité commandée</td>
-            <td class="value"><strong class="highlight">@Model.Quantite</strong></td>
-        </tr>
-        <tr>
-            <td class="label">Prix d'achat unitaire (est.)</td>
-            <td class="value">@Model.PrixUnitaire.ToString("N2") €</td>
-        </tr>
-        <tr>
-            <td class="label">Total Hors Taxes (est.)</td>
-            <td class="value"><strong class="highlight">@Model.PrixTotal.ToString("N2") €</strong></td>
-        </tr>
-    </table>
+        <!-- TOTALS & INFO -->
+        <div style="float: left; width: 45%; color: #71717a; font-size: 11px; line-height: 1.5; margin-top: 10px;">
+            <strong>INFORMATIONS LOGISTIQUES :</strong><br />
+            Besoin d'approvisionnement détecté via l'horizon MRP du <strong>@Model.DateHorizonDebut.ToString("dd/MM/yyyy")</strong> au <strong>@Model.DateHorizonFin.ToString("dd/MM/yyyy")</strong>.<br />
+            Cet ordre d'achat a été validé automatiquement suite aux confirmations fournisseurs. Les règles Incoterms standards s'appliquent.
+        </div>
 
-    <p class="small mt-20">
-        Cet ordre d'achat a été généré automatiquement suite à l'acceptation d'une proposition par le fournisseur via le module de messagerie ERP.
-    </p>
+        <table class="totals-box">
+            <tr>
+                <td class="total-label">Sous-total HT</td>
+                <td class="total-value">@Model.PrixTotal.ToString("N2") €</td>
+            </tr>
+            <tr>
+                <td class="total-label">TVA (20% est.)</td>
+                <td class="total-value">@((Model.PrixTotal * 0.2m).ToString("N2")) €</td>
+            </tr>
+            <tr>
+                <td class="total-label total-final">TOTAL TTC (Est.)</td>
+                <td class="total-value total-final">@((Model.PrixTotal * 1.2m).ToString("N2")) €</td>
+            </tr>
+        </table>
+        <div class="clear"></div>
 
-    <div class="footer">
-        ERP PFC 2025-2026 - Document généré le @DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+        <!-- SIGNATURES -->
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-title">Approuvé par (Achats)</div>
+                <div class="signature-line"></div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-title">Visa Fournisseur</div>
+                <div class="signature-line"></div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <p><strong>SKYRA ERP Enterprise Solutions</strong> - Module d'Achats et Approvisionnements MRP.</p>
+            <p>Document généré le @DateTime.Now.ToString("dd/MM/yyyy HH:mm:ss") - Les prix sont estimatifs hors conditions contractuelles spécifiques.</p>
+        </div>
     </div>
 </body>
 </html>
