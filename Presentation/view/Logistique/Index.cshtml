@@ -160,8 +160,19 @@
 }
 
 @section HeaderLeft {
-    <h1>Logistique & Flotte</h1>
-    <p>Suivi en temps réel et gestion des transports.</p>
+    <div style="display:flex; align-items:center; gap:20px;">
+        <div>
+            <h1>Logistique & Flotte</h1>
+            <p>Suivi en temps réel et gestion des transports.</p>
+        </div>
+        <a asp-page="/Settings/MobileAccess" class="btn-secondary" style="display:flex; align-items:center; gap:8px; text-decoration:none; padding:8px 16px; border-radius:12px;">
+            <svg style="width: 16px; height: 16px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"></path>
+                <circle cx="12" cy="9" r="3"></circle>
+            </svg>
+            Accès Extérieur
+        </a>
+    </div>
 }
 
         <section class="erp-content" style="padding: 20px;">

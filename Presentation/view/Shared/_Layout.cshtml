@@ -46,47 +46,17 @@
                     </svg>
                     <span>Profils</span>
                 </button>
-                <button class="nav-item" type="button">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="3" width="7" height="7"></rect>
-                        <rect x="14" y="14" width="7" height="7"></rect>
-                        <rect x="3" y="14" width="7" height="7"></rect>
-                    </svg>
-                    <span>Bases ERP</span>
-                </button>
-                <button class="nav-item" type="button">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="1"></circle>
-                        <path d="M12 1v6m6.07 6.07h-6.14M12 19v4m6.07-6.07v0"></path>
-                        <path d="M19 5l-4.24 4.24M5 19l4.24-4.24"></path>
-                        <path d="M19 19l-4.24-4.24M5 5l4.24 4.24"></path>
-                    </svg>
-                    <span>Paramètres</span>
-                </button>
+
             </nav>
 
             <div class="erp-sidebar-footer">
-                @if (ViewContext.RouteData.Values["page"]?.ToString() == "/Home")
-                {
-                    <a asp-page="/Settings/MobileAccess" class="sidebar-quick" style="text-decoration: none; display: flex; align-items: center;">
-                        <svg style="width: 14px; height: 14px; margin-right: 6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"></path>
-                            <circle cx="12" cy="9" r="3"></circle>
-                        </svg>
-                        Accès Extérieur
-                    </a>
-                }
-                else
-                {
-                    <button class="sidebar-quick" type="button">
-                        <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="15" x2="12" y2="21" />
-                            <line x1="15" y1="11" x2="21" y2="12" />
-                        </svg>
-                        Nouveau profil
-                    </button>
-                }
+                <button class="sidebar-quick" type="button">
+                    <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="15" x2="12" y2="21" />
+                        <line x1="15" y1="11" x2="21" y2="12" />
+                    </svg>
+                    Nouveau profil
+                </button>
                 <button class="sidebar-quick secondary" type="button" onclick="openLogoutModal()">
                     <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
