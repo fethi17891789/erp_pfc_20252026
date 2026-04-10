@@ -897,6 +897,26 @@ namespace erp_pfc_20252026.Pages
             return File(fichier.FichierBlob, contentType, fileName);
         }
 
+        public async Task<IActionResult> OnGetViewOFAsync(int id)
+        {
+            var fichier = await _db.MRPFichiers.FirstOrDefaultAsync(f => f.Id == id);
+            if (fichier == null || fichier.FichierBlob == null || fichier.FichierBlob.Length == 0)
+            {
+                return NotFound();
+            }
+
+            var contentType = string.IsNullOrWhiteSpace(fichier.ContentType)
+                ? "application/pdf"
+                : fichier.ContentType;
+
+            var fileName = string.IsNullOrWhiteSpace(fichier.FichierNom)
+                ? fichier.ReferenceOF + ".pdf"
+                : fichier.FichierNom;
+
+            Response.Headers.Add("Content-Disposition", $"inline; filename=\"{fileName}\"");
+            return File(fichier.FichierBlob, contentType);
+        }
+
         private async Task ChargerFichiersOFAsync(int planId)
         {
             FichiersOF = await _db.MRPFichiers
