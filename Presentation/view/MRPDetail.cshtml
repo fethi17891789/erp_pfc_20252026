@@ -70,43 +70,80 @@
                 <div class="mrp-plan-resume-left">
                     <div class="mrp-plan-resume-header">
                         <span class="mrp-plan-chip">
+                            <svg style="width:12px; height:12px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <rect x="3" y="4" width="18" height="16" rx="2" ry="2"></rect>
+                                <path d="M3 9h18"></path>
+                            </svg>
                             Planification MRP
                         </span>
                         <span class="mrp-plan-ref">
-                            Ref : <strong>@Model.Planification?.Reference</strong>
+                            Réf : <strong>@Model.Planification?.Reference</strong>
                         </span>
                     </div>
 
-                    <div class="mrp-plan-resume-infos">
-                        <div>
-                            Horizon :
-                            <strong>@Model.Planification?.HorizonJours jours</strong>
+                    <!-- KPI BOXES -->
+                    <div class="mrp-kpi-row">
+                        <div class="mrp-kpi-box">
+                            <div class="mrp-kpi-icon" style="background:rgba(56,189,248,0.12); color:#38bdf8;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <path d="M12 6v6l4 2"></path>
+                                </svg>
+                            </div>
+                            <div class="mrp-kpi-data">
+                                <span class="mrp-kpi-value">@Model.Planification?.HorizonJours jours</span>
+                                <span class="mrp-kpi-label">Horizon</span>
+                            </div>
                         </div>
-                        <div>
-                            Periode :
-                            <strong>
-                                @Model.Planification?.DateDebut.ToString("dd/MM/yyyy")
-                                ->
-                                @Model.Planification?.DateFin.ToString("dd/MM/yyyy")
-                            </strong>
+                        <div class="mrp-kpi-box">
+                            <div class="mrp-kpi-icon" style="background:rgba(123,94,255,0.12); color:#a78bfa;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                                    <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                                    <path d="M3 10h18"></path>
+                                    <path d="M8 2v4"></path><path d="M16 2v4"></path>
+                                </svg>
+                            </div>
+                            <div class="mrp-kpi-data">
+                                <span class="mrp-kpi-value">
+                                    @Model.Planification?.DateDebut.ToString("dd/MM/yyyy")
+                                    → @Model.Planification?.DateFin.ToString("dd/MM/yyyy")
+                                </span>
+                                <span class="mrp-kpi-label">Période</span>
+                            </div>
                         </div>
-                        <div>
-                            Statut :
-                            <span class="@Model.GetStatutBadgeCss()">
-                                @Model.Planification?.Statut
-                            </span>
+                        <div class="mrp-kpi-box">
+                            <div class="mrp-kpi-icon" style="background:rgba(34,197,94,0.12); color:#22c55e;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                            </div>
+                            <div class="mrp-kpi-data">
+                                <span class="mrp-kpi-value">
+                                    <span class="@Model.GetStatutBadgeCss()">@Model.Planification?.Statut</span>
+                                </span>
+                                <span class="mrp-kpi-label">Statut</span>
+                            </div>
                         </div>
-                        <div>
-                            Produits planifies :
-                            <strong>@Model.NbProduitsPlanifies</strong>
+                    </div>
+
+                    <!-- STATS ROW -->
+                    <div class="mrp-stats-row">
+                        <div class="mrp-stat-chip">
+                            <span class="mrp-stat-number">@Model.NbProduitsPlanifies</span>
+                            <span class="mrp-stat-text">Produits planifiés</span>
                         </div>
-                        <div>
-                            Propositions OF :
-                            <strong>@Model.NbPropositionsOF</strong>
+                        <div class="mrp-stat-chip mrp-stat-of">
+                            <span class="mrp-stat-number">@Model.NbPropositionsOF</span>
+                            <span class="mrp-stat-text">Propositions OF</span>
                         </div>
-                        <div>
-                            Propositions OA :
-                            <strong>@Model.NbPropositionsOA</strong>
+                        <div class="mrp-stat-chip mrp-stat-oa">
+                            <span class="mrp-stat-number">@Model.NbPropositionsOA</span>
+                            <span class="mrp-stat-text">Propositions OA</span>
+                        </div>
+                        <div class="mrp-stat-chip mrp-stat-total">
+                            <span class="mrp-stat-number">@lignes.Count</span>
+                            <span class="mrp-stat-text">Lignes MRP</span>
                         </div>
                     </div>
                 </div>
@@ -118,6 +155,11 @@
                                 class="btn-secondary"
                                 style="min-width:170px;"
                                 @(Model.Planification?.Statut == "Terminee" ? "disabled" : "")>
+                            <svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                                <polyline points="7 3 7 8 15 8"></polyline>
+                            </svg>
                             Enregistrer
                         </button>
                     </form>
@@ -127,18 +169,17 @@
                                 class="btn-secondary"
                                 style="min-width:170px;"
                                 @(Model.Planification?.Statut == "Terminee" ? "disabled" : "")>
+                            <svg style="width:14px;height:14px;margin-right:6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="15" y1="9" x2="9" y2="15"></line>
+                                <line x1="9" y1="9" x2="15" y2="15"></line>
+                            </svg>
                             Annuler
                         </button>
                     </form>
                 </div>
             </div>
 
-            <!-- BARRE D INFO -->
-            <div style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
-                <div style="font-size:0.9rem; color:var(--text-muted);">
-                    @lignes.Count lignes MRP (produits + composants)
-                </div>
-            </div>
 
             <!-- TABLEAU DES LIGNES -->
             <div class="erp-card mrp-table-card">
