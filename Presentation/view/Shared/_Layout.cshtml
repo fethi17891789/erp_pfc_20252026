@@ -33,12 +33,53 @@
                     </svg>
                     <span>Accueil</span>
                 </a>
-                <a asp-page="/Fabrication" class="nav-item @(ViewContext.RouteData.Values["page"]?.ToString() == "/Fabrication" ? "nav-item-active" : "")">
-                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
-                    </svg>
-                    <span>Modules</span>
-                </a>
+                <!-- MODULES (ACCORDION) -->
+                <div class="nav-group">
+                    <button class="nav-item nav-item-toggle" type="button" onclick="toggleNavGroup('modules')">
+                        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9h12M6 12h12M6 15h12M3 3h18a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+                        </svg>
+                        <span>Modules</span>
+                        <svg class="nav-chevron" id="chevron-modules" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="nav-sub" id="nav-sub-modules">
+                        <!-- FABRICATION (SOUS-ACCORDION) -->
+                        <div class="nav-group">
+                            <button class="nav-sub-item nav-item-toggle" type="button" onclick="event.stopPropagation(); toggleNavGroup('fabrication')">
+                                <svg class="nav-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M2 20h20M5 20V10l7-6 7 6v10"></path>
+                                    <path d="M9 20v-4h6v4"></path>
+                                </svg>
+                                <span>Fabrication</span>
+                                <svg class="nav-chevron" id="chevron-fabrication" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </button>
+                            <div class="nav-sub nav-sub-nested" id="nav-sub-fabrication">
+                                <a asp-page="/BOM" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/BOM" ? "nav-sub-link-active" : "")">
+                                    <span class="nav-dot"></span> Nomenclatures (BOM)
+                                </a>
+                                <a asp-page="/ProduitCreate" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/ProduitCreate" ? "nav-sub-link-active" : "")">
+                                    <span class="nav-dot"></span> Produits
+                                </a>
+                                <a asp-page="/MRP" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/MRP" || ViewContext.RouteData.Values["page"]?.ToString() == "/MRPDetail" ? "nav-sub-link-active" : "")">
+                                    <span class="nav-dot"></span> Planification MRP
+                                </a>
+                            </div>
+                        </div>
+                        <!-- TRACKING -->
+                        <a asp-page="/Logistique/Index" class="nav-sub-item @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Logistique") == true ? "nav-sub-link-active" : "")">
+                            <svg class="nav-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="10" r="3"></circle>
+                                <path d="M12 2a8 8 0 0 0-8 8c0 5.4 8 12 8 12s8-6.6 8-12a8 8 0 0 0-8-8z"></path>
+                            </svg>
+                            <span>Tracking & Logistique</span>
+                        </a>
+                    </div>
+                </div>
+
                 <button class="nav-item" type="button">
                     <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
@@ -86,19 +127,6 @@
                 </div>
 
                 <div class="header-right">
-                    <div class="header-db">
-                        <span class="header-db-label">Base active</span>
-                        <span class="header-db-name">erp_db</span>
-                    </div>
-                    <button class="header-btn" type="button">
-                        <svg style="width: 14px; height: 14px; display: inline-block; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M1 4v6h6"></path>
-                            <path d="M23 20v-6h-6"></path>
-                            <path d="M20.49 9A9 9 0 0 0 5.64 5.64"></path>
-                            <path d="M3.51 15A9 9 0 0 0 18.36 18.36"></path>
-                        </svg>
-                        Changer de base
-                    </button>
 
                     <!-- BOUTON MESSAGERIE AVEC LIEN -->
                     <a asp-page="/Messagerie" class="header-btn-link">
@@ -180,6 +208,32 @@
                 localStorage.setItem('sidebar-collapsed', isCollapsed ? 'true' : 'false');
             }
         }
+        function toggleNavGroup(groupName) {
+            var sub = document.getElementById('nav-sub-' + groupName);
+            var chevron = document.getElementById('chevron-' + groupName);
+            if (!sub) return;
+            var isOpen = sub.classList.contains('nav-sub-open');
+            if (isOpen) {
+                sub.classList.remove('nav-sub-open');
+                if (chevron) chevron.classList.remove('nav-chevron-open');
+                localStorage.setItem('nav-' + groupName, 'closed');
+            } else {
+                sub.classList.add('nav-sub-open');
+                if (chevron) chevron.classList.add('nav-chevron-open');
+                localStorage.setItem('nav-' + groupName, 'open');
+            }
+        }
+        // Restore nav group states on load
+        (function() {
+            ['modules', 'fabrication'].forEach(function(g) {
+                if (localStorage.getItem('nav-' + g) === 'open') {
+                    var sub = document.getElementById('nav-sub-' + g);
+                    var chevron = document.getElementById('chevron-' + g);
+                    if (sub) sub.classList.add('nav-sub-open');
+                    if (chevron) chevron.classList.add('nav-chevron-open');
+                }
+            });
+        })();
     </script>
     @{
         var currentUserId = HttpContextAccessor.HttpContext?.Session.GetInt32("CurrentUserId") ?? 0;
