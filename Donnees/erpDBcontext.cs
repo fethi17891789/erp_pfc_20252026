@@ -46,6 +46,10 @@ namespace Donnees
         // CONFIGURATION IA
         public DbSet<IaConfiguration> IaConfigurations { get; set; }
 
+        // CRM / ANNUAIRE
+        public DbSet<Contact> Contacts { get; set; }
+        public DbSet<ContactRelation> ContactRelations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -54,6 +58,20 @@ namespace Donnees
             modelBuilder.Entity<ErpUser>()
                 .HasIndex(u => u.Login)
                 .IsUnique();
+
+            // --- CONFIG CRM ---
+            modelBuilder.Entity<ContactRelation>(entity =>
+            {
+                entity.HasOne(e => e.SourceContact)
+                    .WithMany()
+                    .HasForeignKey(e => e.SourceContactId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(e => e.TargetContact)
+                    .WithMany()
+                    .HasForeignKey(e => e.TargetContactId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
             // --- CONFIG PRODUITS ---
             modelBuilder.Entity<Produit>(entity =>

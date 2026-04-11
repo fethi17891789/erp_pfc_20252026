@@ -65,6 +65,10 @@ builder.Services.AddScoped<Metier.Logistique.LogistiqueService>();
 builder.Services.AddHttpClient<Metier.IAService>();
 builder.Services.AddScoped<Metier.IAService>();
 
+// CRM
+builder.Services.AddScoped<Metier.CRM.ValidationService>();
+builder.Services.AddScoped<Metier.CRM.AnnuaireService>();
+
 // SignalR
 builder.Services.AddSignalR();
 
@@ -793,6 +797,62 @@ using (var scope8 = app.Services.CreateScope())
     catch (Exception ex)
     {
         Console.WriteLine($"Erreur lors de la création auto de IaConfiguration : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
+// ---------- 9. CREATION AUTOMATIQUE TABLES ANNUAIRE (CRM) ----------
+using (var scope9 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope9.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        Console.WriteLine($"[DEBUG] Connexion utilisée pour CRM Annuaire : {connString}");
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createCrmTablesSql = @"
+                CREATE TABLE IF NOT EXISTS ""Contacts"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""FullName"" VARCHAR(200) NOT NULL,
+                    ""Email"" VARCHAR(200) NULL,
+                    ""Phone"" VARCHAR(50) NULL,
+                    ""Website"" VARCHAR(255) NULL,
+                    ""Roles"" INT NOT NULL DEFAULT 0,
+                    ""AvatarImage"" TEXT NULL,
+                    ""Comment"" VARCHAR(1000) NULL,
+                    ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+                );
+
+                CREATE TABLE IF NOT EXISTS ""ContactRelations"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""SourceContactId"" INT NOT NULL,
+                    ""TargetContactId"" INT NOT NULL,
+                    ""RelationType"" VARCHAR(100) NOT NULL,
+                    CONSTRAINT ""FK_ContactRelations_Source""
+                        FOREIGN KEY (""SourceContactId"") REFERENCES ""Contacts""(""Id"")
+                        ON DELETE CASCADE,
+                    CONSTRAINT ""FK_ContactRelations_Target""
+                        FOREIGN KEY (""TargetContactId"") REFERENCES ""Contacts""(""Id"")
+                        ON DELETE CASCADE
+                );";
+
+            using (var cmd = new NpgsqlCommand(createCrmTablesSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création des tables CRM (Annuaire)...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Tables CRM prêtes.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto des tables CRM : {ex}");
     }
 }
 // --------------------------------------------------------------------

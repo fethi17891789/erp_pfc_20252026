@@ -70,16 +70,30 @@
     <div id="contactsContainer"
          style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; max-height:70vh; overflow-y:auto; padding-right:8px;">
 
-        @{
-            var contacts = new[] {
-                new { Name = "Tesla, Inc.", Domain = "tesla.com", Email = "contact@@tesla.com", Phone = "+1 800 555 1234", Role = "Client", RoleClass = "badge-client", Initials = "TE", HasLogo = true, Id = 1 },
-                new { Name = "John Doe", Domain = "(Particulier)", Email = "jdoe@@example.com", Phone = "+33 6 12 34 56 78", Role = "Employé", RoleClass = "badge-employe", Initials = "JD", HasLogo = false, Id = 2 },
-                new { Name = "Sony Group", Domain = "sony.com", Email = "supply@@sony.co.jp", Phone = "+81 3 1234 5678", Role = "Fournisseur", RoleClass = "badge-fournisseur", Initials = "SO", HasLogo = true, Id = 3 }
-            };
+        @if (!Model.Contacts.Any())
+        {
+            <div style="grid-column: span 4; text-align:center; padding: 40px; color:var(--text-muted);">
+                Aucun contact trouvé. Cliquez sur "Créer Contact" pour commencer.
+            </div>
         }
 
-        @foreach (var c in contacts)
+        @foreach (var c in Model.Contacts)
         {
+            var initials = !string.IsNullOrEmpty(c.FullName) && c.FullName.Length >= 2 ? c.FullName.Substring(0,2).ToUpper() : "??";
+            
+            // On extrait le domaine depuis le site web ou l'email pour Clearbit
+            var domain = !string.IsNullOrEmpty(c.Website) ? c.Website.Replace("https://", "").Replace("http://", "").TrimEnd('/') : 
+                         (!string.IsNullOrEmpty(c.Email) && c.Email.Contains("@") ? c.Email.Split('@')[1] : "(Particulier)");
+
+            var hasLogo = domain != "(Particulier)";
+
+            // On récupère le premier rôle pour le badge principal
+            var firstRoleStr = c.Roles != global::Donnees.ContactRole.None ? c.Roles.ToString().Split(',')[0].Trim() : "Contact";
+            var roleClass = "badge-employe"; // default
+            if (firstRoleStr.Contains("Client")) roleClass = "badge-client";
+            else if (firstRoleStr.Contains("Fournisseur")) roleClass = "badge-fournisseur";
+            else if (firstRoleStr.Contains("Investisseur")) roleClass = "badge-investisseur";
+
             <div class="form-group product-item" style="margin:0; position:relative;">
                 <div class="product-card"
                      style="
@@ -97,39 +111,66 @@
                      "
                      onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
                      onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
+                    
+                    <!-- OPTIONS MENU (3 petits points) -->
+                    <div style="position:absolute; top:8px; right:8px; z-index:10;">
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@c.Id" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer définitivement ce contact ?');" style="margin:0;">
+                            <div style="position:relative;">
+                                <button type="button" 
+                                        style="background:rgba(255,255,255,0.05); border:none; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); cursor:pointer; transition:background 0.2s, color 0.2s;"
+                                        onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#fff';"
+                                        onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='var(--text-muted)';"
+                                        onclick="var m = this.nextElementSibling; document.querySelectorAll('.contact-dd').forEach(x => { if(x !== m) x.style.display='none'; }); m.style.display = m.style.display === 'block' ? 'none' : 'block'; event.stopPropagation();">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                                        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path>
+                                    </svg>
+                                </button>
+                                <div class="contact-dd" style="display:none; position:absolute; right:0; top:calc(100% + 4px); background:#0f172a; border:1px solid rgba(255,255,255,0.1); padding:4px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); min-width:140px;">
+                                    <button type="submit" 
+                                            style="color:#ef4444; background:transparent; border:none; padding:8px 12px; font-size:0.85rem; font-weight:500; cursor:pointer; width:100%; text-align:left; border-radius:6px; transition:background 0.2s;"
+                                            onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'" 
+                                            onmouseout="this.style.background='transparent'">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"></path></svg>
+                                        Supprimer
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
                     <div class="product-card-header">
 
                         <!-- IMAGE / LOGO -->
-                        @if (c.HasLogo)
+                        @if (hasLogo)
                         {
                             <div style="width:80px; height:100px; border-radius:14px; overflow:hidden; border:1px solid rgba(148,163,184,0.5); background:white; flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer;"
-                                 onclick="openContactImageModal('https://logo.clearbit.com/@(c.Domain)'); event.stopPropagation();">
-                                <img src="https://logo.clearbit.com/@(c.Domain)"
-                                     onerror="this.parentElement.innerHTML='<span style=\'font-size:1.5rem;font-weight:bold;color:#94a3b8;\'>@c.Initials</span>';"
-                                     alt="Logo @c.Name"
+                                 onclick="openContactImageModal('https://logo.clearbit.com/@domain'); event.stopPropagation();">
+                                <img src="https://logo.clearbit.com/@domain"
+                                     onerror="this.parentElement.innerHTML='<span style=\'font-size:1.5rem;font-weight:bold;color:#94a3b8;\'>@initials</span>';"
+                                     alt="Logo @c.FullName"
                                      style="max-width:100%; max-height:100%; object-fit:contain; padding:6px;" />
                             </div>
                         }
                         else
                         {
                             <div style="width:80px; height:100px; border-radius:14px; overflow:hidden; border:1px solid rgba(148,163,184,0.5); background:#020617; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:white; font-size:1.5rem; font-weight:bold;">
-                                @c.Initials
+                                @initials
                             </div>
                         }
 
                         <!-- TEXTE -->
                         <a asp-page="/AnnuaireNew" asp-route-id="@c.Id" style="text-decoration:none; color:inherit; flex:1; min-width:0;">
                             <div class="product-card-text contact-card-info">
-                                <div class="product-card-title">@c.Name</div>
-                                <div class="product-card-subtitle">@c.Domain</div>
+                                <div class="product-card-title">@c.FullName</div>
+                                <div class="product-card-subtitle">@domain</div>
                                 <div class="product-card-stock">
-                                    @c.Email
+                                    @(string.IsNullOrEmpty(c.Email) ? "Pas d'email" : c.Email)
                                 </div>
                                 <div class="product-card-price">
-                                    <span>@c.Phone</span>
+                                    <span>@(string.IsNullOrEmpty(c.Phone) ? "Pas de téléphone" : c.Phone)</span>
                                 </div>
                                 <div>
-                                    <span class="role-badge @c.RoleClass">@c.Role</span>
+                                    <span class="role-badge @roleClass">@firstRoleStr</span>
                                 </div>
                             </div>
                         </a>
