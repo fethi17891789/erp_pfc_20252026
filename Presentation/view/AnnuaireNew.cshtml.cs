@@ -12,11 +12,13 @@ namespace erp_pfc_20252026.Pages
     {
         private readonly AnnuaireService _annuaireService;
         private readonly ValidationService _validationService;
+        private readonly Metier.IAService _iaService;
 
-        public AnnuaireNewModel(AnnuaireService annuaireService, ValidationService validationService)
+        public AnnuaireNewModel(AnnuaireService annuaireService, ValidationService validationService, Metier.IAService iaService)
         {
             _annuaireService = annuaireService;
             _validationService = validationService;
+            _iaService = iaService;
         }
 
         [BindProperty]
@@ -133,6 +135,49 @@ namespace erp_pfc_20252026.Pages
 
             bool isValid = await _validationService.ValidateEmailAsync(email);
             return new JsonResult(new { IsValid = isValid });
+        }
+
+        public async Task<IActionResult> OnGetEnrichFromWebsite(string website)
+        {
+            if (string.IsNullOrWhiteSpace(website))
+                return new JsonResult(new { FullName = "", Comment = "" });
+
+            var info = await _validationService.ExtractCompanyInfoAsync(website);
+            return new JsonResult(new { FullName = info.FullName, Comment = info.Comment });
+        }
+
+        public async Task<IActionResult> OnPostAiMagicEnrichAsync([FromBody] string description)
+        {
+            if (string.IsNullOrWhiteSpace(description))
+                return new JsonResult(new { error = "Description vide" });
+
+            string systemPrompt = @"Tu es un expert en intelligence économique et gestion de données B2B. 
+Ta mission est d'enrichir une fiche CRM SKYRA avec une précision IRREPROCHABLE.
+
+ETAPES DE TON TRAVAIL :
+1. ANALYSE : Identifie l'entreprise mentionnée et sa localisation.
+2. RECHERCHE : Utilise Google Search pour trouver les mentions légales, le site officiel et les annuaires professionnels.
+3. EXTRACTION :
+   - FullName : Trouve le NOM LEGAL COMPLET (ex: L'OREAL SA, MICROSOFT FRANCE SAS). Ne donne pas que le nom commercial.
+   - Website : Trouve l'URL exacte du site institutionnel.
+   - Email : Trouve l'adresse de contact principale (info@, contact@, sales@). Si tu connais le format des emails de la boîte (ex: p.nom@entreprise.com) et le nom de la personne, déduis-le.
+   - Phone : Extrais le numéro du siège social ou du standard.
+   - Comment : Rédige une description succincte mais riche (secteur, effectif estimé, spécialité).
+
+REGLES D'OR :
+- NE JAMAIS INVENTER. Si un champ est vide, c'est que l'info n'existe pas publiquement.
+- FORMATAGE : Retourne UNIQUEMENT un objet JSON valide.
+
+{
+  ""FullName"": ""Nom Légal Complet"",
+  ""Email"": ""contact@domaine.com"",
+  ""Phone"": ""+33 1 ..."",
+  ""Website"": ""https://www.site.com"",
+  ""Comment"": ""Description experte...""
+}";
+
+            string result = await _iaService.AskAiJsonAsync(systemPrompt, description);
+            return Content(result, "application/json");
         }
     }
 }

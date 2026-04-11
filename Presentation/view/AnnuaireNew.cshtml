@@ -104,6 +104,70 @@
             transform: translateY(0);
             box-shadow: 0 3px 10px rgba(123, 94, 255, 0.3);
         }
+
+        /* --- MAGIC AI CARD STYLE --- */
+        .ai-magic-section {
+            background: linear-gradient(135deg, rgba(123, 94, 255, 0.1), rgba(18, 22, 54, 0.4));
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(123, 94, 255, 0.3);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            margin-bottom: 25px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .ai-magic-section::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(123, 94, 255, 0.05) 0%, transparent 70%);
+            animation: pulse-bg 8s infinite alternate;
+            z-index: 0;
+        }
+        @@keyframes pulse-bg { 0% { transform: translate(-10%, -10%); } 100% { transform: translate(10%, 10%); } }
+
+        .ai-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; position: relative; z-index: 1; }
+        .ai-title { font-size: 0.95rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+        .ai-sparkle { color: #facc15; animation: sparkle 2s infinite; }
+        @@keyframes sparkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.2); } }
+
+        .ai-textarea {
+            width: 100%;
+            background: rgba(2, 6, 23, 0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            color: #fff;
+            font-size: 0.9rem;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            position: relative; z-index: 1;
+        }
+        .ai-textarea:focus { border-color: var(--accent); }
+
+        .ai-btn {
+            margin-top: 10px;
+            background: linear-gradient(90deg, #7B5EFF, #9C8CFF);
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 10px 20px;
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex; align-items: center; gap: 8px;
+            transition: 0.2s;
+            position: relative; z-index: 1;
+        }
+        .ai-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(123, 94, 255, 0.4); }
+        .ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .ai-loading-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(8, 11, 32, 0.8);
+            display: none; align-items: center; justify-content: center;
+            flex-direction: column; gap: 10px; z-index: 5;
+            backdrop-filter: blur(4px);
+        }
     </style>
 }
 
@@ -114,6 +178,34 @@
 
 <section class="erp-content">
     <div class="product-form-card">
+        
+        <!-- SECTION ASSISTANT GEMINI -->
+        <div class="ai-magic-section" id="ai-section">
+            <div class="ai-header">
+                <span class="ai-title">
+                    <svg class="ai-sparkle" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"></path>
+                    </svg>
+                    Assistant Intelligent GEMINI
+                </span>
+            </div>
+            <p style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-bottom: 12px; position: relative; z-index: 1;">
+                Décrivez le contact (nom, entreprise, email, mobile, site...) et l'ERP remplira le formulaire automatiquement.
+            </p>
+            <textarea id="ai-prompt" class="ai-textarea" rows="2" placeholder="Ex: C'est le directeur de la Sarl Dubois à Nice, Vincent Dubois. Son mobile est le 06..."></textarea>
+            <button type="button" class="ai-btn" onclick="callAiAssistant()" id="ai-btn">
+                <span id="ai-btn-text">Générer la fiche</span>
+            </button>
+
+            <div class="ai-loading-overlay" id="ai-loader">
+                <svg viewBox="0 0 50 50" style="width:40px;height:40px;animation: spin 1s linear infinite; color:var(--accent);">
+                    <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
+                </svg>
+                <span style="font-weight: 700; color: #fff; font-size: 0.9rem;">Gemini effectue une recherche web en direct...</span>
+                <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Identification et enrichissement des données officielles</span>
+            </div>
+        </div>
+
         <form id="contact-new-form" method="post" enctype="multipart/form-data" onsubmit="handleFormSubmit()">
             <input type="hidden" asp-for="CurrentContact.Id" />
 
@@ -129,11 +221,17 @@
             <div class="form-row form-row-2">
                 <div class="form-group">
                     <label asp-for="CurrentContact.FullName" class="form-label">Nom complet / Raison Sociale</label>
-                    <input asp-for="CurrentContact.FullName" class="form-input" placeholder="ex: John Doe" required />
+                    <input asp-for="CurrentContact.FullName" id="CurrentContact_FullName" class="form-input" placeholder="ex: John Doe" required />
                 </div>
                 <div class="form-group">
-                    <label asp-for="CurrentContact.Website" class="form-label">Site Web (Optionnel)</label>
-                    <input asp-for="CurrentContact.Website" class="form-input" placeholder="https://" />
+                    <label asp-for="CurrentContact.Website" class="form-label">Site Web (Auto-Enrichissement)</label>
+                    <div style="position:relative;">
+                        <input asp-for="CurrentContact.Website" id="input-website" class="form-input" placeholder="ex: tesla.com" onblur="enrichWebsite()" />
+                        <span id="spinner-website" style="display:none; position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--accent);">
+                            <svg viewBox="0 0 50 50" style="width:18px;height:18px;animation: spin 1s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle></svg>
+                        </span>
+                    </div>
+                    <div id="msg-website" style="font-size:0.8rem; color:#22c55e; margin-top:6px; display:none;">Données récupérées avec succès !</div>
                 </div>
             </div>
 
@@ -210,7 +308,7 @@
             <div class="form-row">
                 <div class="form-group form-row-span-2">
                     <label for="Comment" class="form-label">Notes internes</label>
-                    <textarea asp-for="CurrentContact.Comment" class="form-input form-textarea" placeholder="Description de l'entité..." rows="4"></textarea>
+                    <textarea asp-for="CurrentContact.Comment" id="CurrentContact_Comment" class="form-input form-textarea" placeholder="Description de l'entité..." rows="4"></textarea>
                 </div>
             </div>
 
@@ -384,5 +482,128 @@
             spinner.style.display = 'none';
         }
     }
+
+    /* === AUTO ENRICHISSEMENT === */
+    async function enrichWebsite() {
+        const input = document.getElementById('input-website');
+        const spinner = document.getElementById('spinner-website');
+        const msg = document.getElementById('msg-website');
+        const fullnameInput = document.getElementById('CurrentContact_FullName');
+        const commentInput = document.getElementById('CurrentContact_Comment');
+
+        const website = input.value;
+        
+        msg.style.display = 'none';
+        if (!website) return;
+
+        spinner.style.display = 'inline-block';
+
+        try {
+            console.log("Enrichissement pour:", website);
+            const response = await fetch(`?handler=EnrichFromWebsite&website=${encodeURIComponent(website)}`);
+            const data = await response.json();
+            console.log("Données reçues:", data);
+            
+            spinner.style.display = 'none';
+
+            let updated = false;
+
+            if (fullnameInput && data.fullName && (!fullnameInput.value || fullnameInput.value.length < 3)) {
+                fullnameInput.value = data.fullName;
+                fullnameInput.classList.add('input-valid');
+                updated = true;
+            }
+
+            if (commentInput && data.comment && (!commentInput.value || commentInput.value.length < 5)) {
+                commentInput.value = data.comment;
+                commentInput.classList.add('input-valid');
+                updated = true;
+            }
+
+            if (updated) {
+                msg.style.display = 'block';
+                input.classList.add('input-valid');
+                
+                setTimeout(() => {
+                    fullnameInput.classList.remove('input-valid');
+                    commentInput.classList.remove('input-valid');
+                    input.classList.remove('input-valid');
+                    msg.style.display = 'none';
+                }, 4000);
+            } else {
+                console.warn("Aucune donnée nouvelle à insérer.");
+            }
+        } catch (e) {
+            console.error("Erreur enrichWebsite:", e);
+            spinner.style.display = 'none';
+        }
+    }
+
+    /* === ASSISTANT IA MAGIQUE === */
+    async function callAiAssistant() {
+        const promptInput = document.getElementById('ai-prompt');
+        const loader = document.getElementById('ai-loader');
+        const btn = document.getElementById('ai-btn');
+        const description = promptInput.value.trim();
+
+        if (!description) return;
+
+        loader.style.display = 'flex';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('?handler=AiMagicEnrich', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                },
+                body: JSON.stringify(description)
+            });
+
+            const data = await response.json();
+            console.log("IA Result:", data);
+
+            if (data.error) {
+                alert("Erreur IA : " + data.error);
+            } else {
+                // Remplissage des champs
+                if (data.FullName) fillField('CurrentContact_FullName', data.FullName);
+                if (data.Email) fillField('input-email', data.Email);
+                if (data.Phone) fillField('input-phone', data.Phone);
+                if (data.Website) fillField('input-website', data.Website);
+                if (data.Comment) fillField('CurrentContact_Comment', data.Comment);
+
+                // Les rôles sont désactivés pour l'instant (saisie manuelle souhaitée par l'utilisateur)
+
+                // Petit message de succès
+                promptInput.value = "";
+                promptInput.placeholder = "Fiche générée avec succès ! ✨";
+            }
+        } catch (e) {
+            console.error("AI Error:", e);
+            alert("L'assistant Gemini est temporairement indisponible.");
+        } finally {
+            loader.style.display = 'none';
+            btn.disabled = false;
+        }
+    }
+
+    function fillField(id, value) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = value;
+            el.classList.add('input-valid');
+            el.style.animation = 'pulse-fill 0.5s ease';
+            setTimeout(() => el.classList.remove('input-valid'), 3000);
+        }
+    }
 </script>
+<style>
+    @@keyframes pulse-fill {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.02); background: rgba(123, 94, 255, 0.2); }
+        100% { transform: scale(1); }
+    }
+</style>
 }

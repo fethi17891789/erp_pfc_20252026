@@ -82,6 +82,103 @@ namespace Metier
             return await DiscoverModelsAsync(config.ApiKey.Trim());
         }
 
+        /// <summary>
+        /// Appelle Gemini pour obtenir une réponse structurée (JSON) sans historique.
+        /// </summary>
+        public async Task<string> AskAiJsonAsync(string systemPrompt, string userPrompt)
+        {
+            IaConfiguration? config = null;
+            try {
+                config = await _dbContext.IaConfigurations.FirstOrDefaultAsync(c => c.IsEnabled);
+            } catch { }
+
+            if (config == null || string.IsNullOrWhiteSpace(config.ApiKey)) 
+                return "{\"error\": \"IA non configurée\"}";
+
+            var apiKey = config.ApiKey.Trim();
+            var modelName = (config.ModelName ?? "gemini-1.5-flash-latest").Trim();
+            if (modelName == "gemini-1.5-flash") modelName = "gemini-1.5-flash-latest";
+
+            // Découverte des modèles pour le failover (comme dans la messagerie)
+            var discovered = await DiscoverModelsAsync(apiKey);
+            var modelsToTry = new List<string> { modelName };
+            foreach(var m in discovered) if(!modelsToTry.Contains(m)) modelsToTry.Add(m);
+            if (!modelsToTry.Contains("gemini-1.5-flash")) modelsToTry.Add("gemini-1.5-flash");
+
+            foreach (var currentModel in modelsToTry)
+            {
+                var targetModel = currentModel.Contains("/") ? currentModel : $"models/{currentModel}";
+                var apiUrl = $"https://generativelanguage.googleapis.com/v1beta/{targetModel}:generateContent?key={apiKey}";
+
+                Console.WriteLine($"[CRM IA] Tentative avec le modèle : {targetModel}...");
+
+                var payload = new {
+                    system_instruction = new { parts = new[] { new { text = systemPrompt } } },
+                    contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
+                    tools = new[] { new { google_search = new { } } },
+                    generationConfig = new { 
+                        response_mime_type = "application/json",
+                        temperature = 0.0
+                    }
+                };
+
+                try {
+                    var json = JsonSerializer.Serialize(payload);
+                    using var req = new HttpRequestMessage(HttpMethod.Post, apiUrl) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
+                    using var resp = await _httpClient.SendAsync(req);
+
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var body = await resp.Content.ReadAsStringAsync();
+                        using var doc = JsonDocument.Parse(body);
+                        
+                        if (doc.RootElement.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
+                        {
+                            var first = candidates[0];
+                            if (first.TryGetProperty("content", out var content) &&
+                                content.TryGetProperty("parts", out var parts) && parts.GetArrayLength() > 0)
+                            {
+                                var text = parts[0].GetProperty("text").GetString();
+                                if (!string.IsNullOrEmpty(text)) {
+                                    Console.WriteLine($"[CRM IA] Succès avec {targetModel}.");
+                                    return text;
+                                }
+                            }
+                        }
+                    }
+                    else if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                    {
+                        // Fallback : Si l'erreur est 400, c'est peut-être que google_search n'est pas supporté.
+                        // On réessaie sans outils.
+                        Console.WriteLine($"[CRM IA] Mode recherche refusé par {targetModel}. Retentative sans outils...");
+                        var fallbackPayload = new {
+                            system_instruction = new { parts = new[] { new { text = systemPrompt } } },
+                            contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
+                            generationConfig = new { response_mime_type = "application/json", temperature = 0.1 }
+                        };
+                        var fbJson = JsonSerializer.Serialize(fallbackPayload);
+                        using var fbReq = new HttpRequestMessage(HttpMethod.Post, apiUrl) { Content = new StringContent(fbJson, Encoding.UTF8, "application/json") };
+                        using var fbResp = await _httpClient.SendAsync(fbReq);
+                        if (fbResp.IsSuccessStatusCode) {
+                             var fbBody = await fbResp.Content.ReadAsStringAsync();
+                             using var fbDoc = JsonDocument.Parse(fbBody);
+                             var fbText = fbDoc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
+                             return fbText ?? "{}";
+                        }
+                    }
+                    else {
+                        var errBody = await resp.Content.ReadAsStringAsync();
+                        Console.WriteLine($"[CRM IA] Échec modèle {targetModel} (HTTP {(int)resp.StatusCode}). Réponse: {errBody}");
+                    }
+                }
+                catch (Exception ex) {
+                    Console.WriteLine($"[CRM IA] Erreur critique sur {currentModel} : {ex.Message}");
+                }
+            }
+
+            return "{\"error\": \"Tous les modèles Gemini ont échoué ou sont hors quota.\"}";
+        }
+
 
         public async Task<string> CallGeminiAsync(int conversationId, string userMessage, string? modelOverride = null)
         {
