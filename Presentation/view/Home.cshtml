@@ -129,25 +129,25 @@
                     </div>
                 </article>
 
-                <!-- RH -->
+                <!-- Annuaire CRM -->
                 <article class="module-tile">
                     <div class="module-tile-header">
-                        <div class="module-circle">
+                        <div class="module-circle" >
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="9" cy="7" r="4"></circle>
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                <circle cx="12" cy="7" r="4"></circle>
+                                <path d="M5 22v-2a7 7 0 0 1 14 0v2"></path>
                             </svg>
                         </div>
-                        <span class="module-badge">RH</span>
+                        <span class="module-badge" >Annuaire</span>
                     </div>
-                    <h3>Ressources humaines</h3>
-                    <p>Employés, congés et compétences.</p>
+                    <h3>Contacts Globaux</h3>
+                    <p>Clients, fournisseurs et contacts.</p>
                     <div class="module-tile-footer">
                         <span class="module-status-dot"></span>
-                        <span class="module-status-text">À venir</span>
-                        <button class="module-action" type="button">Ouvrir</button>
+                        <span class="module-status-text">Actif</span>
+                        <a asp-page="/AnnuaireList" class="module-action-link" style="text-decoration:none;">
+                            <button class="module-action" type="button" style="cursor:pointer;">Ouvrir</button>
+                        </a>
                     </div>
                 </article>
 
@@ -240,3 +240,6 @@
 @section Scripts {
     <script src="~/js/Home.js"></script>
 }
+
+
+

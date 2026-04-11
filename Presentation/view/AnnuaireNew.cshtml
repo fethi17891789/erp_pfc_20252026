@@ -1,0 +1,251 @@
+@page "{id?}"
+@model erp_pfc_20252026.Pages.AnnuaireNewModel
+@{
+    var isEdit = RouteData.Values["id"] != null;
+    ViewData["Title"] = isEdit ? "Modifier fiche contact" : "Nouveau contact";
+}
+
+@section Styles {
+    <style>
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+            min-height: 28px;
+        }
+
+        .tag-pill {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(148, 163, 253, 0.15);
+            border: 1px solid rgba(148, 163, 253, 0.3);
+            color: #c7d2fe;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            animation: tagAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tag-pill .remove-tag {
+            margin-left: 6px;
+            cursor: pointer;
+            color: #ef4444;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.15);
+            transition: all 0.15s;
+            font-size: 0.7rem;
+            line-height: 1;
+        }
+
+        .tag-pill .remove-tag:hover {
+            background: rgba(239, 68, 68, 0.4);
+            color: #fca5a5;
+        }
+
+        @@keyframes tagAppear {
+            from { opacity: 0; transform: scale(0.85) translateY(4px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Style sombre pour les options du select */
+        .select-wrapper select option {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 8px 14px;
+        }
+
+        /* Animation d'ouverture du select */
+        .select-wrapper select {
+            transition: border-color 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+                        box-shadow 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+                        background 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
+                        transform 100ms ease-out;
+        }
+
+        .select-wrapper select:focus {
+            transform: translateY(-1px);
+        }
+
+        /* Bouton Ajouter avec style primaire */
+        .btn-add-role {
+            padding: 0 18px;
+            height: var(--input-height);
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.8rem;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: #FFFFFF;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            box-shadow: 0 6px 18px rgba(123, 94, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            transition: transform 100ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms, filter 140ms;
+            white-space: nowrap;
+        }
+
+        .btn-add-role:hover {
+            transform: translateY(-1px) scale(1.02);
+            box-shadow: 0 10px 28px rgba(123, 94, 255, 0.45);
+            filter: brightness(1.08);
+        }
+
+        .btn-add-role:active {
+            transform: translateY(0);
+            box-shadow: 0 3px 10px rgba(123, 94, 255, 0.3);
+        }
+    </style>
+}
+
+@section HeaderLeft {
+    <h1>@(isEdit ? "Modifier le contact" : "Nouveau contact")</h1>
+    <p>@(isEdit ? "Mettre à jour les informations de l'entité." : "Créer un nouveau contact professionnel.")</p>
+}
+
+<section class="erp-content">
+    <div class="product-form-card">
+        <form id="contact-new-form" method="post" enctype="multipart/form-data">
+
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label for="FullName" class="form-label">Nom complet / Raison Sociale</label>
+                    <input id="FullName" name="FullName" type="text" class="form-input" placeholder="ex: John Doe" required />
+                </div>
+                <div class="form-group">
+                    <label for="Website" class="form-label">Site Web (Optionnel)</label>
+                    <input id="Website" name="Website" type="url" class="form-input" placeholder="https://" />
+                </div>
+            </div>
+
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label for="Email" class="form-label">Adresse Email</label>
+                    <input id="Email" name="Email" type="email" class="form-input" placeholder="nom@@domaine.com" />
+                </div>
+                <div class="form-group">
+                    <label for="Phone" class="form-label">Téléphone</label>
+                    <input id="Phone" name="Phone" type="tel" class="form-input" placeholder="+33 6 ..." />
+                </div>
+            </div>
+
+            <div class="form-row form-row-2">
+                <div class="form-group">
+                    <label class="form-label">Types de contact</label>
+                    <div style="display:flex; gap:8px;">
+                        <div class="select-wrapper" style="flex:1;">
+                            <select id="role-select" class="form-input">
+                                <option value="">Choisir un type à ajouter...</option>
+                                <option value="Client">Client</option>
+                                <option value="Fournisseur">Fournisseur</option>
+                                <option value="Employe">Employé</option>
+                                <option value="Partenaire">Partenaire</option>
+                                <option value="Investisseur">Investisseur</option>
+                            </select>
+                            <span class="select-icon">
+                                <svg viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                            </span>
+                        </div>
+                        <button type="button" class="btn-add-role" onclick="addRoleTag()">Ajouter</button>
+                    </div>
+
+                    <div class="tags-container" id="tags-container">
+                    </div>
+
+                    <input type="hidden" id="SelectedRoles" name="SelectedRoles" value="" />
+                </div>
+
+                <div class="form-group">
+                    <label for="AvatarImage" class="form-label">Photo ou Logo</label>
+                    <input id="AvatarImage" name="AvatarImage" type="file" accept="image/*" class="file-input-hidden" style="display:none;" />
+                    <label for="AvatarImage" class="file-input-button-mini">
+                        <svg style="width: 12px; height: 12px; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <span>Choisir un fichier</span>
+                    </label>
+                    <div style="margin-top:12px; color:var(--text-muted); font-size:0.8rem;">
+                        (Optionnel. Format : 500x500px).
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group form-row-span-2">
+                    <label for="Comment" class="form-label">Notes internes</label>
+                    <textarea id="Comment" name="Comment" class="form-input form-textarea" placeholder="Description de l'entité..." rows="4"></textarea>
+                </div>
+            </div>
+
+            <div class="form-footer" style="margin-top: 16px;">
+                <button type="submit" class="btn-primary">Enregistrer</button>
+                <a asp-page="/AnnuaireList" class="btn-secondary btn-cancel">Annuler</a>
+            </div>
+        </form>
+    </div>
+</section>
+
+@section Scripts {
+<script>
+    var tagsSet = {};
+
+    function addRoleTag() {
+        var select = document.getElementById('role-select');
+        var val = select.value;
+        if (!val) return;
+
+        if (!tagsSet[val]) {
+            tagsSet[val] = true;
+            renderTags();
+        }
+        select.value = '';
+    }
+
+    function removeTag(val) {
+        delete tagsSet[val];
+        renderTags();
+    }
+
+    function renderTags() {
+        var container = document.getElementById('tags-container');
+        container.innerHTML = '';
+
+        var arr = Object.keys(tagsSet);
+        document.getElementById('SelectedRoles').value = arr.join(',');
+
+        for (var i = 0; i < arr.length; i++) {
+            var tag = arr[i];
+            var span = document.createElement('span');
+            span.className = 'tag-pill';
+
+            var textNode = document.createTextNode(tag + ' ');
+            span.appendChild(textNode);
+
+            var removeBtn = document.createElement('span');
+            removeBtn.className = 'remove-tag';
+            removeBtn.title = 'Supprimer';
+            removeBtn.textContent = '\u00D7';
+            removeBtn.setAttribute('data-tag', tag);
+            removeBtn.onclick = function () {
+                removeTag(this.getAttribute('data-tag'));
+            };
+            span.appendChild(removeBtn);
+
+            container.appendChild(span);
+        }
+    }
+</script>
+}

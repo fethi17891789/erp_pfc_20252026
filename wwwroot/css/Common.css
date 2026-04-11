@@ -162,7 +162,9 @@ body {
 .form-group input[type="text"],
 .form-group input[type="email"],
 .form-group input[type="password"],
-.form-group input[type="number"] {
+.form-group input[type="number"],
+.form-group input[type="url"],
+.form-group input[type="tel"] {
     height: var(--input-height);
     padding: 0 14px;
     border-radius: var(--radius-sm);
@@ -498,6 +500,12 @@ button[type="submit"]:active {
     /* aligne les baselines des champs */
 }
 
+.form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
 .form-row-3 {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
@@ -506,6 +514,52 @@ button[type="submit"]:active {
 
 .form-row-1 {
     display: flex;
+}
+
+/* Select wrapper (menu déroulant avec icône) */
+.select-wrapper {
+    position: relative;
+}
+
+.select-wrapper select {
+    height: var(--input-height);
+    width: 100%;
+    padding: 0 34px 0 14px;
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, rgba(8, 11, 32, 0.98), rgba(18, 22, 54, 0.98));
+    border: 1.2px solid var(--border);
+    color: var(--text);
+    font-size: 0.9rem;
+    font-weight: 500;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    transition: border-color 140ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms cubic-bezier(0.2, 0.8, 0.2, 1), background 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.select-wrapper select:focus {
+    border-color: rgba(123, 94, 255, 0.8);
+    box-shadow: 0 0 0 1px rgba(123, 94, 255, 0.5), 0 0 15px var(--accent-glow), inset 0 1px 2px rgba(255, 255, 255, 0.08);
+    background: linear-gradient(135deg, rgba(15, 18, 48, 1), rgba(25, 30, 70, 1));
+    transform: translateY(-1px);
+}
+
+.select-wrapper select option {
+    background: #0f172a;
+    color: #e2e8f0;
+    padding: 8px 14px;
+}
+
+.select-icon {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--text-muted-2);
+    width: 16px;
+    height: 16px;
 }
 
 .form-row .form-group {
@@ -538,6 +592,9 @@ button[type="submit"]:active {
 }
 
 @media (max-width: 900px) {
+    .form-row-2 {
+        grid-template-columns: 1fr;
+    }
     .form-row-3 {
         grid-template-columns: 1fr;
     }
