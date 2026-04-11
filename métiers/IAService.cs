@@ -27,8 +27,8 @@ namespace Metier
 
         private async Task<List<string>> DiscoverModelsAsync(string apiKey)
         {
-            // Rafraichir toutes les 24h ou si vide
-            if (_cachedModels != null && (DateTime.Now - _lastDiscovery).TotalHours < 24)
+            // Rafraîchir toutes les 4 heures (Optimisation Turbo)
+            if (_cachedModels != null && (DateTime.Now - _lastDiscovery).TotalHours < 4)
                 return _cachedModels;
 
             Console.WriteLine("[IA SYSTEM] Découverte des modèles Gemini disponibles...");
@@ -47,23 +47,31 @@ namespace Metier
                         var displayName = m.GetProperty("displayName").GetString()?.ToLower() ?? "";
                         var methods = m.GetProperty("supportedGenerationMethods").ToString();
                         
-                        // Filtrage strict : on veut du texte, du chat, et surtout pas de technique pure
+                        // Filtrage strict : on veut la famille GEMINI (vitesse/précision JSON)
+                        bool isGemini = name.StartsWith("gemini", StringComparison.OrdinalIgnoreCase);
                         bool isTextModel = methods.Contains("generateContent");
                         bool isTechnical = name.Contains("robotics") || name.Contains("embedding") || name.Contains("vision") || name.Contains("aqa");
                         
-                        if (name != null && isTextModel && !isTechnical) {
+                        if (name != null && isGemini && isTextModel && !isTechnical) {
                             models.Add(name);
                         }
                     }
                 }
 
+                // --- ALGORITHME DE CLASSEMENT "ELITE FULL SPECTRUM" ---
+                // On trie par : Famille (Pro > Flash) puis Version (2.5 > 2.0 > 1.5)
                 _cachedModels = models
-                    .OrderByDescending(m => m.Contains("flash")) // Priorité Flash (Vitesse)
-                    .ThenByDescending(m => m.Contains("pro"))    // Puis Pro (Intelligence)
+                    .OrderByDescending(m => m.Contains("pro"))   // 1. Les cerveaux (Pro)
+                    .ThenByDescending(m => m.Contains("2.5"))   // 2. Version futuriste (2.5)
+                    .ThenByDescending(m => m.Contains("2.0"))   // 3. Version moderne (2.0)
+                    .ThenByDescending(m => m.Contains("1.5"))   // 4. Version stable (1.5)
+                    .ThenByDescending(m => m.Contains("flash")) // 5. Les rapides (Flash)
+                    .ThenByDescending(m => m.Contains("latest"))// 6. Les alias "latest"
+                    .ThenByDescending(m => m)                    // 7. Reste
                     .ToList();
                 
                 _lastDiscovery = DateTime.Now;
-                Console.WriteLine($"[IA SYSTEM] {models.Count} modèles de chat validés : {string.Join(", ", _cachedModels)}");
+                Console.WriteLine($"[IA SYSTEM] Mode Combat activé. Hiérarchie Full Spectrum : {string.Join(" >> ", _cachedModels)}");
                 return _cachedModels;
             } catch (Exception ex) {
                 Console.WriteLine($"[IA SYSTEM] Erreur lors de la découverte : {ex.Message}");
@@ -83,9 +91,9 @@ namespace Metier
         }
 
         /// <summary>
-        /// Appelle Gemini pour obtenir une réponse structurée (JSON) sans historique.
+        /// Appelle Gemini pour obtenir une réponse structurée (JSON) et retourne aussi le modèle utilisé.
         /// </summary>
-        public async Task<string> AskAiJsonAsync(string systemPrompt, string userPrompt)
+        public async Task<(string Json, string ModelUsed)> AskAiJsonAsync(string systemPrompt, string userPrompt)
         {
             IaConfiguration? config = null;
             try {
@@ -93,17 +101,29 @@ namespace Metier
             } catch { }
 
             if (config == null || string.IsNullOrWhiteSpace(config.ApiKey)) 
-                return "{\"error\": \"IA non configurée\"}";
+                return ("{\"error\": \"IA non configurée\"}", "N/A");
 
             var apiKey = config.ApiKey.Trim();
             var modelName = (config.ModelName ?? "gemini-1.5-flash-latest").Trim();
             if (modelName == "gemini-1.5-flash") modelName = "gemini-1.5-flash-latest";
 
-            // Découverte des modèles pour le failover (comme dans la messagerie)
+            // Découverte des modèles pour le failover (Dynamique - Zéro Hardcode)
             var discovered = await DiscoverModelsAsync(apiKey);
-            var modelsToTry = new List<string> { modelName };
-            foreach(var m in discovered) if(!modelsToTry.Contains(m)) modelsToTry.Add(m);
-            if (!modelsToTry.Contains("gemini-1.5-flash")) modelsToTry.Add("gemini-1.5-flash");
+            var modelsToTry = new List<string>();
+            
+            // On utilise l'ordre de puissance découvert
+            modelsToTry.AddRange(discovered);
+            
+            // On s'assure que le modèle choisi par l'utilisateur en config passe en premier s'il est dispo
+            if (discovered.Contains(modelName)) {
+                modelsToTry.Remove(modelName);
+                modelsToTry.Insert(0, modelName);
+            }
+
+            if (!modelsToTry.Any()) {
+                // Fallback ultime de sécurité si la liste est vide (très rare)
+                modelsToTry.Add("gemini-1.5-flash-latest");
+            }
 
             foreach (var currentModel in modelsToTry)
             {
@@ -115,7 +135,7 @@ namespace Metier
                 var payload = new {
                     system_instruction = new { parts = new[] { new { text = systemPrompt } } },
                     contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
-                    tools = new[] { new { google_search = new { } } },
+                    // On retire tools = google_search ici car c'est lui qui ralentit tout et sature les quotas
                     generationConfig = new { 
                         response_mime_type = "application/json",
                         temperature = 0.0
@@ -138,32 +158,46 @@ namespace Metier
                             if (first.TryGetProperty("content", out var content) &&
                                 content.TryGetProperty("parts", out var parts) && parts.GetArrayLength() > 0)
                             {
-                                var text = parts[0].GetProperty("text").GetString();
-                                if (!string.IsNullOrEmpty(text)) {
+                                var textFound = parts[0].GetProperty("text").GetString();
+                                if (!string.IsNullOrEmpty(textFound)) {
+                                    // Nettoyage des balises Markdown si présentes
+                                    var cleanText = textFound.Trim();
+                                    if (cleanText.StartsWith("```")) {
+                                        var lines = cleanText.Split('\n').ToList();
+                                        if (lines.First().Contains("json")) lines.RemoveAt(0);
+                                        else lines.RemoveAt(0);
+                                        if (lines.Last().Contains("```")) lines.RemoveAt(lines.Count - 1);
+                                        cleanText = string.Join("\n", lines).Trim();
+                                    }
+
                                     Console.WriteLine($"[CRM IA] Succès avec {targetModel}.");
-                                    return text;
+                                    return (cleanText, targetModel);
                                 }
                             }
                         }
                     }
-                    else if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                    else if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest || resp.StatusCode == System.Net.HttpStatusCode.NotFound)
                     {
-                        // Fallback : Si l'erreur est 400, c'est peut-être que google_search n'est pas supporté.
-                        // On réessaie sans outils.
-                        Console.WriteLine($"[CRM IA] Mode recherche refusé par {targetModel}. Retentative sans outils...");
-                        var fallbackPayload = new {
-                            system_instruction = new { parts = new[] { new { text = systemPrompt } } },
-                            contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
-                            generationConfig = new { response_mime_type = "application/json", temperature = 0.1 }
-                        };
-                        var fbJson = JsonSerializer.Serialize(fallbackPayload);
-                        using var fbReq = new HttpRequestMessage(HttpMethod.Post, apiUrl) { Content = new StringContent(fbJson, Encoding.UTF8, "application/json") };
-                        using var fbResp = await _httpClient.SendAsync(fbReq);
-                        if (fbResp.IsSuccessStatusCode) {
-                             var fbBody = await fbResp.Content.ReadAsStringAsync();
-                             using var fbDoc = JsonDocument.Parse(fbBody);
-                             var fbText = fbDoc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
-                             return fbText ?? "{}";
+                        var errBody = await resp.Content.ReadAsStringAsync();
+                        Console.WriteLine($"[CRM IA] Modèle {targetModel} indisponible (Status: {resp.StatusCode}). Tentative suivante...");
+                        
+                        if (resp.StatusCode == System.Net.HttpStatusCode.BadRequest && !errBody.Contains("404")) {
+                             // Fallback : Si l'erreur est 400 (et pas un 404 masqué), on tente sans outils.
+                             Console.WriteLine($"[CRM IA] Mode recherche refusé par {targetModel}. Retentative sans outils...");
+                             var fallbackPayload = new {
+                                 system_instruction = new { parts = new[] { new { text = systemPrompt } } },
+                                 contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
+                                 generationConfig = new { response_mime_type = "application/json", temperature = 0.1 }
+                             };
+                             var fbJson = JsonSerializer.Serialize(fallbackPayload);
+                             using var fbReq = new HttpRequestMessage(HttpMethod.Post, apiUrl) { Content = new StringContent(fbJson, Encoding.UTF8, "application/json") };
+                             using var fbResp = await _httpClient.SendAsync(fbReq);
+                             if (fbResp.IsSuccessStatusCode) {
+                                  var fbBody = await fbResp.Content.ReadAsStringAsync();
+                                  using var fbDoc = JsonDocument.Parse(fbBody);
+                                  var fbText = fbDoc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
+                                  return (fbText ?? "{}", targetModel + " (No-Search)");
+                             }
                         }
                     }
                     else {
@@ -176,7 +210,7 @@ namespace Metier
                 }
             }
 
-            return "{\"error\": \"Tous les modèles Gemini ont échoué ou sont hors quota.\"}";
+            return ("{\"error\": \"Tous les modèles Gemini ont échoué ou sont hors quota.\"}", "Erreur");
         }
 
 
@@ -272,9 +306,13 @@ GUIDE DE CONFIGURATION ERP (DOCUMENTATION INTERNE) :
             if (contentsList.Count > 0 && contentsList[0].ToString().Contains("role = model")) contentsList.RemoveAt(0);
 
             var discovered = await DiscoverModelsAsync(apiKey);
-            var modelsToTry = new List<string> { modelName };
-            modelsToTry.AddRange(discovered);
-            modelsToTry.Add("gemini-1.5-flash");
+            var modelsToTry = new List<string>();
+            
+            // On privilégie le modèle choisi dans la config, sinon on suit la hiérarchie dynamique
+            if (discovered.Contains(modelName)) modelsToTry.Add(modelName);
+            foreach(var d in discovered) if(!modelsToTry.Contains(d)) modelsToTry.Add(d);
+
+            if (!modelsToTry.Any()) modelsToTry.Add("gemini-1.5-flash-latest");
 
             var uniqueModels = new List<string>();
             foreach (var m in modelsToTry) {

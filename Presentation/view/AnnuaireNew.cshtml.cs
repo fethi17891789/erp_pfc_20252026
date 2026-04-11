@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Json.Nodes;
 
 namespace erp_pfc_20252026.Pages
 {
@@ -119,23 +120,6 @@ namespace erp_pfc_20252026.Pages
 
         // ======================= ENDPOINTS API AJAX =======================
 
-        public IActionResult OnGetValidatePhone(string phone)
-        {
-            if (string.IsNullOrWhiteSpace(phone))
-                return new JsonResult(new { IsValid = false });
-
-            bool isValid = _validationService.ValidatePhone(phone, "FR");
-            return new JsonResult(new { IsValid = isValid });
-        }
-
-        public async Task<IActionResult> OnGetValidateEmail(string email)
-        {
-            if (string.IsNullOrWhiteSpace(email))
-                return new JsonResult(new { IsValid = false });
-
-            bool isValid = await _validationService.ValidateEmailAsync(email);
-            return new JsonResult(new { IsValid = isValid });
-        }
 
         public async Task<IActionResult> OnGetEnrichFromWebsite(string website)
         {
@@ -146,38 +130,84 @@ namespace erp_pfc_20252026.Pages
             return new JsonResult(new { FullName = info.FullName, Comment = info.Comment });
         }
 
+        public async Task<JsonResult> OnGetValidateEmail(string email)
+        {
+            var isValid = await _validationService.ValidateEmailAsync(email);
+            return new JsonResult(new { isValid });
+        }
+
+        public JsonResult OnGetValidatePhone(string phone)
+        {
+            var isValid = _validationService.ValidatePhone(phone);
+            return new JsonResult(new { isValid });
+        }
+
         public async Task<IActionResult> OnPostAiMagicEnrichAsync([FromBody] string description)
         {
             if (string.IsNullOrWhiteSpace(description))
                 return new JsonResult(new { error = "Description vide" });
 
-            string systemPrompt = @"Tu es un expert en intelligence économique et gestion de données B2B. 
-Ta mission est d'enrichir une fiche CRM SKYRA avec une précision IRREPROCHABLE.
+            try
+            {
+                // ETAPE 1 : Localisation du Site Officiel (Grounding Intelligence)
+                Console.WriteLine($"[Magic CRM] ETAPE 1 : Identification du site officiel pour \"{description}\"...");
+                string searchPrompt = $@"Quelle est l'URL du site web officiel pour l'entité décrite ici : ""{description}"" ? 
+Réponds UNIQUEMENT en JSON : {{ ""Website"": ""https://..."" }}";
+                var (searchJson, _) = await _iaService.AskAiJsonAsync("Tu es un expert en recherche web.", searchPrompt);
+                
+                string? discoveredUrl = null;
+                try {
+                    using var doc = System.Text.Json.JsonDocument.Parse(searchJson);
+                    if (doc.RootElement.TryGetProperty("Website", out var urlProp)) discoveredUrl = urlProp.GetString();
+                } catch { }
 
-ETAPES DE TON TRAVAIL :
-1. ANALYSE : Identifie l'entreprise mentionnée et sa localisation.
-2. RECHERCHE : Utilise Google Search pour trouver les mentions légales, le site officiel et les annuaires professionnels.
-3. EXTRACTION :
-   - FullName : Trouve le NOM LEGAL COMPLET (ex: L'OREAL SA, MICROSOFT FRANCE SAS). Ne donne pas que le nom commercial.
-   - Website : Trouve l'URL exacte du site institutionnel.
-   - Email : Trouve l'adresse de contact principale (info@, contact@, sales@). Si tu connais le format des emails de la boîte (ex: p.nom@entreprise.com) et le nom de la personne, déduis-le.
-   - Phone : Extrais le numéro du siège social ou du standard.
-   - Comment : Rédige une description succincte mais riche (secteur, effectif estimé, spécialité).
+                // ETAPE 2 : Scan Radar Profond (The Spider)
+                CompanyInfo? scrapedData = null;
+                if (!string.IsNullOrWhiteSpace(discoveredUrl) && discoveredUrl.ToLower() != "null" && discoveredUrl.StartsWith("http"))
+                {
+                    Console.WriteLine($"[Magic CRM] ETAPE 2 : Scraping radar approfondi sur {discoveredUrl}...");
+                    scrapedData = await _validationService.ExtractCompanyInfoAsync(discoveredUrl);
+                }
 
-REGLES D'OR :
-- NE JAMAIS INVENTER. Si un champ est vide, c'est que l'info n'existe pas publiquement.
-- FORMATAGE : Retourne UNIQUEMENT un objet JSON valide.
+                // ETAPE 3 : Arbitrage et Synthèse Finale (Le Cerveau)
+                Console.WriteLine($"[Magic CRM] ETAPE 3 : Arbitrage intelligent sur {(scrapedData?.Phone?.Split('|').Length ?? 0)} numéros détectés...");
+                string synthesisPrompt = $@"Génère la fiche contact finale la plus fiable en arbitrant entre ces sources.
+DESCRIPTION UTILISATEUR : {description}
+DONNÉES TERRAIN (Site {discoveredUrl}) :
+- Nom trouvé : {scrapedData?.FullName}
+- Email trouvé : {scrapedData?.Email}
+- Téléphones candidats trouvés : {scrapedData?.Phone}
 
-{
-  ""FullName"": ""Nom Légal Complet"",
-  ""Email"": ""contact@domaine.com"",
-  ""Phone"": ""+33 1 ..."",
-  ""Website"": ""https://www.site.com"",
-  ""Comment"": ""Description experte...""
-}";
+CONSIGNES :
+1. Choisis le numéro qui semble être le standard professionnel réel (fréquence et format).
+2. Valide l'email.
+3. Rédige un résumé pro basé sur ces faits réels.
 
-            string result = await _iaService.AskAiJsonAsync(systemPrompt, description);
-            return Content(result, "application/json");
+RÉPONDS UNIQUEMENT EN JSON VALIDE :
+{{
+  ""FullName"": ""Nom Légal Précis"",
+  ""Email"": ""email@contact.com"",
+  ""Phone"": ""+33..."",
+  ""Website"": ""{discoveredUrl}"",
+  ""Comment"": ""Résumé professionnel basé sur l'arbitrage des sources.""
+}}";
+
+                var (finalJson, modelName) = await _iaService.AskAiJsonAsync("Tu es un expert en intelligence économique. Ta mission est de fournir la source de vérité finale.", synthesisPrompt);
+                
+                var finalObj = System.Text.Json.Nodes.JsonNode.Parse(finalJson)?.AsObject();
+                if (finalObj != null) {
+                    finalObj["ModelUsed"] = modelName;
+                    Console.WriteLine($"[Magic CRM] Synthèse Spider terminée via {modelName}");
+                    return Content(finalObj.ToJsonString(), "application/json");
+                }
+
+                return Content(finalJson, "application/json");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Magic CRM] ERREUR CRITIQUE Orchestration : {ex.Message}");
+                return new JsonResult(new { error = $"Erreur interne : {ex.Message}" });
+            }
         }
     }
 }

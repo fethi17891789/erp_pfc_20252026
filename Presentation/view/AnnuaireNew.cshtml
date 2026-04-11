@@ -168,6 +168,20 @@
             flex-direction: column; gap: 10px; z-index: 5;
             backdrop-filter: blur(4px);
         }
+
+        /* --- VALIDATION STATES --- */
+        .input-valid { border-color: #22c55e !important; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2) !important; }
+        .input-invalid { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important; }
+        
+        .validation-icon {
+            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+            width: 18px; height: 18px; display: none;
+        }
+        .validation-icon.success { color: #22c55e; }
+        .validation-icon.error { color: #ef4444; }
+        
+        .validation-msg { font-size: 0.75rem; margin-top: 4px; display: none; }
+        .validation-msg.error { color: #fca5a5; }
     </style>
 }
 
@@ -196,13 +210,20 @@
             <button type="button" class="ai-btn" onclick="callAiAssistant()" id="ai-btn">
                 <span id="ai-btn-text">Générer la fiche</span>
             </button>
+            <div id="ai-status-bar" style="display:none; margin-top: 8px; font-size: 0.7rem; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 6px;">
+                <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px #22c55e;"></span>
+                Intelligence : <span id="ai-model-name" style="color: var(--accent); font-weight: 600;">Détection...</span>
+            </div>
 
             <div class="ai-loading-overlay" id="ai-loader">
                 <svg viewBox="0 0 50 50" style="width:40px;height:40px;animation: spin 1s linear infinite; color:var(--accent);">
                     <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
                 </svg>
-                <span style="font-weight: 700; color: #fff; font-size: 0.9rem;">Gemini effectue une recherche web en direct...</span>
-                <span style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Identification et enrichissement des données officielles</span>
+                <div style="text-align: center; margin-top: 10px;">
+                    <span style="font-weight: 700; color: #fff; font-size: 0.9rem; display: block;">Orchestration des données en cours...</span>
+                    <span style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">Étape 1 : Localisation du site officiel via Gemini</span>
+                    <span style="font-size: 0.75rem; color: rgba(255,255,255,0.4); display: block;">Étape 2 : Extraction des données sources (Nom, Bio, Tel)</span>
+                </div>
             </div>
         </div>
 
@@ -565,8 +586,17 @@
             console.log("IA Result:", data);
 
             if (data.error) {
-                alert("Erreur IA : " + data.error);
+                console.error("Détails de l'erreur IA :", data.error);
+                alert("L'assistant a rencontré un problème technique :\n\n" + data.error + "\n\nRegardez la console noire de l'ERP pour plus de détails.");
             } else {
+                // Mise à jour du tag de modèle
+                const modelTag = document.getElementById('ai-status-bar');
+                const modelName = document.getElementById('ai-model-name');
+                if (data.ModelUsed) {
+                    modelTag.style.display = 'flex';
+                    modelName.innerText = data.ModelUsed;
+                }
+
                 // Remplissage des champs
                 if (data.FullName) fillField('CurrentContact_FullName', data.FullName);
                 if (data.Email) fillField('input-email', data.Email);

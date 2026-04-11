@@ -5,6 +5,10 @@ using System.IO;
 using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Text.RegularExpressions;
+using System.Net;
 
 namespace Metier.CRM
 {
@@ -12,6 +16,9 @@ namespace Metier.CRM
     {
         public string FullName { get; set; } = string.Empty;
         public string Comment { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Website { get; set; } = string.Empty;
     }
 
     public class ValidationService
@@ -24,78 +31,98 @@ namespace Metier.CRM
             url = url.Trim().ToLower();
             if (!url.StartsWith("http")) url = "https://" + url;
 
-            Console.WriteLine($"[CRM] Tentative d'enrichissement pour : {url}");
+            var allPhoneCandidates = new HashSet<string>();
+            var visitedUrls = new HashSet<string>();
+
+            Console.WriteLine($"[CRM TURBO] Lancement du scan radar pour : {url}");
 
             try
             {
-                using var httpClient = new System.Net.Http.HttpClient(new System.Net.Http.HttpClientHandler { 
+                using var httpClient = new HttpClient(new HttpClientHandler { 
                     AllowAutoRedirect = true,
                     CheckCertificateRevocationList = false,
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true // On ignore les erreurs SSL pour le scraping
+                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true 
                 });
 
-                httpClient.Timeout = TimeSpan.FromSeconds(8);
+                httpClient.Timeout = TimeSpan.FromSeconds(60);
                 httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36");
-                httpClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8");
+                httpClient.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
 
-                var response = await httpClient.GetAsync(url);
-                if (!response.IsSuccessStatusCode)
-                {
-                    Console.WriteLine($"[CRM] Échec HTTP {response.StatusCode} pour {url}");
-                    // Si HTTPS échoue, on peut tenter HTTP (rare mais existe)
-                    if (url.StartsWith("https://"))
-                    {
-                         url = "http://" + url.Substring(8);
-                         response = await httpClient.GetAsync(url);
-                    }
+                // --- ETAPE 1 : SCAN DE LA HOME (Prioritaire) ---
+                var homeResponse = await httpClient.GetAsync(url);
+                if (!homeResponse.IsSuccessStatusCode) return info;
+
+                var homeHtml = await homeResponse.Content.ReadAsStringAsync();
+                var homeDoc = new HtmlAgilityPack.HtmlDocument();
+                homeDoc.LoadHtml(homeHtml);
+                visitedUrls.Add(url);
+
+                // Extraction de base sur la Home
+                ExtractBasicInfo(homeDoc, info);
+                ExtractContactData(homeHtml, info, allPhoneCandidates);
+
+                // FAST-TRACK : Si on a déjà l'essentiel, on s'arrête là (vitesse maximale)
+                if (!string.IsNullOrEmpty(info.Email) && allPhoneCandidates.Count >= 1) {
+                    Console.WriteLine("[CRM TURBO] Données complètes sur la Home. Sortie précoce.");
+                    FinalizePhoneData(info, allPhoneCandidates);
+                    info.Website = url;
+                    return info;
                 }
 
-                if (response.IsSuccessStatusCode)
+                // --- ETAPE 2 : IDENTIFICATION DES LIENS CONTACTS ---
+                var linksToScan = new List<string>();
+                var aNodes = homeDoc.DocumentNode.SelectNodes("//a[@href]");
+                if (aNodes != null)
                 {
-                    var html = await response.Content.ReadAsStringAsync();
-                    var doc = new HtmlAgilityPack.HtmlDocument();
-                    doc.LoadHtml(html);
+                    foreach (var link in aNodes)
+                    {
+                        var href = link.GetAttributeValue("href", "").ToLower();
+                        var text = link.InnerText.ToLower();
+                        bool isInteresting = (href.Contains("contact") || text.Contains("contact") || 
+                                           href.Contains("a-propos") || text.Contains("about") ||
+                                           href.Contains("legal") || href.Contains("mentions")) 
+                                           && !href.Contains("facebook") && !href.Contains("linkedin") && !href.Contains("twitter");
 
-                    // 1. Extraction du Titre (Nom)
-                    var titleNode = doc.DocumentNode.SelectSingleNode("//title");
-                    var ogTitleNode = doc.DocumentNode.SelectSingleNode("//meta[@property='og:title' or @name='og:title']");
-                    
-                    if (ogTitleNode != null && !string.IsNullOrEmpty(ogTitleNode.GetAttributeValue("content", "")))
-                    {
-                        info.FullName = System.Net.WebUtility.HtmlDecode(ogTitleNode.GetAttributeValue("content", "")).Trim();
-                    }
-                    else if (titleNode != null)
-                    {
-                        info.FullName = System.Net.WebUtility.HtmlDecode(titleNode.InnerText).Trim();
-                    }
-                    
-                    // Nettoyage du titre (enlever les suffixes " | Accueil" etc)
-                    if (!string.IsNullOrEmpty(info.FullName))
-                    {
-                        var separators = new[] { " - ", " | ", " : ", " • " };
-                        foreach (var sep in separators)
+                        if (isInteresting)
                         {
-                            if (info.FullName.Contains(sep))
-                                info.FullName = info.FullName.Split(sep)[0];
+                            if (href.StartsWith("/")) {
+                                href = new Uri(new Uri(url), href).ToString();
+                            }
+                            else if (!href.StartsWith("http")) continue;
+
+                            if (!visitedUrls.Contains(href) && linksToScan.Count < 2) {
+                                linksToScan.Add(href);
+                                visitedUrls.Add(href);
+                            }
                         }
                     }
-
-                    // 2. Extraction de la Description (Notes)
-                    var descNode = doc.DocumentNode.SelectSingleNode("//meta[@name='description' or @property='og:description']");
-                    if (descNode != null && !string.IsNullOrEmpty(descNode.GetAttributeValue("content", "")))
-                    {
-                        info.Comment = System.Net.WebUtility.HtmlDecode(descNode.GetAttributeValue("content", "")).Trim();
-                    }
-
-                    Console.WriteLine($"[CRM] Succès : {info.FullName} extrait.");
                 }
+
+                // --- ETAPE 3 : SCAN PARALLÈLE (Multi-thread) ---
+                if (linksToScan.Any())
+                {
+                    Console.WriteLine($"[CRM TURBO] Scan parallèle de {linksToScan.Count} pages secondaires...");
+                    var tasks = linksToScan.Select(async link => {
+                        try {
+                            using var resp = await httpClient.GetAsync(link);
+                            if (resp.IsSuccessStatusCode) {
+                                var html = await resp.Content.ReadAsStringAsync();
+                                ExtractContactData(html, info, allPhoneCandidates);
+                            }
+                        } catch { }
+                    });
+                    await Task.WhenAll(tasks);
+                }
+
+                FinalizePhoneData(info, allPhoneCandidates);
+                info.Website = url;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CRM] Erreur Scraping {url} : {ex.Message}");
+                Console.WriteLine($"[CRM SPIDER] Erreur critique : {ex.Message}");
             }
 
-            // Fallback : si on n'a rien trouvé du tout, on met au moins le nom de domaine
+            // Fallback Nom si vide
             if (string.IsNullOrEmpty(info.FullName))
             {
                 var uri = new Uri(url.StartsWith("http") ? url : "https://" + url);
@@ -104,6 +131,66 @@ namespace Metier.CRM
             }
 
             return info;
+        }
+
+        private void ExtractContactData(string html, CompanyInfo info, HashSet<string> allPhoneCandidates)
+        {
+            // Emails
+            var emailMatch = Regex.Match(html, @"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}");
+            if (emailMatch.Success && string.IsNullOrEmpty(info.Email)) info.Email = emailMatch.Value;
+
+            // Téléphones
+            var phoneMatches = Regex.Matches(html, @"(\+?\d{1,3}[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{2,4}[-.\s]?\d{2,4}[-.\s]?\d{2,4})");
+            foreach (Match m in phoneMatches)
+            {
+                var p = m.Value.Trim();
+                if (p.Length >= 10 && p.Any(char.IsDigit) && !p.StartsWith("202")) {
+                    allPhoneCandidates.Add(p);
+                }
+            }
+        }
+
+        private void FinalizePhoneData(CompanyInfo info, HashSet<string> allPhoneCandidates)
+        {
+            if (allPhoneCandidates.Any())
+            {
+                info.Phone = string.Join(" | ", allPhoneCandidates.Take(10));
+            }
+        }
+
+        private void ExtractBasicInfo(HtmlAgilityPack.HtmlDocument doc, CompanyInfo info)
+        {
+            var titleNode = doc.DocumentNode.SelectSingleNode("//title");
+            var ogTitleNode = doc.DocumentNode.SelectSingleNode("//meta[@property='og:title' or @name='og:title']");
+            
+            if (ogTitleNode != null && !string.IsNullOrEmpty(ogTitleNode.GetAttributeValue("content", "")))
+            {
+                info.FullName = WebUtility.HtmlDecode(ogTitleNode.GetAttributeValue("content", "")).Trim();
+            }
+            else if (titleNode != null)
+            {
+                info.FullName = WebUtility.HtmlDecode(titleNode.InnerText).Trim();
+            }
+            
+            if (!string.IsNullOrEmpty(info.FullName))
+            {
+                var trash = new[] { "Accueil", "Home", "Page d'accueil", "Site officiel", "Bienvenue sur", "Welcome to" };
+                foreach (var t in trash) info.FullName = info.FullName.Replace(t, "", StringComparison.OrdinalIgnoreCase).Trim();
+
+                var separators = new[] { " - ", " | ", " : ", " • ", " – " };
+                foreach (var sep in separators)
+                {
+                    if (info.FullName.Contains(sep))
+                        info.FullName = info.FullName.Split(sep)[0];
+                }
+                info.FullName = info.FullName.Trim(" \t\n\r-|:•".ToCharArray());
+            }
+
+            var descNode = doc.DocumentNode.SelectSingleNode("//meta[@name='description' or @property='og:description']");
+            if (descNode != null && !string.IsNullOrEmpty(descNode.GetAttributeValue("content", "")))
+            {
+                info.Comment = WebUtility.HtmlDecode(descNode.GetAttributeValue("content", "")).Trim();
+            }
         }
 
         public bool ValidatePhone(string phone, string countryCode = "FR")
@@ -134,59 +221,11 @@ namespace Metier.CRM
             {
                 var lookup = new LookupClient();
                 var result = await lookup.QueryAsync(domain, QueryType.MX);
-                
-                var mxRecords = result.Answers.MxRecords().OrderBy(mx => mx.Preference).ToList();
-                if (!mxRecords.Any())
-                    return false; // Pas de serveur mail = email invalide
-
-                var mxHost = mxRecords.First().Exchange.Value;
-                return await EmailHandshake(mxHost, email);
+                return result.Answers.MxRecords().Any();
             }
             catch
             {
-                // En cas d'erreur de requête DNS, on le marque invalide
-                return false;
-            }
-        }
-
-        private async Task<bool> EmailHandshake(string mxHost, string email)
-        {
-            try
-            {
-                using var client = new TcpClient();
-                client.ReceiveTimeout = 3000;
-                client.SendTimeout = 3000;
-
-                var connTask = client.ConnectAsync(mxHost, 25);
-                if (await Task.WhenAny(connTask, Task.Delay(3000)) != connTask) return true; 
-
-                using var stream = client.GetStream();
-                using var reader = new StreamReader(stream);
-                using var writer = new StreamWriter(stream) { AutoFlush = true };
-
-                string response = await reader.ReadLineAsync() ?? "";
-                if (!response.StartsWith("220")) return true; 
-
-                await writer.WriteLineAsync("HELO erp-pfc.local");
-                response = await reader.ReadLineAsync() ?? "";
-                if (!response.StartsWith("250")) return true;
-
-                await writer.WriteLineAsync("MAIL FROM:<test@erp-pfc.local>");
-                response = await reader.ReadLineAsync() ?? "";
-                if (!response.StartsWith("250")) return true;
-
-                await writer.WriteLineAsync($"RCPT TO:<{email}>");
-                response = await reader.ReadLineAsync() ?? "";
-                
-                await writer.WriteLineAsync("QUIT");
-
-                if (response.StartsWith("550")) return false;
-
                 return true;
-            }
-            catch
-            {
-                return true; 
             }
         }
     }
