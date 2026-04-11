@@ -1462,8 +1462,6 @@ function appendMessageToUi(message) {
 
 
 
-        if (returnOnly) return wrapper;
-
         container.appendChild(wrapper);
 
         container.scrollTop = container.scrollHeight;
