@@ -93,7 +93,7 @@ namespace Metier
         /// <summary>
         /// Appelle Gemini pour obtenir une réponse structurée (JSON) et retourne aussi le modèle utilisé.
         /// </summary>
-        public async Task<(string Json, string ModelUsed)> AskAiJsonAsync(string systemPrompt, string userPrompt)
+        public async Task<(string Json, string ModelUsed)> AskAiJsonAsync(string systemPrompt, string userPrompt, bool enableSearch = false)
         {
             IaConfiguration? config = null;
             try {
@@ -132,15 +132,27 @@ namespace Metier
 
                 Console.WriteLine($"[CRM IA] Tentative avec le modèle : {targetModel}...");
 
-                var payload = new {
-                    system_instruction = new { parts = new[] { new { text = systemPrompt } } },
-                    contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
-                    // On retire tools = google_search ici car c'est lui qui ralentit tout et sature les quotas
-                    generationConfig = new { 
-                        response_mime_type = "application/json",
-                        temperature = 0.0
-                    }
-                };
+                object payload;
+                if (enableSearch) {
+                    payload = new {
+                        system_instruction = new { parts = new[] { new { text = systemPrompt } } },
+                        contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
+                        tools = new[] { new { googleSearch = new object() } },
+                        generationConfig = new { 
+                            response_mime_type = "application/json",
+                            temperature = 0.0
+                        }
+                    };
+                } else {
+                    payload = new {
+                        system_instruction = new { parts = new[] { new { text = systemPrompt } } },
+                        contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
+                        generationConfig = new { 
+                            response_mime_type = "application/json",
+                            temperature = 0.0
+                        }
+                    };
+                }
 
                 try {
                     var json = JsonSerializer.Serialize(payload);

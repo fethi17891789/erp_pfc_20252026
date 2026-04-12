@@ -149,11 +149,10 @@ namespace erp_pfc_20252026.Pages
 
             try
             {
-                // ETAPE 1 : Localisation du Site Officiel (Grounding Intelligence)
-                Console.WriteLine($"[Magic CRM] ETAPE 1 : Identification du site officiel pour \"{description}\"...");
-                string searchPrompt = $@"Quelle est l'URL du site web officiel pour l'entité décrite ici : ""{description}"" ? 
+                string searchPrompt = $@"Tâche : Trouver l'URL du site officiel pour ""{description}"".
+INSTRUCTION STRICTE : Utilise Google Search. Si tu n'es pas ABSOLUMENT SÛR du domaine, ou si l'entreprise n'a pas de site web propre, renvoie une chaîne vide pour 'Website'. N'invente JAMAIS d'URL.
 Réponds UNIQUEMENT en JSON : {{ ""Website"": ""https://..."" }}";
-                var (searchJson, _) = await _iaService.AskAiJsonAsync("Tu es un expert en recherche web.", searchPrompt);
+                var (searchJson, _) = await _iaService.AskAiJsonAsync("Tu es un expert en recherche web, extrêmement strict. Tu ne devines jamais, tu vérifies la réalité de tes sources.", searchPrompt, enableSearch: true);
                 
                 string? discoveredUrl = null;
                 try {
@@ -170,29 +169,33 @@ Réponds UNIQUEMENT en JSON : {{ ""Website"": ""https://..."" }}";
                 }
 
                 // ETAPE 3 : Arbitrage et Synthèse Finale (Le Cerveau)
-                Console.WriteLine($"[Magic CRM] ETAPE 3 : Arbitrage intelligent sur {(scrapedData?.Phone?.Split('|').Length ?? 0)} numéros détectés...");
-                string synthesisPrompt = $@"Génère la fiche contact finale la plus fiable en arbitrant entre ces sources.
-DESCRIPTION UTILISATEUR : {description}
-DONNÉES TERRAIN (Site {discoveredUrl}) :
+                bool hasTerrainData = scrapedData != null && (!string.IsNullOrEmpty(scrapedData.Email) || !string.IsNullOrEmpty(scrapedData.Phone) || !string.IsNullOrEmpty(scrapedData.FullName));
+                Console.WriteLine($"[Magic CRM] ETAPE 3 : Arbitrage intelligent. Données terrain valides : {hasTerrainData}");
+                
+                string synthesisPrompt = $@"Description : {description}
+URL examinée : {discoveredUrl}
+{(hasTerrainData ? 
+  $@"DONNÉES TERRAIN EXTRAITES :
 - Nom trouvé : {scrapedData?.FullName}
 - Email trouvé : {scrapedData?.Email}
-- Téléphones candidats trouvés : {scrapedData?.Phone}
+- Tel candidats : {scrapedData?.Phone}" 
+  : "AUCUNE DONNÉE TERRAIN EXTRAITE. LE SITE EST INACCESSIBLE OU VIDE.")}
 
-CONSIGNES :
-1. Choisis le numéro qui semble être le standard professionnel réel (fréquence et format).
-2. Valide l'email.
-3. Rédige un résumé pro basé sur ces faits réels.
+CONSIGNES ANTI-HALLUCINATION :
+1. Ne JAMAIS inventer de faux numéros génériques (ex: 01 23 45 67 89) ou de faux emails.
+2. Si tu ne trouves rien de fiable à 100%, tu DOIS renvoyer des champs vides ("""").
+{(hasTerrainData ? "3. Arbitre les données terrain extraites pour trouver le numéro standard." : "3. Puisque le terrain est vide, tente une de trouver l'information publique via Google Search. Si introuvable, laisse vide.")}
 
 RÉPONDS UNIQUEMENT EN JSON VALIDE :
 {{
-  ""FullName"": ""Nom Légal Précis"",
-  ""Email"": ""email@contact.com"",
-  ""Phone"": ""+33..."",
-  ""Website"": ""{discoveredUrl}"",
-  ""Comment"": ""Résumé professionnel basé sur l'arbitrage des sources.""
+  ""FullName"": ""Nom réel"",
+  ""Email"": """",
+  ""Phone"": """",
+  ""Website"": ""{discoveredUrl ?? ""}"",
+  ""Comment"": ""Résumé de ce qui a été réellement trouvé...""
 }}";
 
-                var (finalJson, modelName) = await _iaService.AskAiJsonAsync("Tu es un expert en intelligence économique. Ta mission est de fournir la source de vérité finale.", synthesisPrompt);
+                var (finalJson, modelName) = await _iaService.AskAiJsonAsync("Tu es un expert en OSINT très strict. Règle d'or : refuser l'invention. Une donnée manquante vaut mieux qu'une donnée fausse.", synthesisPrompt, enableSearch: true);
                 
                 var finalObj = System.Text.Json.Nodes.JsonNode.Parse(finalJson)?.AsObject();
                 if (finalObj != null) {
