@@ -334,7 +334,12 @@ GUIDE DE CONFIGURATION ERP (DOCUMENTATION INTERNE) :
                     legacyContents.AddRange(contentsList);
                     finalPayload = new { contents = legacyContents };
                 } else {
-                    finalPayload = new { system_instruction = new { parts = new[] { new { text = contextualInstruction } } }, contents = contentsList };
+                    string updatedInstruction = contextualInstruction + "\n\nIMPORTANT : Tu as l'autorisation d'utiliser ton outil de recherche Google Search pour répondre à toute question de l'utilisateur qui concerne internet, l'actualité, ou des sujets hors de l'ERP. N'indique pas que tu es limité ou que tu ne peux pas le faire.";
+                    finalPayload = new { 
+                        system_instruction = new { parts = new[] { new { text = updatedInstruction } } }, 
+                        contents = contentsList,
+                        tools = new[] { new { googleSearch = new object() } }
+                    };
                 }
 
                 var json = JsonSerializer.Serialize(finalPayload);
