@@ -36,8 +36,8 @@ try
     string erpZip = Path.Combine(dbDir, "erp_binaries.zip");
 
     // URLs à mettre à jour par l'utilisateur (Final)
-    string pgUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.0.0/postgresql_portable.zip";
-    string erpUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.0.0/erp_binaries.zip";
+    string pgUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.1.0/postgresql_portable.zip";
+    string erpUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.1.0/erp_binaries.zip";
 
     if (!File.Exists(pgZip))
     {
