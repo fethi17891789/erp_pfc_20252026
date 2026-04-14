@@ -48,5 +48,10 @@ namespace Metier.CRM
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task<List<ContactRelation>> GetAllRelationsAsync()
+        {
+            return await _context.ContactRelations.ToListAsync();
+        }
     }
 }

@@ -1,189 +1,320 @@
 @page
 @model erp_pfc_20252026.Pages.AnnuaireListModel
+@using Donnees
+@using System.Text.Json
 @{
     ViewData["Title"] = "Annuaire Contacts";
-}
-@section Styles {
-    <style>
-        .role-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 2px 7px;
-            border-radius: 999px;
-            font-size: 0.6rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin-top: 2px;
-            line-height: 1.4;
-        }
-        .badge-client { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
-        .badge-fournisseur { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
-        .badge-employe { background: rgba(56, 189, 248, 0.15); color: #7dd3fc; border: 1px solid rgba(56, 189, 248, 0.3); }
-        .badge-investisseur { background: rgba(250, 204, 21, 0.15); color: #fde047; border: 1px solid rgba(250, 204, 21, 0.3); }
 
-        /* Compacter les infos dans les cartes */
-        .contact-card-info .product-card-stock,
-        .contact-card-info .product-card-price {
-            font-size: 0.75rem !important;
-            margin-top: 0 !important;
-            line-height: 1.3;
-        }
-        .contact-card-info .product-card-subtitle {
-            margin-bottom: 2px !important;
-        }
-    </style>
+    // Sérialisation des données pour le graphe (inlinée, pas de fetch supplémentaire)
+    var graphNodes = Model.Contacts.Select(c => new {
+        id = c.Id,
+        name = c.FullName,
+        roles = (int)c.Roles,
+        domain = !string.IsNullOrEmpty(c.Website)
+            ? c.Website.Replace("https://","").Replace("http://","").Split('/')[0]
+            : (!string.IsNullOrEmpty(c.Email) && c.Email.Contains('@') ? c.Email.Split('@')[1] : ""),
+        email = c.Email ?? "",
+        initials = c.FullName.Length >= 2 ? c.FullName[..2].ToUpper() : (c.FullName.Length == 1 ? c.FullName.ToUpper() : "?")
+    });
+    var graphEdges = Model.Relations.Select(r => new {
+        source = r.SourceContactId,
+        target = r.TargetContactId,
+        type = r.RelationType
+    });
+    var graphDataJson = JsonSerializer.Serialize(new { nodes = graphNodes, edges = graphEdges });
+
+    // Données contacts pour JS (filtrage/tri côté client)
+    var contactsJson = JsonSerializer.Serialize(Model.Contacts.Select(c => new {
+        id       = c.Id,
+        name     = c.FullName,
+        email    = c.Email ?? "",
+        phone    = c.Phone ?? "",
+        website  = c.Website ?? "",
+        roles    = (int)c.Roles,
+        date     = c.DateCreation.ToString("dd/MM/yyyy"),
+        dateTs   = c.DateCreation.Ticks,
+        initials = c.FullName.Length >= 2 ? c.FullName[..2].ToUpper() : "?",
+        domain   = !string.IsNullOrEmpty(c.Website)
+            ? c.Website.Replace("https://","").Replace("http://","").Split('/')[0]
+            : (!string.IsNullOrEmpty(c.Email) && c.Email.Contains('@') ? c.Email.Split('@')[1] : "")
+    }));
+}
+
+@section Styles {
+<style>
+/* ─── TOOLBAR ───────────────────────────────────────────── */
+.ann-toolbar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+}
+/* Dropdown filtre */
+.filter-dd-item { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 12px; border: none; background: transparent; color: var(--text-muted); font-size: 0.83rem; font-weight: 500; cursor: pointer; border-radius: 7px; font-family: inherit; transition: background .15s, color .15s; }
+.filter-dd-item:hover { background: rgba(123,94,255,0.1); color: var(--text); }
+.filter-dd-item.active { background: rgba(123,94,255,0.12); color: var(--accent-light); font-weight: 600; }
+.filter-dd-count { background: rgba(255,255,255,0.07); border-radius: 999px; padding: 1px 8px; font-size: 0.75rem; font-weight: 700; }
+.ann-view-toggle {
+    display: flex; gap: 2px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 3px;
+}
+.ann-view-btn {
+    width: 32px; height: 32px; border: none;
+    background: transparent; border-radius: 7px;
+    color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+}
+.ann-view-btn:hover { color: var(--text); }
+.ann-view-btn.active { background: rgba(123,94,255,0.2); color: var(--accent-light); }
+
+/* ─── BADGES ────────────────────────────────────────────── */
+.role-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 2px 7px; border-radius: 999px; font-size: 0.6rem;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+    margin: 1px 1px 0 0; line-height: 1.4;
+}
+.badge-client      { background: rgba(34,197,94,0.15);  color: #4ade80; border: 1px solid rgba(34,197,94,0.3); }
+.badge-fournisseur { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+.badge-employe     { background: rgba(56,189,248,0.15); color: #7dd3fc; border: 1px solid rgba(56,189,248,0.3); }
+.badge-investisseur{ background: rgba(250,204,21,0.15); color: #fde047; border: 1px solid rgba(250,204,21,0.3); }
+.badge-partenaire  { background: rgba(251,146,60,0.15); color: #fb923c; border: 1px solid rgba(251,146,60,0.3); }
+
+/* ─── LIST VIEW ─────────────────────────────────────────── */
+.ann-list-wrap {
+    max-height: 65vh; overflow-y: auto; padding-right: 4px;
+    scrollbar-width: thin; scrollbar-color: rgba(123,94,255,0.3) transparent;
+}
+.ann-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.ann-table thead th {
+    padding: 10px 14px; text-align: left;
+    color: var(--text-muted); font-size: 0.72rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.4px;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    cursor: pointer; user-select: none; white-space: nowrap;
+    transition: color .15s;
+}
+.ann-table thead th:hover { color: var(--accent-light); }
+.ann-table thead th .sort-arrow { display: inline-block; margin-left: 4px; opacity: 0.4; font-size: 0.75rem; }
+.ann-table thead th.sorted .sort-arrow { opacity: 1; color: var(--accent-light); }
+.ann-table tbody tr {
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background .12s;
+}
+.ann-table tbody tr:hover td { background: rgba(123,94,255,0.04); }
+.ann-table tbody td { padding: 10px 14px; color: var(--text); vertical-align: middle; }
+.ann-table .td-name { font-weight: 600; white-space: nowrap; }
+.ann-table .td-muted { color: var(--text-muted); font-size: 0.82rem; white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
+.ann-avatar-mini {
+    width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.7rem; font-weight: 700; border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ─── GRAPH VIEW ────────────────────────────────────────── */
+.ann-graph-wrap {
+    position: relative;
+    width: 100%; height: calc(68vh - 60px);
+    background: radial-gradient(ellipse at 50% 30%, rgba(18,12,40,1) 0%, rgba(2,3,10,1) 70%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 16px; overflow: hidden;
+}
+#graphCanvas { width: 100%; height: 100%; display: block; cursor: default; }
+.graph-tooltip {
+    position: absolute; pointer-events: none;
+    background: rgba(10,14,40,0.95);
+    border: 1px solid rgba(123,94,255,0.45);
+    border-radius: 10px; padding: 10px 14px;
+    font-size: 0.82rem; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    max-width: 220px; z-index: 10; opacity: 0; transition: opacity .15s;
+}
+.graph-tooltip.visible { opacity: 1; }
+.graph-legend {
+    position: absolute; bottom: 16px; left: 16px;
+    display: flex; gap: 10px; flex-wrap: wrap;
+}
+.graph-legend-item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 0.72rem; color: var(--text-muted);
+}
+.graph-legend-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.graph-controls {
+    position: absolute; top: 14px; right: 14px;
+    display: flex; gap: 6px;
+}
+.graph-ctrl-btn {
+    width: 32px; height: 32px; border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(8,11,32,0.9); border-radius: 8px;
+    color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s; font-size: 1rem;
+}
+.graph-ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ─── EMPTY STATE ───────────────────────────────────────── */
+.ann-empty {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 60px 20px; gap: 14px;
+    color: var(--text-muted);
+}
+.ann-empty svg { opacity: 0.3; }
+.ann-empty p { font-size: 0.9rem; margin: 0; }
+
+/* ─── SCROLLBAR ─────────────────────────────────────────── */
+#viewGrid::-webkit-scrollbar,
+.ann-list-wrap::-webkit-scrollbar { width: 6px; }
+#viewGrid::-webkit-scrollbar-thumb,
+.ann-list-wrap::-webkit-scrollbar-thumb { background: rgba(123,94,255,0.3); border-radius: 3px; }
+</style>
 }
 
 @section HeaderLeft {
     <h1>Annuaire Contacts</h1>
-    <p>Gérez vos clients, fournisseurs et employés.</p>
+    <p>@Model.TotalContacts contact@(Model.TotalContacts > 1 ? "s" : "") — Clients, Fournisseurs, Partenaires et plus</p>
 }
 
 <section class="erp-content">
 
-    <!-- Toolbar -->
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px;">
+    <!-- ═══ TOOLBAR ═════════════════════════════════════════════════ -->
+    <div class="ann-toolbar">
+
+        <!-- Filtre dropdown (gauche) -->
+        <div style="position:relative; flex-shrink:0;">
+            <button id="btnFilter" onclick="toggleFilterDropdown(event)"
+                    style="display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .18s;"
+                    onmouseover="this.style.borderColor='rgba(123,94,255,0.45)';this.style.color='var(--text)';"
+                    onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='var(--text-muted)';">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                Filtre
+                <span id="filterActiveLabel" style="color:var(--accent-light);font-weight:700;font-size:0.78rem;"></span>
+                <svg id="filterArrow" viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" style="transition:transform .2s;margin-left:2px;"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div id="filterDropdown"
+                 style="display:none;position:absolute;left:0;top:calc(100% + 6px);background:#0c1124;border:1px solid rgba(123,94,255,0.22);border-radius:10px;padding:5px;box-shadow:0 14px 36px rgba(0,0,0,0.55);min-width:200px;z-index:200;">
+                @{
+                    var filterOpts = new[] {
+                        new { Label = "Tous",          Count = Model.TotalContacts,   Role = 0 },
+                        new { Label = "Clients",       Count = Model.NbClients,       Role = 1 },
+                        new { Label = "Fournisseurs",  Count = Model.NbFournisseurs,  Role = 2 },
+                        new { Label = "Employés",      Count = Model.NbEmployes,      Role = 4 },
+                        new { Label = "Partenaires",   Count = Model.NbPartenaires,   Role = 8 },
+                        new { Label = "Investisseurs", Count = Model.NbInvestisseurs, Role = 16 },
+                    };
+                }
+                @foreach (var f in filterOpts)
+                {
+                    <button class="filter-dd-item @(f.Role == 0 ? "active" : "")"
+                            data-role="@f.Role"
+                            onclick="filterByRole(@f.Role); closeFilterDropdown();">
+                        <span>@f.Label</span>
+                        <span class="filter-dd-count">@f.Count</span>
+                    </button>
+                }
+            </div>
+        </div>
+
+        <!-- Recherche (centré) -->
         <div style="flex:1; display:flex; justify-content:center;">
             <div class="job-input-wrapper" style="max-width:420px; width:100%;">
-                <input type="text" class="job-input" placeholder="Rechercher par nom, email...">
+                <input type="text" id="searchInput" class="job-input" placeholder="Rechercher nom, email, domaine..."
+                       oninput="applyFilters()">
                 <span class="job-input-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px; height:14px;">
-                        <circle cx="11" cy="11" r="6"></circle>
-                        <line x1="16" y1="16" x2="20" y2="20"></line>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                        <circle cx="11" cy="11" r="6"/><line x1="16" y1="16" x2="20" y2="20"/>
                     </svg>
                 </span>
             </div>
         </div>
-        <div style="margin-left:16px;">
+
+        <!-- Vue + toggle + actions (droite) -->
+        <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+            <!-- Vue toggle -->
+            <div style="display:flex; align-items:center; gap:7px;">
+                <span style="font-size:0.78rem; color:var(--text-muted); font-weight:600;">Vue</span>
+                <div class="ann-view-toggle">
+                    <button class="ann-view-btn active" id="btnGrid" onclick="setView('grid')" title="Grille">
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M3 3h7v7H3zm0 11h7v7H3zm11-11h7v7h-7zm0 11h7v7h-7z"/></svg>
+                    </button>
+                    <button class="ann-view-btn" id="btnList" onclick="setView('list')" title="Liste">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                    </button>
+                    <button class="ann-view-btn" id="btnGraph" onclick="setView('graph')" title="Graphe">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Export CSV -->
+            <a href="/AnnuaireList?handler=ExportCsv"
+               style="display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:8px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:var(--text-muted);font-size:0.8rem;font-weight:600;text-decoration:none;transition:all .18s;"
+               onmouseover="this.style.borderColor='rgba(123,94,255,0.45)';this.style.color='var(--text)';"
+               onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.color='var(--text-muted)';">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export CSV
+            </a>
+
+            <!-- Créer Contact -->
             <a asp-page="/AnnuaireNew"
                class="sidebar-quick"
-               style="display:inline-flex; align-items:center; gap:6px; padding-inline:16px; text-decoration:none;">
+               style="display:inline-flex;align-items:center;gap:6px;padding-inline:16px;text-decoration:none;">
                 <span>Créer Contact</span>
-                <span style="font-size:16px; line-height:1">+</span>
+                <span style="font-size:16px;line-height:1">+</span>
             </a>
         </div>
     </div>
 
-    <!-- GRILLE CONTACTS -->
-    <div id="contactsContainer"
-         style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; max-height:70vh; overflow-y:auto; padding-right:8px;">
-
-        @if (!Model.Contacts.Any())
-        {
-            <div style="grid-column: span 4; text-align:center; padding: 40px; color:var(--text-muted);">
-                Aucun contact trouvé. Cliquez sur "Créer Contact" pour commencer.
-            </div>
-        }
-
-        @foreach (var c in Model.Contacts)
-        {
-            var initials = !string.IsNullOrEmpty(c.FullName) && c.FullName.Length >= 2 ? c.FullName.Substring(0,2).ToUpper() : "??";
-            
-            // On extrait le domaine depuis le site web ou l'email pour Clearbit
-            var domain = !string.IsNullOrEmpty(c.Website) ? c.Website.Replace("https://", "").Replace("http://", "").TrimEnd('/') : 
-                         (!string.IsNullOrEmpty(c.Email) && c.Email.Contains("@") ? c.Email.Split('@')[1] : "(Particulier)");
-
-            var hasLogo = domain != "(Particulier)";
-
-            // On récupère le premier rôle pour le badge principal
-            var firstRoleStr = c.Roles != global::Donnees.ContactRole.None ? c.Roles.ToString().Split(',')[0].Trim() : "Contact";
-            var roleClass = "badge-employe"; // default
-            if (firstRoleStr.Contains("Client")) roleClass = "badge-client";
-            else if (firstRoleStr.Contains("Fournisseur")) roleClass = "badge-fournisseur";
-            else if (firstRoleStr.Contains("Investisseur")) roleClass = "badge-investisseur";
-
-            <div class="form-group product-item" style="margin:0; position:relative;">
-                <div class="product-card"
-                     style="
-                         padding:12px 12px;
-                         background:linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
-                         border:1px solid var(--border-soft);
-                         border-radius:var(--radius-sm);
-                         display:flex;
-                         flex-direction:column;
-                         gap:8px;
-                         transition:border-color 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                    box-shadow 140ms cubic-bezier(0.2,0.8,0.2,1),
-                                    transform 80ms ease-out,
-                                    background 140ms cubic-bezier(0.2,0.8,0.2,1);
-                     "
-                     onmouseover="this.style.borderColor='var(--accent-glow)'; this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)'; this.style.transform='translateY(-2px)'; this.style.background='linear-gradient(135deg, rgba(15,18,48,1), rgba(25,30,70,1))';"
-                     onmouseout="this.style.borderColor='var(--border-soft)'; this.style.boxShadow='none'; this.style.transform='translateY(0)'; this.style.background='linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96))';">
-                    
-                    <!-- OPTIONS MENU (3 petits points) -->
-                    <div style="position:absolute; top:8px; right:8px; z-index:10;">
-                        <form method="post" asp-page-handler="Delete" asp-route-id="@c.Id" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer définitivement ce contact ?');" style="margin:0;">
-                            <div style="position:relative;">
-                                <button type="button" 
-                                        style="background:rgba(255,255,255,0.05); border:none; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; color:var(--text-muted); cursor:pointer; transition:background 0.2s, color 0.2s;"
-                                        onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.color='#fff';"
-                                        onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='var(--text-muted)';"
-                                        onclick="var m = this.nextElementSibling; document.querySelectorAll('.contact-dd').forEach(x => { if(x !== m) x.style.display='none'; }); m.style.display = m.style.display === 'block' ? 'none' : 'block'; event.stopPropagation();">
-                                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-                                        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path>
-                                    </svg>
-                                </button>
-                                <div class="contact-dd" style="display:none; position:absolute; right:0; top:calc(100% + 4px); background:#0f172a; border:1px solid rgba(255,255,255,0.1); padding:4px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5); min-width:140px;">
-                                    <button type="submit" 
-                                            style="color:#ef4444; background:transparent; border:none; padding:8px 12px; font-size:0.85rem; font-weight:500; cursor:pointer; width:100%; text-align:left; border-radius:6px; transition:background 0.2s;"
-                                            onmouseover="this.style.background='rgba(239, 68, 68, 0.15)'" 
-                                            onmouseout="this.style.background='transparent'">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-right:4px;"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"></path></svg>
-                                        Supprimer
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
-                    <div class="product-card-header">
-
-                        <!-- IMAGE / LOGO -->
-                        @if (hasLogo)
-                        {
-                            <div style="width:80px; height:100px; border-radius:14px; overflow:hidden; border:1px solid rgba(148,163,184,0.5); background:white; flex-shrink:0; display:flex; align-items:center; justify-content:center; cursor:pointer;"
-                                 onclick="openContactImageModal('https://logo.clearbit.com/@domain'); event.stopPropagation();">
-                                <img src="https://logo.clearbit.com/@domain"
-                                     onerror="this.parentElement.innerHTML='<span style=\'font-size:1.5rem;font-weight:bold;color:#94a3b8;\'>@initials</span>';"
-                                     alt="Logo @c.FullName"
-                                     style="max-width:100%; max-height:100%; object-fit:contain; padding:6px;" />
-                            </div>
-                        }
-                        else
-                        {
-                            <div style="width:80px; height:100px; border-radius:14px; overflow:hidden; border:1px solid rgba(148,163,184,0.5); background:#020617; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:white; font-size:1.5rem; font-weight:bold;">
-                                @initials
-                            </div>
-                        }
-
-                        <!-- TEXTE -->
-                        <a asp-page="/AnnuaireNew" asp-route-id="@c.Id" style="text-decoration:none; color:inherit; flex:1; min-width:0;">
-                            <div class="product-card-text contact-card-info">
-                                <div class="product-card-title">@c.FullName</div>
-                                <div class="product-card-subtitle">@domain</div>
-                                <div class="product-card-stock">
-                                    @(string.IsNullOrEmpty(c.Email) ? "Pas d'email" : c.Email)
-                                </div>
-                                <div class="product-card-price">
-                                    <span>@(string.IsNullOrEmpty(c.Phone) ? "Pas de téléphone" : c.Phone)</span>
-                                </div>
-                                <div>
-                                    <span class="role-badge @roleClass">@firstRoleStr</span>
-                                </div>
-                            </div>
-                        </a>
-
-                    </div>
-                </div>
-            </div>
-        }
-
+    <!-- ═══ VUE GRILLE ═══════════════════════════════════════════════ -->
+    <div id="viewGrid"
+         style="display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:16px; max-height:65vh; overflow-y:auto; padding-right:8px;">
+        <!-- Contenu injecté par JS via renderGrid() -->
     </div>
+
+    <!-- ═══ VUE LISTE ════════════════════════════════════════════════ -->
+    <div id="viewList" style="display:none;">
+        <div class="ann-list-wrap">
+            <table class="ann-table">
+                <thead>
+                    <tr>
+                        <th style="width:42px;"></th>
+                        <th onclick="sortBy('name')" data-col="name">Nom <span class="sort-arrow">↕</span></th>
+                        <th onclick="sortBy('email')" data-col="email">Email <span class="sort-arrow">↕</span></th>
+                        <th onclick="sortBy('phone')" data-col="phone">Téléphone <span class="sort-arrow">↕</span></th>
+                        <th onclick="sortBy('domain')" data-col="domain">Domaine <span class="sort-arrow">↕</span></th>
+                        <th>Rôles</th>
+                        <th onclick="sortBy('dateTs')" data-col="dateTs">Créé le <span class="sort-arrow">↕</span></th>
+                        <th style="width:70px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="listBody">
+                    <!-- Contenu injecté par JS via renderList() -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ═══ VUE GRAPHE ═══════════════════════════════════════════════ -->
+    <div id="viewGraph" style="display:none;">
+        <div class="ann-graph-wrap">
+            <canvas id="graphCanvas"></canvas>
+            <div id="graphTooltip" class="graph-tooltip">
+                <div id="ttName" style="font-weight:700; color:var(--text); margin-bottom:4px;"></div>
+                <div id="ttDomain" style="color:var(--text-muted); font-size:0.78rem;"></div>
+                <div id="ttEmail" style="color:var(--text-muted); font-size:0.78rem; margin-top:2px;"></div>
+                <div id="ttRoles" style="margin-top:6px; display:flex; gap:3px; flex-wrap:wrap;"></div>
+            </div>
+            <div class="graph-controls">
+                <button class="graph-ctrl-btn" onclick="resetZoom()" title="Recentrer">⊕</button>
+                <button class="graph-ctrl-btn" onclick="reSimulate()" title="Réorganiser">↺</button>
+            </div>
+            <div class="graph-legend" id="graphLegend"></div>
+        </div>
+    </div>
+
 </section>
 
-<!-- MODAL APERÇU GRANDE IMAGE -->
+<!-- MODAL APERÇU LOGO -->
 <div id="contact-image-overlay" class="logout-overlay" style="display:none; background:rgba(3,6,23,0.8);" onclick="this.style.display='none'">
     <div class="logout-modal" style="max-width:520px; width:90%; padding:12px 12px 16px 12px;" onclick="event.stopPropagation();">
         <h3 style="margin-bottom:10px;">Aperçu du Logo</h3>
@@ -198,14 +329,638 @@
 
 @section Scripts {
 <script>
-    function openContactImageModal(url) {
-        if (!url) return;
-        var overlay = document.getElementById('contact-image-overlay');
-        var img = document.getElementById('contact-image-modal-img');
-        if (overlay && img) {
-            img.src = url;
-            overlay.style.display = 'flex';
+// ═══════════════════════════════════════════════════════════════════
+//  DONNÉES
+// ═══════════════════════════════════════════════════════════════════
+const ALL_CONTACTS = @Html.Raw(contactsJson);
+const GRAPH_DATA   = @Html.Raw(graphDataJson);
+
+const ROLE_META = {
+    0:  { label: 'Tous',         color: '#9C8CFF', cls: '' },
+    1:  { label: 'Client',       color: '#4ade80', cls: 'badge-client' },
+    2:  { label: 'Fournisseur',  color: '#c084fc', cls: 'badge-fournisseur' },
+    4:  { label: 'Employé',      color: '#7dd3fc', cls: 'badge-employe' },
+    8:  { label: 'Partenaire',   color: '#fb923c', cls: 'badge-partenaire' },
+    16: { label: 'Investisseur', color: '#fde047', cls: 'badge-investisseur' },
+};
+
+let currentRole = 0;
+let currentSort = { col: 'dateTs', dir: -1 };
+let filteredContacts = [...ALL_CONTACTS];
+let currentView = 'grid';
+
+// ═══════════════════════════════════════════════════════════════════
+//  UTILITAIRES
+// ═══════════════════════════════════════════════════════════════════
+function getRoleColor(roles) {
+    if (!roles) return '#94a3b8';
+    for (const bit of [1, 2, 16, 8, 4]) {
+        if (roles & bit) return ROLE_META[bit].color;
+    }
+    return '#94a3b8';
+}
+
+function getRoleBadges(roles) {
+    if (!roles) return '';
+    let html = '';
+    for (const bit of [1, 2, 4, 8, 16]) {
+        if (roles & bit) {
+            const m = ROLE_META[bit];
+            html += `<span class="role-badge ${m.cls}">${m.label}</span>`;
         }
     }
+    return html;
+}
+
+function getClearbitUrl(c) {
+    return c.domain ? `https://logo.clearbit.com/${c.domain}` : null;
+}
+
+function openContactImageModal(url) {
+    if (!url) return;
+    document.getElementById('contact-image-modal-img').src = url;
+    document.getElementById('contact-image-overlay').style.display = 'flex';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FILTRAGE & RECHERCHE
+// ═══════════════════════════════════════════════════════════════════
+// ─── DROPDOWN FILTRE ──────────────────────────────────────────────
+let filterOpen = false;
+
+function toggleFilterDropdown(e) {
+    e.stopPropagation();
+    filterOpen = !filterOpen;
+    const dd = document.getElementById('filterDropdown');
+    const arrow = document.getElementById('filterArrow');
+    dd.style.display = filterOpen ? 'block' : 'none';
+    arrow.style.transform = filterOpen ? 'rotate(180deg)' : '';
+}
+
+function closeFilterDropdown() {
+    filterOpen = false;
+    const dd = document.getElementById('filterDropdown');
+    const arrow = document.getElementById('filterArrow');
+    if (dd) dd.style.display = 'none';
+    if (arrow) arrow.style.transform = '';
+}
+
+function filterByRole(role) {
+    currentRole = role;
+
+    // Sync dropdown items
+    document.querySelectorAll('.filter-dd-item').forEach(item => {
+        item.classList.toggle('active', parseInt(item.dataset.role) === role);
+    });
+
+    // Mettre à jour le label actif sur le bouton
+    const activeItem = document.querySelector(`.filter-dd-item[data-role="${role}"]`);
+    const labelEl = document.getElementById('filterActiveLabel');
+    if (labelEl) {
+        labelEl.textContent = (role === 0 || !activeItem) ? '' : '· ' + activeItem.querySelector('span').textContent;
+    }
+
+    applyFilters();
+}
+
+function applyFilters() {
+    const q = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+    filteredContacts = ALL_CONTACTS.filter(c => {
+        const matchRole = currentRole === 0 || (c.roles & currentRole);
+        const matchSearch = !q ||
+            c.name.toLowerCase().includes(q) ||
+            c.email.toLowerCase().includes(q) ||
+            c.domain.toLowerCase().includes(q) ||
+            c.phone.includes(q);
+        return matchRole && matchSearch;
+    });
+    if (currentView === 'grid')  renderGrid();
+    if (currentView === 'list')  renderList();
+    if (currentView === 'graph') updateGraphFilter();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  VUE GRILLE
+// ═══════════════════════════════════════════════════════════════════
+function renderGrid() {
+    const container = document.getElementById('viewGrid');
+    if (!filteredContacts.length) {
+        container.style.gridTemplateColumns = '1fr';
+        container.innerHTML = `
+            <div class="ann-empty">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                <p>Aucun contact correspond à la recherche.</p>
+            </div>`;
+        return;
+    }
+    container.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
+    container.innerHTML = filteredContacts.map(c => {
+        const logoUrl = getClearbitUrl(c);
+        const logo = logoUrl
+            ? `<div style="width:80px;height:100px;border-radius:14px;overflow:hidden;border:1px solid rgba(148,163,184,0.5);background:white;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;"
+                    onclick="openContactImageModal('${logoUrl}'); event.stopPropagation();">
+                  <img src="${logoUrl}"
+                       onerror="this.parentElement.innerHTML='<span style=\\'font-size:1.5rem;font-weight:bold;color:#94a3b8;\\'>${c.initials}</span>';"
+                       alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;padding:6px;"/>
+               </div>`
+            : `<div style="width:80px;height:100px;border-radius:14px;overflow:hidden;border:1px solid rgba(148,163,184,0.5);background:#020617;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;font-weight:bold;">${c.initials}</div>`;
+
+        return `
+        <div class="form-group product-item" style="margin:0;position:relative;" data-id="${c.id}">
+            <div class="product-card"
+                 style="padding:12px;background:linear-gradient(135deg,rgba(8,11,32,0.96),rgba(18,22,54,0.96));border:1px solid var(--border-soft);border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:8px;transition:border-color 140ms,box-shadow 140ms,transform 80ms,background 140ms;"
+                 onmouseover="this.style.borderColor='var(--accent-glow)';this.style.boxShadow='0 14px 40px rgba(123,94,255,0.35)';this.style.transform='translateY(-2px)';this.style.background='linear-gradient(135deg,rgba(15,18,48,1),rgba(25,30,70,1))';"
+                 onmouseout="this.style.borderColor='var(--border-soft)';this.style.boxShadow='none';this.style.transform='translateY(0)';this.style.background='linear-gradient(135deg,rgba(8,11,32,0.96),rgba(18,22,54,0.96))';">
+                <!-- Menu options -->
+                <div style="position:absolute;top:8px;right:8px;z-index:10;">
+                    <div style="position:relative;">
+                        <button type="button"
+                                style="background:rgba(255,255,255,0.05);border:none;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);cursor:pointer;transition:background .2s,color .2s;"
+                                onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='#fff';"
+                                onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='var(--text-muted)';"
+                                onclick="var m=this.nextElementSibling;document.querySelectorAll('.contact-dd').forEach(x=>{if(x!==m)x.style.display='none';});m.style.display=m.style.display==='block'?'none':'block';event.stopPropagation();">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+                        </button>
+                        <div class="contact-dd" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:#0f172a;border:1px solid rgba(255,255,255,0.1);padding:4px;border-radius:8px;box-shadow:0 10px 25px rgba(0,0,0,0.5);min-width:140px;">
+                            <a href="/AnnuaireNew/${c.id}"
+                               style="display:block;color:var(--text-muted);background:transparent;padding:8px 12px;font-size:0.85rem;font-weight:500;text-decoration:none;border-radius:6px;transition:background .2s;"
+                               onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='#fff';"
+                               onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)';">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                Modifier
+                            </a>
+                            <form method="post" asp-page-handler="Delete" style="margin:0;">
+                                <input type="hidden" name="id" value="${c.id}"/>
+                                <button type="submit"
+                                        onclick="return confirm('Supprimer définitivement ce contact ?')"
+                                        style="color:#ef4444;background:transparent;border:none;padding:8px 12px;font-size:0.85rem;font-weight:500;cursor:pointer;width:100%;text-align:left;border-radius:6px;transition:background .2s;font-family:inherit;"
+                                        onmouseover="this.style.background='rgba(239,68,68,0.15)'"
+                                        onmouseout="this.style.background='transparent'">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg>
+                                    Supprimer
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                <!-- Contenu -->
+                <div class="product-card-header">
+                    ${logo}
+                    <a href="/AnnuaireNew/${c.id}" style="text-decoration:none;color:inherit;flex:1;min-width:0;">
+                        <div class="product-card-text" style="">
+                            <div class="product-card-title" style="font-size:0.9rem;">${c.name}</div>
+                            <div class="product-card-subtitle">${c.domain || '—'}</div>
+                            <div class="product-card-stock" style="font-size:0.75rem;">${c.email || 'Pas d\'email'}</div>
+                            <div class="product-card-price" style="font-size:0.75rem;">${c.phone || 'Pas de téléphone'}</div>
+                            <div style="margin-top:4px;">${getRoleBadges(c.roles)}</div>
+                        </div>
+                    </a>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  VUE LISTE
+// ═══════════════════════════════════════════════════════════════════
+function sortBy(col) {
+    if (currentSort.col === col) {
+        currentSort.dir *= -1;
+    } else {
+        currentSort.col = col;
+        currentSort.dir = 1;
+    }
+    document.querySelectorAll('.ann-table th[data-col]').forEach(th => {
+        th.classList.toggle('sorted', th.dataset.col === col);
+        if (th.dataset.col === col) {
+            th.querySelector('.sort-arrow').textContent = currentSort.dir === 1 ? '↑' : '↓';
+        } else if (th.querySelector('.sort-arrow')) {
+            th.querySelector('.sort-arrow').textContent = '↕';
+        }
+    });
+    renderList();
+}
+
+function renderList() {
+    const sorted = [...filteredContacts].sort((a, b) => {
+        const va = a[currentSort.col] ?? '';
+        const vb = b[currentSort.col] ?? '';
+        if (va < vb) return -1 * currentSort.dir;
+        if (va > vb) return  1 * currentSort.dir;
+        return 0;
+    });
+
+    const tbody = document.getElementById('listBody');
+    if (!sorted.length) {
+        tbody.innerHTML = `<tr><td colspan="8"><div class="ann-empty" style="padding:40px 0;"><p>Aucun contact correspond à la recherche.</p></div></td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = sorted.map(c => {
+        const logoUrl = getClearbitUrl(c);
+        const avatar = logoUrl
+            ? `<img src="${logoUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+                    style="width:32px;height:32px;border-radius:8px;object-fit:contain;border:1px solid rgba(255,255,255,0.1);background:#fff;padding:2px;"/>
+               <div class="ann-avatar-mini" style="display:none;background:rgba(123,94,255,0.15);color:#9C8CFF;">${c.initials}</div>`
+            : `<div class="ann-avatar-mini" style="background:rgba(123,94,255,0.15);color:#9C8CFF;">${c.initials}</div>`;
+
+        return `<tr>
+            <td><div style="display:flex;align-items:center;">${avatar}</div></td>
+            <td class="td-name"><a href="/AnnuaireNew/${c.id}" style="color:var(--text);text-decoration:none;">${c.name}</a></td>
+            <td class="td-muted">${c.email || '—'}</td>
+            <td class="td-muted">${c.phone || '—'}</td>
+            <td class="td-muted">${c.domain || '—'}</td>
+            <td>${getRoleBadges(c.roles) || '<span style="color:var(--text-muted);font-size:0.8rem;">—</span>'}</td>
+            <td class="td-muted">${c.date}</td>
+            <td>
+                <div style="display:flex;gap:6px;">
+                    <a href="/AnnuaireNew/${c.id}" style="color:var(--text-muted);transition:color .15s;" title="Modifier"
+                       onmouseover="this.style.color='var(--accent-light)'" onmouseout="this.style.color='var(--text-muted)'">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    </a>
+                    <form method="post" asp-page-handler="Delete" style="margin:0;display:inline;">
+                        <input type="hidden" name="id" value="${c.id}"/>
+                        <button type="submit" onclick="return confirm('Supprimer ?')"
+                                style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:0;transition:color .15s;"
+                                title="Supprimer"
+                                onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                        </button>
+                    </form>
+                </div>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  GESTION DES VUES
+// ═══════════════════════════════════════════════════════════════════
+function setView(view) {
+    currentView = view;
+    document.getElementById('viewGrid').style.display  = view === 'grid'  ? 'grid'  : 'none';
+    document.getElementById('viewList').style.display  = view === 'list'  ? 'block' : 'none';
+    document.getElementById('viewGraph').style.display = view === 'graph' ? 'block' : 'none';
+
+    document.getElementById('btnGrid').classList.toggle('active',  view === 'grid');
+    document.getElementById('btnList').classList.toggle('active',  view === 'list');
+    document.getElementById('btnGraph').classList.toggle('active', view === 'graph');
+
+    if (view === 'grid')  renderGrid();
+    if (view === 'list')  renderList();
+    if (view === 'graph') initGraph();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  GRAPHE DE RÉSEAU (force-directed, Canvas pur)
+// ═══════════════════════════════════════════════════════════════════
+let graphNodes = [], graphEdges = [];
+let canvas, ctx, simAnim = null;
+let zoom = 1, panX = 0, panY = 0;
+let isDragging = false, dragStart = { x: 0, y: 0 }, panStart = { x: 0, y: 0 };
+let hoveredNode = null;
+
+function initGraph() {
+    canvas = document.getElementById('graphCanvas');
+    ctx    = canvas.getContext('2d');
+
+    // Resize canvas to container
+    const wrap = canvas.parentElement;
+    canvas.width  = wrap.offsetWidth;
+    canvas.height = wrap.offsetHeight;
+
+    // Build nodes from current filtered contacts
+    updateGraphFilter();
+    buildLegend();
+}
+
+function updateGraphFilter() {
+    if (!canvas) return;
+
+    const filteredIds = new Set(filteredContacts.map(c => c.id));
+
+    graphNodes = GRAPH_DATA.nodes
+        .filter(n => filteredIds.has(n.id))
+        .map(n => ({
+            ...n,
+            x: canvas.width  / 2 + (Math.random() - 0.5) * canvas.width  * 0.6,
+            y: canvas.height / 2 + (Math.random() - 0.5) * canvas.height * 0.6,
+            vx: 0, vy: 0,
+            r: 28
+        }));
+
+    graphEdges = GRAPH_DATA.edges.filter(e =>
+        filteredIds.has(e.source) && filteredIds.has(e.target)
+    );
+
+    reSimulate();
+}
+
+function reSimulate() {
+    if (!canvas) return;
+    if (simAnim) cancelAnimationFrame(simAnim);
+
+    // Re-scatter nodes
+    graphNodes.forEach(n => {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.min(canvas.width, canvas.height) * 0.28;
+        n.x = canvas.width  / 2 + r * Math.cos(angle) * (0.5 + Math.random());
+        n.y = canvas.height / 2 + r * Math.sin(angle) * (0.5 + Math.random());
+        n.vx = 0; n.vy = 0;
+    });
+
+    let frame = 0;
+    const maxFrames = 180;
+
+    function tick() {
+        const alpha = Math.max(0, 1 - frame / maxFrames);
+        simulateStep(alpha);
+        drawGraph();
+        frame++;
+        if (frame < maxFrames) simAnim = requestAnimationFrame(tick);
+    }
+    simAnim = requestAnimationFrame(tick);
+}
+
+function simulateStep(alpha) {
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+
+    // Répulsion entre toutes les paires
+    for (let i = 0; i < graphNodes.length; i++) {
+        for (let j = i + 1; j < graphNodes.length; j++) {
+            const a = graphNodes[i], b = graphNodes[j];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+            const force = (7500 / (dist * dist)) * alpha * 0.015;
+            const fx = (dx / dist) * force, fy = (dy / dist) * force;
+            a.vx -= fx; a.vy -= fy;
+            b.vx += fx; b.vy += fy;
+        }
+    }
+
+    // Attraction le long des arêtes
+    for (const e of graphEdges) {
+        const s = graphNodes.find(n => n.id === e.source);
+        const t = graphNodes.find(n => n.id === e.target);
+        if (!s || !t) continue;
+        const dx = t.x - s.x, dy = t.y - s.y;
+        const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
+        const ideal = 160;
+        const force = (dist - ideal) * 0.012 * alpha;
+        const fx = (dx / dist) * force, fy = (dy / dist) * force;
+        s.vx += fx; s.vy += fy;
+        t.vx -= fx; t.vy -= fy;
+    }
+
+    // Gravité vers le centre + amortissement
+    graphNodes.forEach(n => {
+        n.vx += (cx - n.x) * 0.0015 * alpha;
+        n.vy += (cy - n.y) * 0.0015 * alpha;
+        n.vx *= 0.84; n.vy *= 0.84;
+        n.x += n.vx; n.y += n.vy;
+        n.x = Math.max(n.r + 8, Math.min(W - n.r - 8, n.x));
+        n.y = Math.max(n.r + 8, Math.min(H - n.r - 8, n.y));
+    });
+}
+
+function drawGraph() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!graphNodes.length) {
+        drawEmptyGraph();
+        return;
+    }
+
+    ctx.save();
+    ctx.translate(panX, panY);
+    ctx.scale(zoom, zoom);
+
+    // ── Arêtes ──────────────────────────────────────────────────
+    for (const e of graphEdges) {
+        const s = graphNodes.find(n => n.id === e.source);
+        const t = graphNodes.find(n => n.id === e.target);
+        if (!s || !t) continue;
+
+        const dx = t.x - s.x, dy = t.y - s.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const ux = dx / dist, uy = dy / dist;
+        const sx = s.x + ux * s.r, sy = s.y + uy * s.r;
+        const tx = t.x - ux * t.r, ty = t.y - uy * t.r;
+
+        // Ligne
+        ctx.beginPath();
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(tx, ty);
+        ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Flèche
+        const arrowLen = 8, arrowAngle = 0.4;
+        ctx.beginPath();
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(tx - arrowLen * Math.cos(Math.atan2(uy, ux) - arrowAngle),
+                   ty - arrowLen * Math.sin(Math.atan2(uy, ux) - arrowAngle));
+        ctx.moveTo(tx, ty);
+        ctx.lineTo(tx - arrowLen * Math.cos(Math.atan2(uy, ux) + arrowAngle),
+                   ty - arrowLen * Math.sin(Math.atan2(uy, ux) + arrowAngle));
+        ctx.strokeStyle = 'rgba(148,163,184,0.45)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // Label relation (au milieu)
+        if (e.type) {
+            const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+            ctx.fillStyle = 'rgba(148,163,184,0.6)';
+            ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(e.type, mx, my - 4);
+        }
+    }
+
+    // ── Nœuds ────────────────────────────────────────────────────
+    for (const n of graphNodes) {
+        const isHovered = hoveredNode && hoveredNode.id === n.id;
+        const color = getRoleColor(n.roles);
+        const r = isHovered ? n.r + 3 : n.r;
+
+        // Halo glow
+        if (isHovered) {
+            const grad = ctx.createRadialGradient(n.x, n.y, r * 0.5, n.x, n.y, r * 2);
+            grad.addColorStop(0, color + '55');
+            grad.addColorStop(1, 'transparent');
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, r * 2, 0, Math.PI * 2);
+            ctx.fillStyle = grad;
+            ctx.fill();
+        }
+
+        // Cercle principal
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        const grad = ctx.createRadialGradient(n.x - r * 0.3, n.y - r * 0.3, r * 0.1, n.x, n.y, r);
+        grad.addColorStop(0, color + 'CC');
+        grad.addColorStop(1, color + '66');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Bordure
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.strokeStyle = isHovered ? color : color + '88';
+        ctx.lineWidth = isHovered ? 2 : 1.5;
+        ctx.stroke();
+
+        // Initiales
+        ctx.fillStyle = '#fff';
+        ctx.font = `700 ${Math.round(r * 0.45)}px "Plus Jakarta Sans", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(n.initials, n.x, n.y);
+
+        // Nom sous le nœud
+        ctx.fillStyle = isHovered ? '#fff' : 'rgba(196,206,231,0.8)';
+        ctx.font = `${isHovered ? '600' : '500'} 11px "Plus Jakarta Sans", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        const label = n.name.length > 16 ? n.name.slice(0, 14) + '…' : n.name;
+        ctx.fillText(label, n.x, n.y + r + 5);
+    }
+
+    ctx.restore();
+}
+
+function drawEmptyGraph() {
+    ctx.fillStyle = 'rgba(148,163,184,0.25)';
+    ctx.font = '500 15px "Plus Jakarta Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Aucun contact à afficher dans ce graphe.', canvas.width / 2, canvas.height / 2);
+    ctx.fillStyle = 'rgba(123,94,255,0.3)';
+    ctx.font = '500 13px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText('Créez des contacts pour voir le réseau.', canvas.width / 2, canvas.height / 2 + 28);
+}
+
+// ── Zoom & Pan ────────────────────────────────────────────────────
+function resetZoom() {
+    zoom = 1; panX = 0; panY = 0;
+    drawGraph();
+}
+
+function getNodeAt(mx, my) {
+    const wx = (mx - panX) / zoom, wy = (my - panY) / zoom;
+    return graphNodes.find(n => Math.hypot(n.x - wx, n.y - wy) <= n.r + 4) || null;
+}
+
+function buildLegend() {
+    const usedRoles = new Set();
+    graphNodes.forEach(n => { for (const bit of [1,2,4,8,16]) if (n.roles & bit) usedRoles.add(bit); });
+    const legend = document.getElementById('graphLegend');
+    if (!legend) return;
+    if (!usedRoles.size) { legend.innerHTML = ''; return; }
+    legend.innerHTML = [...usedRoles].map(bit => {
+        const m = ROLE_META[bit];
+        return `<div class="graph-legend-item">
+            <div class="graph-legend-dot" style="background:${m.color};"></div>
+            <span>${m.label}</span>
+        </div>`;
+    }).join('');
+}
+
+// ── Événements souris sur le canvas ──────────────────────────────
+function setupGraphEvents() {
+    if (!canvas) return;
+
+    canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        zoom = Math.max(0.3, Math.min(3, zoom * factor));
+        drawGraph();
+    }, { passive: false });
+
+    canvas.addEventListener('mousedown', e => {
+        isDragging = true;
+        dragStart = { x: e.offsetX, y: e.offsetY };
+        panStart  = { x: panX, y: panY };
+        canvas.style.cursor = 'grabbing';
+    });
+
+    canvas.addEventListener('mousemove', e => {
+        if (isDragging) {
+            panX = panStart.x + (e.offsetX - dragStart.x);
+            panY = panStart.y + (e.offsetY - dragStart.y);
+            drawGraph();
+            return;
+        }
+        const node = getNodeAt(e.offsetX, e.offsetY);
+        if (node !== hoveredNode) {
+            hoveredNode = node;
+            canvas.style.cursor = node ? 'pointer' : 'default';
+            drawGraph();
+        }
+        updateTooltip(e, node);
+    });
+
+    canvas.addEventListener('mouseup', () => {
+        isDragging = false;
+        canvas.style.cursor = hoveredNode ? 'pointer' : 'default';
+    });
+
+    canvas.addEventListener('mouseleave', () => {
+        isDragging = false;
+        hoveredNode = null;
+        hideTooltip();
+        drawGraph();
+    });
+
+    canvas.addEventListener('click', e => {
+        const node = getNodeAt(e.offsetX, e.offsetY);
+        if (node) window.location.href = `/AnnuaireNew/${node.id}`;
+    });
+}
+
+function updateTooltip(e, node) {
+    const tt = document.getElementById('graphTooltip');
+    if (!node) { hideTooltip(); return; }
+
+    document.getElementById('ttName').textContent   = node.name;
+    document.getElementById('ttDomain').textContent = node.domain || '';
+    document.getElementById('ttEmail').textContent  = node.email  || '';
+    document.getElementById('ttRoles').innerHTML    = getRoleBadges(node.roles);
+
+    const wrap = canvas.parentElement.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    let tx = e.offsetX + 16, ty = e.offsetY - 10;
+    if (tx + 230 > canvas.width)  tx = e.offsetX - 230;
+    if (ty + 100 > canvas.height) ty = e.offsetY - 110;
+
+    tt.style.left = tx + 'px';
+    tt.style.top  = ty + 'px';
+    tt.classList.add('visible');
+}
+
+function hideTooltip() {
+    document.getElementById('graphTooltip')?.classList.remove('visible');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+    renderGrid();
+
+    // Fermer les dropdowns au clic extérieur
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.contact-dd').forEach(d => d.style.display = 'none');
+        closeFilterDropdown();
+    });
+
+    // Setup canvas events (disponibles même si graph pas encore ouvert)
+    requestAnimationFrame(() => {
+        if (document.getElementById('graphCanvas')) setupGraphEvents();
+    });
+});
 </script>
 }
