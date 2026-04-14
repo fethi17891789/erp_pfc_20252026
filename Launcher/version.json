@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "releaseDate": "2026-03-24",
-  "downloadUrl": "https://sitevitrineerp.vercel.app/releases/SKYRA_1.0.0.zip",
-  "changelog": "Première version officielle de SKYRA ERP. Inclut les modules Logistique, Fabrication et Messagerie."
+  "version": "1.1.0",
+  "releaseDate": "2026-04-14",
+  "downloadUrl": "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.1.0/SKYRA_Setup.exe",
+  "changelog": "Nouvelle version de SKYRA ERP. Ajout du module Annuaire amélioré, suivi logistique avancé, et corrections diverses."
 }
