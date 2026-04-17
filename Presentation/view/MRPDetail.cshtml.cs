@@ -144,6 +144,9 @@ namespace erp_pfc_20252026.Pages
         /// <summary>Ancrages blockchain indexés par ReferenceOF pour affichage badge.</summary>
         public Dictionary<string, BlockchainAncrage> AnchragesBlockchain { get; set; } = new();
 
+        /// <summary>Références des documents dont l'intégrité est compromise (falsification détectée).</summary>
+        public HashSet<string> DocumentsFalsifies { get; set; } = new();
+
         public async Task<IActionResult> OnGetAsync(
             int? id,
             int? horizonJours,
@@ -927,7 +930,7 @@ namespace erp_pfc_20252026.Pages
                 .OrderByDescending(f => f.DateOrdre)
                 .ToListAsync();
 
-            // Charger les ancrages blockchain pour chaque fichier
+            // Charger les ancrages blockchain + vérification automatique d'intégrité
             if (FichiersOF.Any())
             {
                 var refs = FichiersOF.Select(f => f.ReferenceOF).ToList();
@@ -935,6 +938,24 @@ namespace erp_pfc_20252026.Pages
                     .Where(a => refs.Contains(a.RefDocument))
                     .ToListAsync();
                 AnchragesBlockchain = ancrages.ToDictionary(a => a.RefDocument, a => a);
+
+                // Vérification locale SHA-256 : compare le contenu actuel avec le hash ancré
+                // On recalcule le même hash que lors de la génération : PDF + métadonnées clés
+                foreach (var fichier in FichiersOF)
+                {
+                    if (!AnchragesBlockchain.TryGetValue(fichier.ReferenceOF, out var ancrage))
+                        continue;
+
+                    var contenuActuel = fichier.FichierBlob
+                        .Concat(System.Text.Encoding.UTF8.GetBytes($"|{fichier.ReferenceOF}|{fichier.CodeArticle}"))
+                        .ToArray();
+                    var hashActuel = Metier.BlockchainService.CalculerHash(contenuActuel);
+                    if (hashActuel != ancrage.HashContenu)
+                    {
+                        DocumentsFalsifies.Add(fichier.ReferenceOF);
+                        Console.WriteLine($"[BLOCKCHAIN] ⚠ FALSIFICATION DÉTECTÉE : {fichier.ReferenceOF}");
+                    }
+                }
             }
         }
 

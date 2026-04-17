@@ -104,8 +104,11 @@ namespace Metier.MRP
             _db.MRPFichiers.Add(fichier);
             await _db.SaveChangesAsync();
 
-            // Ancrage blockchain
-            await _blockchain.AncrerDocumentAsync("OF", referenceOf, pdfBytes);
+            // Ancrage blockchain — on hash le PDF + les métadonnées clés
+            var contenuAHacher = pdfBytes
+                .Concat(System.Text.Encoding.UTF8.GetBytes($"|{referenceOf}|{codeArticle}"))
+                .ToArray();
+            await _blockchain.AncrerDocumentAsync("OF", referenceOf, contenuAHacher);
 
             return fichier;
         }

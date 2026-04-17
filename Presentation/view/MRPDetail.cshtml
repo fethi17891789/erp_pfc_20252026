@@ -379,12 +379,20 @@
                                 foreach (var f in Model.FichiersOF)
                                 {
                                     Model.AnchragesBlockchain.TryGetValue(f.ReferenceOF, out var ancrage);
+                                    var estFalsifie = Model.DocumentsFalsifies.Contains(f.ReferenceOF);
                                     <tr>
                                         <td>@f.CodeArticle</td>
                                         <td>@f.ReferenceOF</td>
                                         <td>@f.DateOrdre.ToString("dd/MM/yyyy HH:mm")</td>
                                         <td>
-                                            @if (ancrage == null)
+                                            @if (estFalsifie)
+                                            {
+                                                <span title="Hash attendu : @ancrage?.HashContenu"
+                                                      style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(255,50,50,0.15); border:1px solid rgba(255,50,50,0.5); color:#ff4444; font-size:0.72rem; font-weight:700; animation: pulse 1.5s infinite;">
+                                                    &#9888; FALSIFICATION DÉTECTÉE
+                                                </span>
+                                            }
+                                            else if (ancrage == null)
                                             {
                                                 <span style="font-size:0.75rem; color:var(--text-muted-2);">En attente...</span>
                                             }
@@ -405,7 +413,7 @@
                                             }
                                             else
                                             {
-                                                <span title="@ancrage.HashContenu"
+                                                <span title="@ancrage?.HashContenu"
                                                       style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(255,100,100,0.1); border:1px solid rgba(255,100,100,0.3); color:#ff8080; font-size:0.72rem;">
                                                     &#9888; Erreur réseau
                                                 </span>
