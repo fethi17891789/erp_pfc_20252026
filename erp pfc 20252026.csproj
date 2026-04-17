@@ -25,6 +25,8 @@
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+		<!-- Blockchain Ethereum / Sepolia -->
+		<PackageReference Include="Nethereum.Web3" Version="4.26.0" />
 	</ItemGroup>
 
 	<ItemGroup>

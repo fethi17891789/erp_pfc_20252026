@@ -15,12 +15,14 @@ namespace Metier.Logistique
     {
         private readonly ErpDbContext _context;
         private readonly IConfiguration _config;
+        private readonly Metier.BlockchainService _blockchain;
         private static readonly HttpClient _httpClient = new HttpClient();
 
-        public LogistiqueService(ErpDbContext context, IConfiguration config)
+        public LogistiqueService(ErpDbContext context, IConfiguration config, Metier.BlockchainService blockchain)
         {
             _context = context;
             _config = config;
+            _blockchain = blockchain;
         }
 
         #region Maintenance
@@ -173,6 +175,12 @@ namespace Metier.Logistique
                 // Première sauvegarde immédiate
                 await _context.SaveChangesAsync();
                 Console.WriteLine($"[DEBUG] EndTrajetAsync - Trajet {trajetId} clôturé et véhicule libéré.");
+
+                // Ancrage blockchain du trajet terminé
+                var refTrajet = $"TRAJET-{trajetId}-{trajet.DateDebut:yyyyMMddHHmmss}";
+                var contenuTrajet = System.Text.Encoding.UTF8.GetBytes(
+                    $"{refTrajet}|{destination}|{distance}|{trajet.DateDebut:O}|{trajet.DateFin:O}|{traceJson ?? ""}");
+                await _blockchain.AncrerDocumentAsync("TRAJET", refTrajet, contenuTrajet);
 
                 // 2. OPTIONNEL : Tenter le Map Matching (OSRM)
                 if (!string.IsNullOrEmpty(traceJson) && traceJson != "[]") {

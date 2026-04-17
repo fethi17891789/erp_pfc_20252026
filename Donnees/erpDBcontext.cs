@@ -50,6 +50,9 @@ namespace Donnees
         public DbSet<Contact> Contacts { get; set; }
         public DbSet<ContactRelation> ContactRelations { get; set; }
 
+        // BLOCKCHAIN
+        public DbSet<BlockchainAncrage> BlockchainAncrages { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -390,6 +393,23 @@ namespace Donnees
                 entity.HasKey(t => t.Id);
                 entity.Property(t => t.Origine).HasMaxLength(255);
                 entity.Property(t => t.Destination).HasMaxLength(255);
+            });
+
+            // --- CONFIG BLOCKCHAIN ---
+            modelBuilder.Entity<BlockchainAncrage>(entity =>
+            {
+                entity.ToTable("BlockchainAncrages");
+                entity.HasKey(b => b.Id);
+                entity.Property(b => b.TypeDocument).IsRequired().HasMaxLength(20);
+                entity.Property(b => b.RefDocument).IsRequired().HasMaxLength(100);
+                entity.Property(b => b.HashContenu).IsRequired().HasMaxLength(64);
+                entity.Property(b => b.TxHash).HasMaxLength(100);
+                entity.Property(b => b.LienEtherscan).HasMaxLength(200);
+                entity.Property(b => b.Statut).IsRequired().HasMaxLength(20).HasDefaultValue("Local");
+                entity.Property(b => b.DateAncrage)
+                      .HasColumnType("timestamp with time zone")
+                      .HasDefaultValueSql("NOW() AT TIME ZONE 'UTC'");
+                entity.HasIndex(b => b.RefDocument).HasDatabaseName("IX_BlockchainAncrages_RefDocument");
             });
         }
     }

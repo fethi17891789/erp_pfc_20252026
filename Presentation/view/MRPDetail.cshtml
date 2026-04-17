@@ -366,10 +366,11 @@
                     <table class="erp-table mrp-table">
                         <thead>
                             <tr>
-                                <th style="width: 25%;">Produit</th>
-                                <th style="width: 25%;">Reference Ordre</th>
-                                <th style="width: 20%;">Date de l'ordre</th>
-                                <th style="width: 30%;">Actions</th>
+                                <th style="width: 20%;">Produit</th>
+                                <th style="width: 20%;">Reference Ordre</th>
+                                <th style="width: 15%;">Date de l'ordre</th>
+                                <th style="width: 20%;">Blockchain</th>
+                                <th style="width: 25%;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -377,10 +378,39 @@
                             {
                                 foreach (var f in Model.FichiersOF)
                                 {
+                                    Model.AnchragesBlockchain.TryGetValue(f.ReferenceOF, out var ancrage);
                                     <tr>
                                         <td>@f.CodeArticle</td>
                                         <td>@f.ReferenceOF</td>
                                         <td>@f.DateOrdre.ToString("dd/MM/yyyy HH:mm")</td>
+                                        <td>
+                                            @if (ancrage == null)
+                                            {
+                                                <span style="font-size:0.75rem; color:var(--text-muted-2);">En attente...</span>
+                                            }
+                                            else if (ancrage.Statut == "Ancre")
+                                            {
+                                                <a href="@ancrage.LienEtherscan" target="_blank"
+                                                   title="Vérifier sur Sepolia Etherscan"
+                                                   style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(123,94,255,0.15); border:1px solid rgba(123,94,255,0.4); color:#9C8CFF; font-size:0.72rem; font-weight:600; text-decoration:none; transition:all .2s;">
+                                                    &#9741; Certifié Sepolia
+                                                </a>
+                                            }
+                                            else if (ancrage.Statut == "Local")
+                                            {
+                                                <span title="Hash SHA-256 : @ancrage.HashContenu"
+                                                      style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-muted); font-size:0.72rem; font-weight:600;">
+                                                    &#128274; Hash local
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span title="@ancrage.HashContenu"
+                                                      style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(255,100,100,0.1); border:1px solid rgba(255,100,100,0.3); color:#ff8080; font-size:0.72rem;">
+                                                    &#9888; Erreur réseau
+                                                </span>
+                                            }
+                                        </td>
                                         <td>
                                             <div style="display:flex; gap:8px; justify-content:flex-start;">
                                                 <a asp-page-handler="ViewOF"

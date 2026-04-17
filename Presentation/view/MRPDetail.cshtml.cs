@@ -141,6 +141,9 @@ namespace erp_pfc_20252026.Pages
 
         public List<MRPFichier> FichiersOF { get; set; } = new List<MRPFichier>();
 
+        /// <summary>Ancrages blockchain indexés par ReferenceOF pour affichage badge.</summary>
+        public Dictionary<string, BlockchainAncrage> AnchragesBlockchain { get; set; } = new();
+
         public async Task<IActionResult> OnGetAsync(
             int? id,
             int? horizonJours,
@@ -923,6 +926,16 @@ namespace erp_pfc_20252026.Pages
                 .Where(f => f.PlanificationId == planId)
                 .OrderByDescending(f => f.DateOrdre)
                 .ToListAsync();
+
+            // Charger les ancrages blockchain pour chaque fichier
+            if (FichiersOF.Any())
+            {
+                var refs = FichiersOF.Select(f => f.ReferenceOF).ToList();
+                var ancrages = await _db.BlockchainAncrages
+                    .Where(a => refs.Contains(a.RefDocument))
+                    .ToListAsync();
+                AnchragesBlockchain = ancrages.ToDictionary(a => a.RefDocument, a => a);
+            }
         }
 
         public async Task<IActionResult> OnGetSearchUsersAsync(string term)

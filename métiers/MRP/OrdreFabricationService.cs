@@ -13,11 +13,13 @@ namespace Metier.MRP
     {
         private readonly ErpDbContext _db;
         private readonly IPdfService _pdfService;
+        private readonly BlockchainService _blockchain;
 
-        public OrdreFabricationService(ErpDbContext db, IPdfService pdfService)
+        public OrdreFabricationService(ErpDbContext db, IPdfService pdfService, BlockchainService blockchain)
         {
             _db = db;
             _pdfService = pdfService;
+            _blockchain = blockchain;
         }
 
         public class OrdreFabricationPdfModel
@@ -101,6 +103,9 @@ namespace Metier.MRP
 
             _db.MRPFichiers.Add(fichier);
             await _db.SaveChangesAsync();
+
+            // Ancrage blockchain
+            await _blockchain.AncrerDocumentAsync("OF", referenceOf, pdfBytes);
 
             return fichier;
         }

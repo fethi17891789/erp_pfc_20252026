@@ -69,6 +69,9 @@ builder.Services.AddScoped<Metier.IAService>();
 builder.Services.AddScoped<Metier.CRM.ValidationService>();
 builder.Services.AddScoped<Metier.CRM.AnnuaireService>();
 
+// BLOCKCHAIN
+builder.Services.AddScoped<Metier.BlockchainService>();
+
 // SignalR
 builder.Services.AddSignalR();
 
@@ -857,6 +860,49 @@ using (var scope9 = app.Services.CreateScope())
 }
 // --------------------------------------------------------------------
 
+
+// ---------- 10. CREATION AUTOMATIQUE TABLE BLOCKCHAIN ----------
+using (var scope10 = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope10.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createBlockchainSql = @"
+                CREATE TABLE IF NOT EXISTS ""BlockchainAncrages"" (
+                    ""Id""             SERIAL PRIMARY KEY,
+                    ""TypeDocument""   VARCHAR(20)  NOT NULL,
+                    ""RefDocument""    VARCHAR(100) NOT NULL,
+                    ""HashContenu""    VARCHAR(64)  NOT NULL,
+                    ""TxHash""         VARCHAR(100) NULL,
+                    ""LienEtherscan""  VARCHAR(200) NULL,
+                    ""Statut""         VARCHAR(20)  NOT NULL DEFAULT 'Local',
+                    ""DateAncrage""    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT (NOW() AT TIME ZONE 'UTC'),
+                    ""CreeParUserId""  INT NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_BlockchainAncrages_RefDocument""
+                    ON ""BlockchainAncrages""(""RefDocument"");";
+
+            using (var cmd = new NpgsqlCommand(createBlockchainSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création de la table BlockchainAncrages...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Table BlockchainAncrages prête.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto de BlockchainAncrages : {ex}");
+    }
+}
+// --------------------------------------------------------------------
 
 if (!app.Environment.IsDevelopment())
 {
