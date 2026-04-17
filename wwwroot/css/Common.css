@@ -1089,6 +1089,10 @@ button[type="submit"]:active {
     100% { opacity: 0; transform: scale(0.95) translateY(-15px); }
 }
 
+@keyframes oa-spin {
+    to { transform: rotate(360deg); }
+}
+
 .toast-avatar {
     width: 40px; height: 40px;
     border-radius: 12px;

@@ -47,6 +47,17 @@
         }
     });
 
+    // Notification quand un ancrage blockchain Sepolia est confirmé
+    connection.on("AncrageBlockchainConfirme", function (data) {
+        if (!data || !window.showSystemNotification) return;
+        var label = data.typeDocument === "OA"
+            ? "Ordre d'achat"
+            : data.typeDocument === "OF"
+                ? "Ordre de fabrication"
+                : data.typeDocument;
+        window.showSystemNotification("Blockchain", label + " " + data.refDocument + " certifié sur Sepolia");
+    });
+
     // Démarrage de la connexion
     connection.start()
         .then(() => {

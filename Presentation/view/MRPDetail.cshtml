@@ -247,21 +247,17 @@
                                         <td onclick="event.stopPropagation();">
                                             @if (isOFRoot)
                                             {
-                                                <form method="post"
-                                                      asp-page-handler="LancerOF"
-                                                      style="display:inline;"
-                                                      onsubmit="event.stopPropagation();">
-                                                    <input type="hidden" name="planId" value="@Model.Planification?.Id" />
-                                                    <input type="hidden" name="codeArticle" value="@root.CodeArticle" />
-                                                    <input type="hidden" name="quantite" value="@root.QuantiteALancer" />
-                                                    <button type="submit"
-                                                            class="btn-primary"
-                                                            style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                            @(boutonDisabledRoot ? "disabled" : "")
-                                                            title="@boutonTitleRoot">
-                                                        Lancer OF
-                                                    </button>
-                                                </form>
+                                                <button type="button"
+                                                        class="btn-primary btn-lancer-of"
+                                                        style="width:110px; padding-inline:8px; font-size:0.8rem;"
+                                                        @(boutonDisabledRoot ? "disabled" : "")
+                                                        title="@boutonTitleRoot"
+                                                        data-plan-id="@Model.Planification?.Id"
+                                                        data-code="@root.CodeArticle"
+                                                        data-qty="@root.QuantiteALancer"
+                                                        onclick="lancerOFAjax(this)">
+                                                    Lancer OF
+                                                </button>
                                             }
                                             else if (isOARoot)
                                             {
@@ -312,21 +308,17 @@
                                                     {
                                                         if (isOF)
                                                         {
-                                                            <form method="post"
-                                                                  asp-page-handler="LancerOF"
-                                                                  style="display:inline;"
-                                                                  onsubmit="event.stopPropagation();">
-                                                                <input type="hidden" name="planId" value="@Model.Planification?.Id" />
-                                                                <input type="hidden" name="codeArticle" value="@c.CodeArticle" />
-                                                                <input type="hidden" name="quantite" value="@c.QuantiteALancer" />
-                                                                <button type="submit"
-                                                                        class="btn-primary"
-                                                                        style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                                        @(boutonDisabled ? "disabled" : "")
-                                                                        title="@boutonTitle">
-                                                                    Lancer OF
-                                                                </button>
-                                                            </form>
+                                                            <button type="button"
+                                                                    class="btn-primary btn-lancer-of"
+                                                                    style="width:110px; padding-inline:8px; font-size:0.8rem;"
+                                                                    @(boutonDisabled ? "disabled" : "")
+                                                                    title="@boutonTitle"
+                                                                    data-plan-id="@Model.Planification?.Id"
+                                                                    data-code="@c.CodeArticle"
+                                                                    data-qty="@c.QuantiteALancer"
+                                                                    onclick="lancerOFAjax(this)">
+                                                                Lancer OF
+                                                            </button>
                                                         }
                                                         else if (isOA)
                                                         {
@@ -363,7 +355,7 @@
                 </div>
 
                 <div class="mrp-table-wrapper" style="max-height: 24vh;">
-                    <table class="erp-table mrp-table">
+                    <table id="tableau-fichiers-of" class="erp-table mrp-table">
                         <thead>
                             <tr>
                                 <th style="width: 20%;">Produit</th>
@@ -380,7 +372,7 @@
                                 {
                                     Model.AnchragesBlockchain.TryGetValue(f.ReferenceOF, out var ancrage);
                                     var estFalsifie = Model.DocumentsFalsifies.Contains(f.ReferenceOF);
-                                    <tr>
+                                    <tr data-ref="@f.ReferenceOF">
                                         <td>@f.CodeArticle</td>
                                         <td>@f.ReferenceOF</td>
                                         <td>@f.DateOrdre.ToString("dd/MM/yyyy HH:mm")</td>
@@ -389,7 +381,8 @@
                                             {
                                                 <span title="Hash attendu : @ancrage?.HashContenu"
                                                       style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(255,50,50,0.15); border:1px solid rgba(255,50,50,0.5); color:#ff4444; font-size:0.72rem; font-weight:700; animation: pulse 1.5s infinite;">
-                                                    &#9888; FALSIFICATION DÉTECTÉE
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                                    FALSIFICATION DÉTECTÉE
                                                 </span>
                                             }
                                             else if (ancrage == null)
@@ -401,21 +394,24 @@
                                                 <a href="@ancrage.LienEtherscan" target="_blank"
                                                    title="Vérifier sur Sepolia Etherscan"
                                                    style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(123,94,255,0.15); border:1px solid rgba(123,94,255,0.4); color:#9C8CFF; font-size:0.72rem; font-weight:600; text-decoration:none; transition:all .2s;">
-                                                    &#9741; Certifié Sepolia
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                                    Certifié Sepolia
                                                 </a>
                                             }
                                             else if (ancrage.Statut == "Local")
                                             {
                                                 <span title="Hash SHA-256 : @ancrage.HashContenu"
-                                                      style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--text-muted); font-size:0.72rem; font-weight:600;">
-                                                    &#128274; Hash local
+                                                      style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); color:var(--text-muted); font-size:0.72rem; font-weight:600;">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                                    Hash local
                                                 </span>
                                             }
                                             else
                                             {
                                                 <span title="@ancrage?.HashContenu"
                                                       style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; background:rgba(255,100,100,0.1); border:1px solid rgba(255,100,100,0.3); color:#ff8080; font-size:0.72rem;">
-                                                    &#9888; Erreur réseau
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                                    Erreur réseau
                                                 </span>
                                             }
                                         </td>
@@ -1350,6 +1346,141 @@
         document.getElementById('logout-overlay').style.display = 'none';
         document.body.classList.remove('logout-blur-active');
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // LANCER OF EN AJAX — sans rechargement de page
+    // ═══════════════════════════════════════════════════════════
+
+    async function lancerOFAjax(btn) {
+        const planId     = parseInt(btn.dataset.planId);
+        const codeArticle = btn.dataset.code;
+        const quantite   = parseFloat(btn.dataset.qty);
+        const originalHtml = btn.innerHTML;
+
+        // Spinner sur le bouton
+        btn.disabled = true;
+        btn.innerHTML = '<span class="of-spinner"></span>';
+
+        try {
+            const token = document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+
+            const resp = await fetch('?handler=LancerOFAjax', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'RequestVerificationToken': token
+                },
+                body: JSON.stringify({ planId, codeArticle, quantite })
+            });
+
+            const text = await resp.text();
+            if (!text) throw new Error('Réponse vide du serveur (vérifier les logs)');
+            const result = JSON.parse(text);
+
+            if (result.ok) {
+                ajouterLigneOFTableau(result);
+            } else {
+                alert('Erreur : ' + result.message);
+            }
+        } catch (e) {
+            alert('Erreur réseau : ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // ID DE LA PLANIFICATION COURANTE (pour filtrer les events SignalR)
+    // ═══════════════════════════════════════════════════════════
+    var mrpCurrentPlanId = @(Model.Planification?.Id ?? 0);
+
+    // Badge "Certifié Sepolia" — HTML partagé
+    function badgeSepolia(lienEtherscan) {
+        return `<a href="${lienEtherscan}" target="_blank"
+            title="Vérifier sur Sepolia Etherscan"
+            style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+            background:rgba(123,94,255,0.15);border:1px solid rgba(123,94,255,0.4);
+            color:#9C8CFF;font-size:0.72rem;font-weight:600;text-decoration:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Certifié Sepolia</a>`;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // LISTENERS SIGNALR (réutilise la connexion Presence.js)
+    // ═══════════════════════════════════════════════════════════
+    (function initMrpSignalR() {
+        var conn = window.presenceConnection;
+        if (!conn) return;
+
+        // OA accepté → ajouter la ligne au tableau
+        conn.on("NouvelOrdreGenere", function (data) {
+            if (!data || data.planId !== mrpCurrentPlanId) return;
+            ajouterLigneOFTableau({
+                id:              data.id,
+                referenceOF:     data.referenceOF,
+                codeArticle:     data.codeArticle,
+                dateOrdre:       data.dateOrdre,
+                statutBlockchain: data.statutBlockchain,
+                lienEtherscan:   data.lienEtherscan
+            });
+        });
+
+        // Sepolia confirmé → mettre à jour le badge de la ligne correspondante
+        conn.on("AncrageBlockchainConfirme", function (data) {
+            if (!data) return;
+            var row = document.querySelector('#tableau-fichiers-of tr[data-ref="' + data.refDocument + '"]');
+            if (!row || !row.cells[3]) return;
+            row.cells[3].innerHTML = badgeSepolia(data.lienEtherscan);
+        });
+    })();
+
+    function ajouterLigneOFTableau(result) {
+        const tbody = document.querySelector('#tableau-fichiers-of tbody');
+        if (!tbody) return;
+
+        // Retirer la ligne "aucun fichier" si présente
+        const ligneVide = tbody.querySelector('td[colspan]');
+        if (ligneVide) ligneVide.closest('tr').remove();
+
+        // Badge blockchain
+        let badgeHtml = '';
+        if (result.statutBlockchain === 'Ancre') {
+            badgeHtml = badgeSepolia(result.lienEtherscan);
+        } else if (result.statutBlockchain === 'ErreurSepolia') {
+            badgeHtml = `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;
+                border-radius:999px;background:rgba(255,100,100,0.1);border:1px solid rgba(255,100,100,0.3);
+                color:#ff8080;font-size:0.72rem;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Erreur réseau</span>`;
+        } else {
+            badgeHtml = `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;
+                border-radius:999px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);
+                color:var(--text-muted);font-size:0.72rem;font-weight:600;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Hash local</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.dataset.ref = result.referenceOF;
+        tr.innerHTML = `
+            <td>${result.codeArticle}</td>
+            <td>${result.referenceOF}</td>
+            <td>${result.dateOrdre}</td>
+            <td>${badgeHtml}</td>
+            <td>
+                <div style="display:flex;gap:8px;justify-content:flex-start;">
+                    <a href="?handler=ViewOF&id=${result.id}" class="btn-secondary"
+                       style="padding:6px 14px;font-size:0.8rem;margin-top:0;" target="_blank">
+                       Visualiser PDF</a>
+                    <a href="?handler=DownloadOF&id=${result.id}" class="btn-primary"
+                       style="padding:6px 14px;font-size:0.8rem;margin-top:0;">
+                       Telecharger</a>
+                </div>
+            </td>`;
+
+        tbody.insertBefore(tr, tbody.firstChild);
+    }
 </script>
 
 <style>
@@ -1676,6 +1807,24 @@
     .btn-primary:active, .btn-secondary:active {
         transform: translateY(0) !important;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    }
+
+    /* Spinner bouton OF */
+    .of-spinner {
+        display: inline-block;
+        width: 14px; height: 14px;
+        border: 2px solid rgba(255,255,255,0.25);
+        border-top-color: #fff;
+        border-radius: 50%;
+        animation: of-spin 0.6s linear infinite;
+        vertical-align: middle;
+    }
+    @@keyframes of-spin { to { transform: rotate(360deg); } }
+
+    /* Animation clignotement badge falsification */
+    @@keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50%       { opacity: 0.5; }
     }
 </style>
 }

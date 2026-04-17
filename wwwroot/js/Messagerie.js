@@ -1396,7 +1396,7 @@ function appendMessageToUi(message) {
 
                         btnAccept.dataset.bound = "true";
 
-                        btnAccept.addEventListener('click', () => handleOaAction(content, 'acceptee', currentMsgId));
+                        btnAccept.addEventListener('click', (e) => handleOaAction(content, 'acceptee', currentMsgId, e.currentTarget));
 
                     }
 
@@ -1404,7 +1404,7 @@ function appendMessageToUi(message) {
 
                         btnReject.dataset.bound = "true";
 
-                        btnReject.addEventListener('click', () => handleOaAction(content, 'refusee', currentMsgId));
+                        btnReject.addEventListener('click', (e) => handleOaAction(content, 'refusee', currentMsgId, e.currentTarget));
 
                     }
 
@@ -1753,7 +1753,7 @@ function appendMessageToUi(message) {
 
 // ====================== GESTION DES ACTIONS OA ======================
 
-window.handleOaAction = function (originalContentHtml, action, messageId) {
+window.handleOaAction = function (originalContentHtml, action, messageId, triggerEl) {
 
     if (!messageId) return;
 
@@ -1835,11 +1835,50 @@ window.handleOaAction = function (originalContentHtml, action, messageId) {
 
     const newHtmlContent = card.outerHTML;
 
+    // Trouver la carte OA dans le DOM réel pour ajouter les indicateurs visuels
+    const domCard = triggerEl ? triggerEl.closest('.oa-preview-card') : null;
+
+    if (domCard) {
+        domCard.style.opacity = '0.55';
+        domCard.style.pointerEvents = 'none';
+
+        // Spinner + texte d'état sous la carte
+        const spinnerEl = document.createElement('div');
+        spinnerEl.id = `oa-spinner-${messageId}`;
+        spinnerEl.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 12px;font-size:0.8rem;color:#9C8CFF;';
+        spinnerEl.innerHTML = `
+            <span style="display:inline-block;width:14px;height:14px;border:2px solid rgba(123,94,255,0.3);
+                border-top-color:#7B5EFF;border-radius:50%;animation:oa-spin 0.6s linear infinite;flex-shrink:0;"></span>
+            <span>${isAccepte ? 'Génération OA + ancrage blockchain en cours...' : 'Traitement en cours...'}</span>`;
+        domCard.parentNode.insertBefore(spinnerEl, domCard.nextSibling);
+    }
+
     if (connection.state === signalR.HubConnectionState.Connected) {
 
         connection.invoke("UpdateOaHtml", parseInt(messageId), newHtmlContent)
+            .then(() => {
+                // Retirer le spinner et restaurer la carte
+                const spinnerEl = document.getElementById(`oa-spinner-${messageId}`);
+                if (spinnerEl) spinnerEl.remove();
+                if (domCard) {
+                    domCard.style.opacity = '';
+                    domCard.style.pointerEvents = '';
+                }
 
-            .catch(err => console.error("Erreur backend:", err));
+                // Notification système
+                if (isAccepte && window.showSystemNotification) {
+                    window.showSystemNotification('Achat', 'OA généré et ancré sur Sepolia ⛓');
+                }
+            })
+            .catch(err => {
+                console.error("Erreur backend:", err);
+                const spinnerEl = document.getElementById(`oa-spinner-${messageId}`);
+                if (spinnerEl) spinnerEl.remove();
+                if (domCard) {
+                    domCard.style.opacity = '';
+                    domCard.style.pointerEvents = '';
+                }
+            });
 
     }
 

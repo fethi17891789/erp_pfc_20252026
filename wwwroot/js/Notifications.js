@@ -128,4 +128,16 @@
             list.removeChild(list.lastChild);
         }
     }
+
+    // --- Notification système (OF, OA blockchain, etc.) sans redirection ---
+    window.showSystemNotification = function (titre, message) {
+        window.showNotificationToast({
+            SenderName: titre,
+            Content: message,
+            SenderId: null
+        });
+        // Surcharger onclick pour ne pas rediriger
+        var miniToast = document.getElementById("iphone-mini-toast");
+        if (miniToast) miniToast.onclick = null;
+    };
 })();

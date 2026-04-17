@@ -371,10 +371,25 @@ namespace Metier.Messagerie
                         string qtyRaw = matchQty.Groups[1].Value.Replace(',', '.'); // standardiser le séparateur décimal
                         decimal qty = decimal.Parse(qtyRaw, System.Globalization.CultureInfo.InvariantCulture);
 
-                        // Lancement de la génération du PDF
+                        // Lancement de la génération du PDF OA
                         try
                         {
-                            await _oaService.GenererOrdreAchatAsync(planId, code, qty);
+                            var fichierOA = await _oaService.GenererOrdreAchatAsync(planId, code, qty);
+                            var ancrageOA = await _dbContext.BlockchainAncrages
+                                .FirstOrDefaultAsync(a => a.RefDocument == fichierOA.ReferenceOF);
+
+                            // Notifier la page MRPDetail pour qu'elle ajoute la ligne au tableau
+                            await Clients.All.SendAsync("NouvelOrdreGenere", new
+                            {
+                                planId,
+                                id            = fichierOA.Id,
+                                codeArticle   = fichierOA.CodeArticle,
+                                referenceOF   = fichierOA.ReferenceOF,
+                                dateOrdre     = fichierOA.DateOrdre.ToString("dd/MM/yyyy HH:mm"),
+                                type          = "OA",
+                                statutBlockchain = ancrageOA?.Statut ?? "Local",
+                                lienEtherscan = ancrageOA?.LienEtherscan ?? ""
+                            });
                         }
                         catch (Exception exPdf)
                         {

@@ -2,8 +2,10 @@
 using System.Security.Cryptography;
 using System.Text;
 using Donnees;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Nethereum.Web3;
 using Nethereum.Web3.Accounts;
 using Nethereum.ABI.FunctionEncoding.Attributes;
@@ -33,14 +35,18 @@ namespace Metier
     public class BlockchainService
     {
         private readonly ErpDbContext _db;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IHubContext<Metier.Messagerie.ChatHub> _hubContext;
         private readonly bool _estActive;
         private readonly string _rpcUrl;
         private readonly string _privateKey;
         private readonly string _contratAdresse;
 
-        public BlockchainService(ErpDbContext db, IConfiguration config)
+        public BlockchainService(ErpDbContext db, IConfiguration config, IServiceScopeFactory scopeFactory, IHubContext<Metier.Messagerie.ChatHub> hubContext)
         {
             _db = db;
+            _scopeFactory      = scopeFactory;
+            _hubContext        = hubContext;
             _estActive         = config.GetValue<bool>("Blockchain:EstActive");
             _rpcUrl            = config["Blockchain:SepoliaRpcUrl"] ?? "https://rpc.sepolia.org";
             _privateKey        = config["Blockchain:WalletPrivateKey"] ?? "";
@@ -80,6 +86,7 @@ namespace Metier
         {
             var hash = CalculerHash(contenuDocument);
 
+            // 1. Sauvegarder immédiatement en local — ne bloque PAS l'appel AJAX
             var ancrage = new BlockchainAncrage
             {
                 TypeDocument  = typeDocument,
@@ -90,30 +97,62 @@ namespace Metier
                 Statut        = "Local"
             };
 
-            // Tenter l'ancrage Sepolia si tout est configuré
+            _db.BlockchainAncrages.Add(ancrage);
+            await _db.SaveChangesAsync();
+
+            // 2. Tenter l'ancrage Sepolia EN ARRIÈRE-PLAN — sans bloquer le retour
             if (_estActive
                 && !string.IsNullOrWhiteSpace(_privateKey)
                 && !string.IsNullOrWhiteSpace(_contratAdresse))
             {
-                try
-                {
-                    var txHash = await EnvoyerVersSepolia(refDocument, hash, typeDocument);
-                    ancrage.TxHash        = txHash;
-                    ancrage.LienEtherscan = $"https://sepolia.etherscan.io/tx/{txHash}";
-                    ancrage.Statut        = "Ancre";
-                    Console.WriteLine($"[BLOCKCHAIN] Ancrage Sepolia réussi : {refDocument} → {txHash}");
-                }
-                catch (Exception ex)
-                {
-                    ancrage.Statut = "ErreurSepolia";
-                    Console.WriteLine($"[BLOCKCHAIN] Erreur Sepolia pour {refDocument} : {ex.GetType().Name} — {ex.Message}");
-                    if (ex.InnerException != null)
-                        Console.WriteLine($"[BLOCKCHAIN] InnerException : {ex.InnerException.Message}");
-                }
-            }
+                var ancrageId = ancrage.Id;
+                var refCopy   = refDocument;
+                var hashCopy  = hash;
+                var typeCopy  = typeDocument;
 
-            _db.BlockchainAncrages.Add(ancrage);
-            await _db.SaveChangesAsync();
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var txHash = await EnvoyerVersSepolia(refCopy, hashCopy, typeCopy);
+                        using var scope = _scopeFactory.CreateScope();
+                        var db2 = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
+                        var a = await db2.BlockchainAncrages.FindAsync(ancrageId);
+                        if (a != null)
+                        {
+                            a.TxHash        = txHash;
+                            a.LienEtherscan = $"https://sepolia.etherscan.io/tx/{txHash}";
+                            a.Statut        = "Ancre";
+                            await db2.SaveChangesAsync();
+                        }
+                        // Notifier tous les clients connectés que l'ancrage est confirmé
+                        await _hubContext.Clients.All.SendAsync("AncrageBlockchainConfirme", new
+                        {
+                            refDocument  = refCopy,
+                            txHash,
+                            lienEtherscan = $"https://sepolia.etherscan.io/tx/{txHash}",
+                            typeDocument = typeCopy
+                        });
+                        Console.WriteLine($"[BLOCKCHAIN] Ancrage Sepolia réussi : {refCopy} → {txHash}");
+                    }
+                    catch (Exception ex)
+                    {
+                        try
+                        {
+                            using var scope = _scopeFactory.CreateScope();
+                            var db2 = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
+                            var a = await db2.BlockchainAncrages.FindAsync(ancrageId);
+                            if (a != null)
+                            {
+                                a.Statut = "ErreurSepolia";
+                                await db2.SaveChangesAsync();
+                            }
+                        }
+                        catch { /* ignore les erreurs de mise à jour du statut */ }
+                        Console.WriteLine($"[BLOCKCHAIN] Erreur Sepolia pour {refCopy} : {ex.GetType().Name} — {ex.Message}");
+                    }
+                });
+            }
 
             return ancrage;
         }

@@ -242,6 +242,42 @@ namespace erp_pfc_20252026.Pages
             return RedirectToPage(new { id = planId });
         }
 
+        public class LancerOFAjaxInput
+        {
+            public int PlanId { get; set; }
+            public string CodeArticle { get; set; } = string.Empty;
+            public decimal Quantite { get; set; }
+        }
+
+        [Microsoft.AspNetCore.Mvc.IgnoreAntiforgeryToken]
+        public async Task<IActionResult> OnPostLancerOFAjaxAsync([FromBody] LancerOFAjaxInput input)
+        {
+            if (input == null || input.PlanId <= 0 || string.IsNullOrWhiteSpace(input.CodeArticle) || input.Quantite <= 0)
+                return new JsonResult(new { ok = false, message = "Paramètres invalides." });
+
+            try
+            {
+                var fichier = await _ofService.GenererOrdreFabricationAsync(input.PlanId, input.CodeArticle, input.Quantite);
+                var ancrage = await _db.BlockchainAncrages.FirstOrDefaultAsync(a => a.RefDocument == fichier.ReferenceOF);
+
+                return new JsonResult(new
+                {
+                    ok              = true,
+                    id              = fichier.Id,
+                    referenceOF     = fichier.ReferenceOF,
+                    codeArticle     = fichier.CodeArticle,
+                    dateOrdre       = fichier.DateOrdre.ToString("dd/MM/yyyy HH:mm"),
+                    statutBlockchain = ancrage?.Statut ?? "Local",
+                    lienEtherscan   = ancrage?.LienEtherscan ?? ""
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[DEBUG] Erreur OF AJAX : " + ex);
+                return new JsonResult(new { ok = false, message = ex.Message });
+            }
+        }
+
         private async Task<IActionResult> ModifierStatutPlanAsync(int planId, string nouveauStatut)
         {
             var plan = await _db.MRPPlans.FirstOrDefaultAsync(p => p.Id == planId);
