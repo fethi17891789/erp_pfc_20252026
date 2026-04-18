@@ -54,6 +54,30 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/Fabrication.css" />
+    <style>
+        .mrp-toast-notif {
+            position: fixed;
+            bottom: 32px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #fff;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 99999;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            white-space: nowrap;
+        }
+        .mrp-toast-notif.mrp-toast-visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .mrp-toast-success { background: linear-gradient(135deg, #7B5EFF, #5b3fd4); box-shadow: 0 8px 24px rgba(123,94,255,0.35); }
+        .mrp-toast-error   { background: linear-gradient(135deg, #e85d5d, #b33b3b); box-shadow: 0 8px 24px rgba(232,93,93,0.35); }
+    </style>
 }
 
 @section HeaderLeft {
@@ -559,6 +583,18 @@
 </form>
 
 <script>
+    function showMrpToast(message, type) {
+        const t = document.createElement('div');
+        t.className = 'mrp-toast-notif mrp-toast-' + (type || 'success');
+        t.textContent = message;
+        document.body.appendChild(t);
+        requestAnimationFrame(function () { t.classList.add('mrp-toast-visible'); });
+        setTimeout(function () {
+            t.classList.remove('mrp-toast-visible');
+            setTimeout(function () { t.remove(); }, 350);
+        }, type === 'error' ? 4000 : 2800);
+    }
+
     const mrpBomInfos = @Html.Raw(Model.BomInfosJson ?? "[]");
     const stockMrpByArticle = @Html.Raw(Model.StockMrpJson ?? "[]");
     const mrpBomDetails = @Html.Raw(Model.BomDetailsJson ?? "[]");
@@ -626,8 +662,21 @@
         if (refSpan) refSpan.textContent = codeArticle || '';
         if (nameSpan) nameSpan.textContent = libelleArticle || '';
 
-        buildMrpTablesForProduct(codeArticle, libelleArticle, function () {
-            loadMrpTableauxFromServer(codeArticle);
+        buildMrpTablesForProduct(codeArticle, libelleArticle, async function () {
+            // Charger le produit racine (BB + DEL + tout)
+            await loadMrpTableauxFromServer(codeArticle, false);
+
+            // Charger uniquement les DEL des composants (leur BB vient de la propagation)
+            for (const code of Object.keys(mrpTablesByArticle)) {
+                if (code === codeArticle) continue;
+                await loadMrpTableauxFromServer(code, true);
+            }
+
+            // Re-propager depuis la racine avec les DEL désormais chargés
+            const rootInfo = mrpTablesByArticle[codeArticle];
+            if (rootInfo && rootInfo.recalc) {
+                rootInfo.recalc();
+            }
         });
 
         overlay.style.display = 'flex';
@@ -981,7 +1030,9 @@
         });
     }
 
-    async function loadMrpTableauxFromServer(codeArticle) {
+    // onlyDel=true : ne charge que les délais (DEL) sans écraser BB/SP/BN/FIN/DEB
+    // Utilisé pour les composants dont le BB vient de la propagation parente
+    async function loadMrpTableauxFromServer(codeArticle, onlyDel) {
         if (!currentPlanId || !codeArticle) return;
         try {
             const url = mrpDetailPageUrl + `?handler=LoadMrpTableaux&planId=${currentPlanId}&codeArticle=${encodeURIComponent(codeArticle)}`;
@@ -1014,15 +1065,18 @@
                 if (isNaN(idx)) return;
                 const pv = perValues[idx];
                 if (!pv) return;
+                if (rowKey === "DEL") { inp.value = pv.DEL; return; }
+                if (onlyDel) return; // Pour les composants : ne toucher que DEL
                 if (rowKey === "BB") inp.value = pv.BB;
                 if (rowKey === "SP") inp.value = pv.SP;
                 if (rowKey === "BN") inp.value = pv.BN;
                 if (rowKey === "FIN") inp.value = pv.FIN;
                 if (rowKey === "DEB") inp.value = pv.DEB;
-                if (rowKey === "DEL") inp.value = pv.DEL;
             });
 
-            if (info.recalc) {
+            // recalc automatique uniquement pour le produit racine (onlyDel=false)
+            // Pour les composants, le recalc sera déclenché par la racine via propagateToChildren
+            if (!onlyDel && info.recalc) {
                 info.recalc();
             }
         } catch (e) {
@@ -1039,7 +1093,7 @@
 
     async function saveCurrentMrpTables() {
         if (!currentPlanId) {
-            alert('Plan introuvable.');
+            showMrpToast('Plan introuvable.', 'error');
             return;
         }
 
@@ -1102,23 +1156,33 @@
                 body: JSON.stringify(payload)
             });
             if (!resp.ok) {
-                alert('Erreur HTTP lors de la sauvegarde MRP.');
+                showMrpToast('Erreur lors de la sauvegarde MRP.', 'error');
                 return;
             }
             const res = await resp.json();
             if (!res.ok) {
-                alert('Erreur sauvegarde MRP: ' + (res.message || ''));
+                showMrpToast('Erreur : ' + (res.message || 'sauvegarde echouee'), 'error');
             } else {
-                updateQuantitesALancerInMainGrid();
-                alert('Tableaux MRP sauvegardes avec succes.');
+                updateQuantitesALancerInMainGrid(res.prixTotaux || []);
+                showMrpToast('Tableaux MRP sauvegardés avec succès.', 'success');
             }
         } catch (e) {
             console.error('Erreur sauvegarde MRP', e);
-            alert('Erreur technique lors de la sauvegarde MRP.');
+            showMrpToast('Erreur technique lors de la sauvegarde MRP.', 'error');
         }
     }
 
-    function updateQuantitesALancerInMainGrid() {
+    function updateQuantitesALancerInMainGrid(prixTotaux) {
+        // Construire un dictionnaire codeArticle → prixTotal depuis la réponse serveur
+        const prixMap = {};
+        if (Array.isArray(prixTotaux)) {
+            prixTotaux.forEach(function (p) {
+                const code = p.codeArticle || p.CodeArticle;
+                const prix = p.prixTotal ?? p.PrixTotal ?? 0;
+                if (code) prixMap[code] = prix;
+            });
+        }
+
         Object.keys(mrpTablesByArticle).forEach(codeArticle => {
             const info = mrpTablesByArticle[codeArticle];
             if (!info || !info.table) return;
@@ -1130,9 +1194,7 @@
             inputs.forEach(inp => {
                 if (inp.dataset.rowKey === "DEB") {
                     const val = inp.value === "" ? 0 : parseFloat(inp.value);
-                    if (!isNaN(val)) {
-                        sommeDeb += val;
-                    }
+                    if (!isNaN(val)) sommeDeb += val;
                 }
             });
 
@@ -1145,8 +1207,15 @@
                 if (codeInRow !== codeArticle) return;
 
                 const qteCell = row.querySelector('td:nth-child(7)');
-                if (qteCell) {
-                    qteCell.textContent = sommeDeb.toString();
+                if (qteCell) qteCell.textContent = sommeDeb.toString();
+
+                // Mise à jour immédiate du prix (td:nth-child(8))
+                const prixCell = row.querySelector('td:nth-child(8)');
+                if (prixCell && prixMap[codeArticle] !== undefined) {
+                    prixCell.textContent = prixMap[codeArticle].toLocaleString('fr-FR', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
                 }
             });
         });

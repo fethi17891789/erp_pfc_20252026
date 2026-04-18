@@ -459,30 +459,40 @@ namespace erp_pfc_20252026.Pages
                 }
             }
 
-            var lignesIds = plan.Lignes.Select(l => l.Id).ToList();
-            var tableauxParLigne = await _db.MRPTables
-                .Where(t => lignesIds.Contains(t.MRPPlanLigneId))
-                .GroupBy(t => t.MRPPlanLigneId)
-                .ToListAsync();
-
-            foreach (var grp in tableauxParLigne)
+            // Calcul depuis les DTOs reçus (valeurs nouvelles) et non depuis la BDD
+            // qui contient encore les anciennes entrées avant SaveChangesAsync
+            foreach (var grp in dtosParArticle)
             {
-                var ligne = plan.Lignes.FirstOrDefault(l => l.Id == grp.Key);
+                var codeArticleGrp = grp.Key;
+                var ligne = plan.Lignes.FirstOrDefault(l => l.Produit.Reference == codeArticleGrp);
                 if (ligne == null) continue;
 
-                var sommeDebutOrdre = grp.Sum(t => t.DebutOrdre);
+                var sommeDebutOrdre = grp.Sum(d => d.DebutOrdre);
 
                 ligne.QuantiteALancer = sommeDebutOrdre;
 
                 var prod = ligne.Produit;
                 if (prod != null)
                 {
-                    ligne.PrixTotal = sommeDebutOrdre * prod.CoutBom;
+                    var coutUnitaire = prod.TypeTechnique == TypeTechniqueProduit.MatierePremiere
+                        ? prod.CoutAchat
+                        : prod.CoutTotal;
+                    ligne.PrixTotal = sommeDebutOrdre * coutUnitaire;
                 }
             }
 
             await _db.SaveChangesAsync();
-            return new JsonResult(new { ok = true });
+
+            // Retourner les prix mis à jour pour mise à jour immédiate côté client
+            var prixMisAJour = dtosParArticle
+                .Select(g =>
+                {
+                    var ligne = plan.Lignes.FirstOrDefault(l => l.Produit.Reference == g.Key);
+                    return new { codeArticle = g.Key, prixTotal = ligne?.PrixTotal ?? 0m };
+                })
+                .ToList();
+
+            return new JsonResult(new { ok = true, prixTotaux = prixMisAJour });
         }
 
         private async Task<MRPPlan> CreerNouveauPlanAvecLignesAsync(
