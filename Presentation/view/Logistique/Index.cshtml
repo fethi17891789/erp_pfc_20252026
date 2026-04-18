@@ -769,10 +769,10 @@
         // 2. Cacher le panneau si c'était le véhicule suivi
         if (selectedVehiculeId == vehiculeId) closeLiveStats();
 
-        // 3. Dessiner le point final sur le tracé live
+        // 3. Supprimer le tracé live de la carte (il sera visible via l'historique)
         if (activeTrajets[trajetId]) {
-            activeTrajets[trajetId].polyline.setStyle({ color: '#22c55e', weight: 5, opacity: 0.9 });
-            delete activeTrajets[trajetId]; // Arrêter le timer local pour ce trajet
+            map.removeLayer(activeTrajets[trajetId].polyline);
+            delete activeTrajets[trajetId];
         }
 
         // 4. Actualiser l'historique
