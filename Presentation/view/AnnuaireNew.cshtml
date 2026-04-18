@@ -3,637 +3,1520 @@
 @{
     var isEdit = RouteData.Values["id"] != null;
     ViewData["Title"] = isEdit ? "Modifier fiche contact" : "Nouveau contact";
+    var initials = !string.IsNullOrEmpty(Model.CurrentContact.FullName) && Model.CurrentContact.FullName.Length >= 2
+        ? Model.CurrentContact.FullName.Substring(0, 2).ToUpper()
+        : (!string.IsNullOrEmpty(Model.CurrentContact.FullName) ? Model.CurrentContact.FullName.ToUpper() : "?");
 }
 
 @section Styles {
-    <style>
-        .tags-container {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            margin-top: 10px;
-            min-height: 28px;
-        }
+<style>
+/* ─── LAYOUT ──────────────────────────────────────────────────── */
+.ann-form-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
 
-        .tag-pill {
-            display: inline-flex;
-            align-items: center;
-            background: rgba(148, 163, 253, 0.15);
-            border: 1px solid rgba(148, 163, 253, 0.3);
-            color: #c7d2fe;
-            padding: 3px 10px;
-            border-radius: 999px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-            animation: tagAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
+/* ─── PROFILE BANNER (edit mode) ──────────────────────────────── */
+.ann-profile-banner {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, rgba(123,94,255,0.08), rgba(18,22,54,0.5));
+    border: 1px solid rgba(123,94,255,0.2);
+    border-radius: var(--radius-md);
+    backdrop-filter: blur(10px);
+}
 
-        .tag-pill .remove-tag {
-            margin-left: 6px;
-            cursor: pointer;
-            color: #ef4444;
-            font-weight: bold;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: rgba(239, 68, 68, 0.15);
-            transition: all 0.15s;
-            font-size: 0.7rem;
-            line-height: 1;
-        }
+.ann-avatar-lg {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), #5b3fd4);
+    border: 2px solid rgba(123,94,255,0.5);
+    flex-shrink: 0;
+    box-shadow: 0 8px 24px rgba(123,94,255,0.3);
+    overflow: hidden;
+    position: relative;
+}
 
-        .tag-pill .remove-tag:hover {
-            background: rgba(239, 68, 68, 0.4);
-            color: #fca5a5;
-        }
+.ann-avatar-lg img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 16px;
+}
 
-        @@keyframes tagAppear {
-            from { opacity: 0; transform: scale(0.85) translateY(4px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
+.ann-banner-info { flex: 1; min-width: 0; }
+.ann-banner-name {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #fff;
+    margin: 0 0 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.ann-banner-sub {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.ann-banner-sub span { display: flex; align-items: center; gap: 5px; }
 
-        /* Style sombre pour les options du select */
-        .select-wrapper select option {
-            background: #0f172a;
-            color: #e2e8f0;
-            padding: 8px 14px;
-        }
+/* ─── FORM SECTIONS ───────────────────────────────────────────── */
+.form-section-card {
+    background: rgba(8, 11, 32, 0.7);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
 
-        /* Animation d'ouverture du select */
-        .select-wrapper select {
-            transition: border-color 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
-                        box-shadow 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
-                        background 140ms cubic-bezier(0.2, 0.8, 0.2, 1),
-                        transform 100ms ease-out;
-        }
+.form-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.02);
+}
 
-        .select-wrapper select:focus {
-            transform: translateY(-1px);
-        }
+.form-section-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(123,94,255,0.15);
+    border: 1px solid rgba(123,94,255,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-light);
+    flex-shrink: 0;
+}
 
-        /* Bouton Ajouter avec style primaire */
-        .btn-add-role {
-            padding: 0 18px;
-            height: var(--input-height);
-            border-radius: var(--radius-sm);
-            border: none;
-            cursor: pointer;
-            font-weight: 700;
-            font-size: 0.8rem;
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
-            color: #FFFFFF;
-            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-            box-shadow: 0 6px 18px rgba(123, 94, 255, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-            transition: transform 100ms cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 140ms, filter 140ms;
-            white-space: nowrap;
-        }
+.form-section-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+}
 
-        .btn-add-role:hover {
-            transform: translateY(-1px) scale(1.02);
-            box-shadow: 0 10px 28px rgba(123, 94, 255, 0.45);
-            filter: brightness(1.08);
-        }
+.form-section-body {
+    padding: 20px;
+}
 
-        .btn-add-role:active {
-            transform: translateY(0);
-            box-shadow: 0 3px 10px rgba(123, 94, 255, 0.3);
-        }
+/* ─── AVATAR UPLOAD ───────────────────────────────────────────── */
+.avatar-upload-zone {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
 
-        /* --- MAGIC AI CARD STYLE --- */
-        .ai-magic-section {
-            background: linear-gradient(135deg, rgba(123, 94, 255, 0.1), rgba(18, 22, 54, 0.4));
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(123, 94, 255, 0.3);
-            border-radius: var(--radius-md);
-            padding: 20px;
-            margin-bottom: 25px;
-            position: relative;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-        }
-        .ai-magic-section::before {
-            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
-            background: radial-gradient(circle, rgba(123, 94, 255, 0.05) 0%, transparent 70%);
-            animation: pulse-bg 8s infinite alternate;
-            z-index: 0;
-        }
-        @@keyframes pulse-bg { 0% { transform: translate(-10%, -10%); } 100% { transform: translate(10%, 10%); } }
+.avatar-preview-box {
+    width: 72px;
+    height: 72px;
+    border-radius: 16px;
+    background: rgba(123,94,255,0.12);
+    border: 2px dashed rgba(123,94,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    position: relative;
+}
 
-        .ai-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; position: relative; z-index: 1; }
-        .ai-title { font-size: 0.95rem; font-weight: 800; color: #fff; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
-        .ai-sparkle { color: #facc15; animation: sparkle 2s infinite; }
-        @@keyframes sparkle { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.2); } }
+.avatar-preview-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 14px;
+}
 
-        .ai-textarea {
-            width: 100%;
-            background: rgba(2, 6, 23, 0.6);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: var(--radius-sm);
-            padding: 12px;
-            color: #fff;
-            font-size: 0.9rem;
-            resize: none;
-            outline: none;
-            transition: border-color 0.2s;
-            position: relative; z-index: 1;
-        }
-        .ai-textarea:focus { border-color: var(--accent); }
+.avatar-upload-info {
+    flex: 1;
+}
 
-        .ai-btn {
-            margin-top: 10px;
-            background: linear-gradient(90deg, #7B5EFF, #9C8CFF);
-            border: none;
-            border-radius: var(--radius-sm);
-            padding: 10px 20px;
-            color: #fff;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex; align-items: center; gap: 8px;
-            transition: 0.2s;
-            position: relative; z-index: 1;
-        }
-        .ai-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(123, 94, 255, 0.4); }
-        .ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.avatar-upload-info p {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin: 0 0 10px;
+}
 
-        .ai-loading-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(8, 11, 32, 0.8);
-            display: none; align-items: center; justify-content: center;
-            flex-direction: column; gap: 10px; z-index: 5;
-            backdrop-filter: blur(4px);
-        }
+/* ─── ROLE TAGS ───────────────────────────────────────────────── */
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    min-height: 28px;
+}
 
-        /* --- VALIDATION STATES --- */
-        .input-valid { border-color: #22c55e !important; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2) !important; }
-        .input-invalid { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important; }
-        
-        .validation-icon {
-            position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-            width: 18px; height: 18px; display: none;
-        }
-        .validation-icon.success { color: #22c55e; }
-        .validation-icon.error { color: #ef4444; }
-        
-        .validation-msg { font-size: 0.75rem; margin-top: 4px; display: none; }
-        .validation-msg.error { color: #fca5a5; }
-    </style>
+.tag-pill {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(148, 163, 253, 0.15);
+    border: 1px solid rgba(148, 163, 253, 0.3);
+    color: #c7d2fe;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    animation: tagAppear 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    gap: 6px;
+}
+
+.tag-pill .remove-tag {
+    cursor: pointer;
+    color: #ef4444;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.15);
+    transition: all 0.15s;
+    font-size: 0.7rem;
+    line-height: 1;
+}
+
+.tag-pill .remove-tag:hover {
+    background: rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+}
+
+@@keyframes tagAppear {
+    from { opacity: 0; transform: scale(0.85) translateY(4px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+/* ─── SELECT ──────────────────────────────────────────────────── */
+.select-wrapper select option {
+    background: #0f172a;
+    color: #e2e8f0;
+}
+
+/* ─── ADD ROLE BUTTON ─────────────────────────────────────────── */
+.btn-add-role {
+    padding: 0 18px;
+    height: var(--input-height);
+    border-radius: var(--radius-sm);
+    border: none;
+    cursor: pointer;
+    font-weight: 700;
+    font-size: 0.8rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    box-shadow: 0 6px 18px rgba(123,94,255,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+    transition: transform 100ms, box-shadow 140ms, filter 140ms;
+    white-space: nowrap;
+}
+
+.btn-add-role:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 10px 28px rgba(123,94,255,0.45);
+    filter: brightness(1.08);
+}
+
+.btn-add-role:active {
+    transform: translateY(0);
+    box-shadow: 0 3px 10px rgba(123,94,255,0.3);
+}
+
+/* ─── AI MAGIC SECTION ────────────────────────────────────────── */
+.ai-magic-section {
+    background: linear-gradient(135deg, rgba(123,94,255,0.1), rgba(18,22,54,0.4));
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(123,94,255,0.3);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.ai-magic-section::before {
+    content: '';
+    position: absolute;
+    top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle, rgba(123,94,255,0.05) 0%, transparent 70%);
+    animation: pulse-bg 8s infinite alternate;
+    z-index: 0;
+}
+
+@@keyframes pulse-bg {
+    0%   { transform: translate(-10%, -10%); }
+    100% { transform: translate(10%,  10%);  }
+}
+
+.ai-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; position: relative; z-index: 1; }
+.ai-title {
+    font-size: 0.95rem; font-weight: 800; color: #fff;
+    text-transform: uppercase; letter-spacing: 1px;
+    display: flex; align-items: center; gap: 8px;
+}
+.ai-sparkle { color: #facc15; animation: sparkle 2s infinite; }
+@@keyframes sparkle {
+    0%, 100% { opacity: 1; transform: scale(1);   }
+    50%       { opacity: 0.6; transform: scale(1.2); }
+}
+
+.ai-textarea {
+    width: 100%;
+    background: rgba(2, 6, 23, 0.6);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    color: #fff;
+    font-size: 0.9rem;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+    position: relative;
+    z-index: 1;
+    font-family: inherit;
+}
+.ai-textarea:focus { border-color: var(--accent); }
+
+.ai-btn {
+    margin-top: 10px;
+    background: linear-gradient(90deg, #7B5EFF, #9C8CFF);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 10px 20px;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    z-index: 1;
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+.ai-btn:hover { transform: scale(1.02); box-shadow: 0 0 20px rgba(123,94,255,0.4); }
+.ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.ai-loading-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(8, 11, 32, 0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 5;
+    backdrop-filter: blur(4px);
+    border-radius: var(--radius-md);
+}
+
+/* ─── VALIDATION STATES ───────────────────────────────────────── */
+.input-valid   { border-color: #22c55e !important; box-shadow: 0 0 0 3px rgba(34,197,94,0.2)   !important; }
+.input-invalid { border-color: #ef4444 !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.2)   !important; }
+
+.validation-icon {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    width: 18px; height: 18px; display: none;
+}
+.validation-icon.success { color: #22c55e; }
+.validation-icon.error   { color: #ef4444; }
+.validation-msg { font-size: 0.75rem; margin-top: 4px; display: none; }
+.validation-msg.error { color: #fca5a5; }
+
+/* ─── RELATIONS SECTION ───────────────────────────────────────── */
+.relation-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius-sm);
+    animation: tagAppear 0.2s ease;
+    flex-wrap: wrap;
+}
+
+.rel-contact-name {
+    font-size: 0.83rem;
+    color: #c7d2fe;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.rel-arrow {
+    color: var(--accent);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.rel-type-pill {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    background: rgba(123,94,255,0.13);
+    border: 1px solid rgba(123,94,255,0.2);
+    border-radius: 999px;
+    padding: 2px 10px;
+    white-space: nowrap;
+}
+
+.rel-delete-btn {
+    margin-left: auto;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid rgba(239,68,68,0.2);
+    background: rgba(239,68,68,0.08);
+    color: #fca5a5;
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    flex-shrink: 0;
+}
+.rel-delete-btn:hover { background: rgba(239,68,68,0.25); }
+
+/* ─── MINI GRAPHE ─────────────────────────────────────────────── */
+.mini-graph-wrap {
+    position: relative;
+    width: 100%;
+    height: 260px;
+    background: radial-gradient(ellipse at 50% 40%, rgba(18,12,40,1) 0%, rgba(2,3,10,1) 75%);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+#miniGraphCanvas { width: 100%; height: 100%; display: block; cursor: default; }
+
+.mini-graph-empty {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    pointer-events: none;
+}
+
+.mini-graph-controls {
+    position: absolute;
+    top: 10px; right: 10px;
+    display: flex;
+    gap: 5px;
+}
+
+.mini-ctrl-btn {
+    width: 28px;
+    height: 28px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: rgba(8,11,32,0.9);
+    border-radius: 7px;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-size: 0.85rem;
+}
+.mini-ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ─── ADD RELATION FORM ───────────────────────────────────────── */
+.add-relation-panel {
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-top: 18px;
+    margin-top: 4px;
+}
+
+.add-relation-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted-2);
+    margin-bottom: 14px;
+}
+
+/* ─── CONTACT DROPDOWN ────────────────────────────────────────── */
+#rel-contact-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: #0d1026;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-sm);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 500;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(123,94,255,0.3) transparent;
+}
+
+.rel-dd-item {
+    padding: 9px 14px;
+    font-size: 0.82rem;
+    color: #e2e8f0;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    transition: background 0.1s;
+}
+.rel-dd-item:hover { background: rgba(123,94,255,0.15); }
+</style>
 }
 
 @section HeaderLeft {
-    <h1>@(Model.CurrentContact.Id == 0 ? "Nouveau contact" : "Modifier le contact")</h1>
-    <p>@(Model.CurrentContact.Id == 0 ? "Créer un nouveau contact professionnel." : "Mettre à jour les informations de l'entité.")</p>
+    <h1>@(isEdit ? "Fiche contact" : "Nouveau contact")</h1>
+    <p>@(isEdit ? $"Modifier les informations · {Model.CurrentContact.FullName}" : "Créer un nouveau contact professionnel")</p>
 }
 
 <section class="erp-content">
-    <div class="product-form-card">
-        
-        <!-- SECTION ASSISTANT GEMINI -->
-        <div class="ai-magic-section" id="ai-section">
-            <div class="ai-header">
-                <span class="ai-title">
-                    <svg class="ai-sparkle" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"></path>
-                    </svg>
-                    Assistant Intelligent GEMINI
-                </span>
-            </div>
-            <p style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-bottom: 12px; position: relative; z-index: 1;">
-                Décrivez le contact (nom, entreprise, email, mobile, site...) et l'ERP remplira le formulaire automatiquement.
-            </p>
-            <textarea id="ai-prompt" class="ai-textarea" rows="2" placeholder="Ex: C'est le directeur de la Sarl Dubois à Nice, Vincent Dubois. Son mobile est le 06..."></textarea>
-            <button type="button" class="ai-btn" onclick="callAiAssistant()" id="ai-btn">
-                <span id="ai-btn-text">Générer la fiche</span>
-            </button>
-            <div id="ai-status-bar" style="display:none; margin-top: 8px; font-size: 0.7rem; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 6px;">
-                <span style="width: 6px; height: 6px; background: #22c55e; border-radius: 50%; display: inline-block; box-shadow: 0 0 5px #22c55e;"></span>
-                Intelligence : <span id="ai-model-name" style="color: var(--accent); font-weight: 600;">Détection...</span>
-            </div>
+<div class="ann-form-wrap">
 
-            <div class="ai-loading-overlay" id="ai-loader">
-                <svg viewBox="0 0 50 50" style="width:40px;height:40px;animation: spin 1s linear infinite; color:var(--accent);">
-                    <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle>
-                </svg>
-                <div style="text-align: center; margin-top: 10px;">
-                    <span style="font-weight: 700; color: #fff; font-size: 0.9rem; display: block;">Orchestration des données en cours...</span>
-                    <span style="font-size: 0.75rem; color: rgba(255,255,255,0.6);">Étape 1 : Localisation du site officiel via Gemini</span>
-                    <span style="font-size: 0.75rem; color: rgba(255,255,255,0.4); display: block;">Étape 2 : Extraction des données sources (Nom, Bio, Tel)</span>
+    @* ═══ BANNIÈRE PROFIL (mode édition) ══════════════════════════════ *@
+    @if (isEdit)
+    {
+        <div class="ann-profile-banner">
+            <div class="ann-avatar-lg" id="banner-avatar">
+                <span id="banner-initials">@initials</span>
+            </div>
+            <div class="ann-banner-info">
+                <h2 class="ann-banner-name" id="banner-name">@Model.CurrentContact.FullName</h2>
+                <div class="ann-banner-sub">
+                    @if (!string.IsNullOrEmpty(Model.CurrentContact.Email))
+                    {
+                        <span>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>
+                            @Model.CurrentContact.Email
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.CurrentContact.Phone))
+                    {
+                        <span>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8a19.79 19.79 0 01-3.07-8.67A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.36-.36a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 15z"/></svg>
+                            @Model.CurrentContact.Phone
+                        </span>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.CurrentContact.Website))
+                    {
+                        <span>
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                            @Model.CurrentContact.Website
+                        </span>
+                    }
                 </div>
+            </div>
+            <a asp-page="/AnnuaireList" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);color:var(--text-muted);font-size:0.8rem;font-weight:600;text-decoration:none;transition:all .18s;flex-shrink:0;"
+               onmouseover="this.style.borderColor='rgba(123,94,255,0.4)';this.style.color='var(--text)'"
+               onmouseout="this.style.borderColor='rgba(255,255,255,0.08)';this.style.color='var(--text-muted)'">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                Retour à l'annuaire
+            </a>
+        </div>
+    }
+
+    @* ═══ ASSISTANT IA ══════════════════════════════════════════════════ *@
+    <div class="ai-magic-section" id="ai-section">
+        <div class="ai-header">
+            <span class="ai-title">
+                <svg class="ai-sparkle" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
+                </svg>
+                Assistant Intelligent GEMINI
+            </span>
+            <div id="ai-status-bar" style="display:none; margin-left:auto; font-size:0.7rem; color:rgba(255,255,255,0.5); display:flex; align-items:center; gap:6px;">
+                <span style="width:6px;height:6px;background:#22c55e;border-radius:50%;display:inline-block;box-shadow:0 0 5px #22c55e;"></span>
+                <span id="ai-model-name" style="color:var(--accent);font-weight:600;">Détection...</span>
             </div>
         </div>
+        <p style="font-size:0.83rem; color:rgba(255,255,255,0.55); margin-bottom:12px; position:relative; z-index:1;">
+            Décrivez le contact et l'ERP remplira automatiquement le formulaire via Gemini + Google Search.
+        </p>
+        <textarea id="ai-prompt" class="ai-textarea" rows="2"
+                  placeholder="Ex: Vincent Dubois, directeur de la Sarl Dubois à Nice, mobile 06..."></textarea>
+        <button type="button" class="ai-btn" onclick="callAiAssistant()" id="ai-btn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
+            </svg>
+            Générer la fiche
+        </button>
 
-        <form id="contact-new-form" method="post" enctype="multipart/form-data" onsubmit="handleFormSubmit()">
-            <input type="hidden" asp-for="CurrentContact.Id" />
-
-            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-            {
-                <div style="color: #ef4444; background: rgba(239, 68, 68, 0.1); padding: 10px; margin-bottom: 15px; border-radius: 6px; font-weight: 500;">@Model.ErrorMessage</div>
-            }
-            @if (!string.IsNullOrEmpty(Model.SuccessMessage))
-            {
-                <div style="color: #22c55e; background: rgba(34, 197, 94, 0.1); padding: 10px; margin-bottom: 15px; border-radius: 6px; font-weight: 500;">@Model.SuccessMessage</div>
-            }
-
-            <div class="form-row form-row-2">
-                <div class="form-group">
-                    <label asp-for="CurrentContact.FullName" class="form-label">Nom complet / Raison Sociale</label>
-                    <input asp-for="CurrentContact.FullName" id="CurrentContact_FullName" class="form-input" placeholder="ex: John Doe" required />
-                </div>
-                <div class="form-group">
-                    <label asp-for="CurrentContact.Website" class="form-label">Site Web (Auto-Enrichissement)</label>
-                    <div style="position:relative;">
-                        <input asp-for="CurrentContact.Website" id="input-website" class="form-input" placeholder="ex: tesla.com" onblur="enrichWebsite()" />
-                        <span id="spinner-website" style="display:none; position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--accent);">
-                            <svg viewBox="0 0 50 50" style="width:18px;height:18px;animation: spin 1s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle></svg>
-                        </span>
-                    </div>
-                    <div id="msg-website" style="font-size:0.8rem; color:#22c55e; margin-top:6px; display:none;">Données récupérées avec succès !</div>
-                </div>
+        <div class="ai-loading-overlay" id="ai-loader">
+            <svg viewBox="0 0 50 50" style="width:38px;height:38px;animation:spin 1s linear infinite;color:var(--accent);">
+                <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+            </svg>
+            <div style="text-align:center;">
+                <span style="font-weight:700;color:#fff;font-size:0.88rem;display:block;">Orchestration en cours...</span>
+                <span style="font-size:0.73rem;color:rgba(255,255,255,0.5);display:block;margin-top:4px;">Localisation du site · Extraction · Synthèse</span>
             </div>
+        </div>
+    </div>
 
-            <div class="form-row form-row-2">
-                <div class="form-group">
-                    <label asp-for="CurrentContact.Email" class="form-label">Adresse Email</label>
-                    <div style="position:relative;">
-                        <input asp-for="CurrentContact.Email" id="input-email" class="form-input" placeholder="nom@@domaine.com" onblur="validateEmail()" />
-                        <span id="spinner-email" style="display:none; position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--accent);">
-                            <svg viewBox="0 0 50 50" style="width:18px;height:18px;animation: spin 1s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle></svg>
-                        </span>
-                        <span id="icon-email" class="validation-icon"></span>
-                    </div>
-                    <div id="msg-email" class="validation-msg error">L'adresse email semble invalide (serveur de messagerie introuvable).</div>
-                </div>
-                <div class="form-group">
-                    <label asp-for="CurrentContact.Phone" class="form-label">Téléphone</label>
-                    <div style="position:relative;">
-                        <input asp-for="CurrentContact.Phone" id="input-phone" class="form-input" placeholder="+33 6 ..." onblur="validatePhone()" />
-                        <span id="spinner-phone" style="display:none; position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--accent);">
-                            <svg viewBox="0 0 50 50" style="width:18px;height:18px;animation: spin 1s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle></svg>
-                        </span>
-                        <span id="icon-phone" class="validation-icon"></span>
-                    </div>
-                    <div id="msg-phone" class="validation-msg error">Format de numéro de téléphone incorrect.</div>
-                </div>
+    @* ═══ FORMULAIRE ════════════════════════════════════════════════════ *@
+    <form id="contact-new-form" method="post" enctype="multipart/form-data">
+        <input type="hidden" asp-for="CurrentContact.Id" />
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div style="color:#ef4444;background:rgba(239,68,68,0.1);padding:12px 16px;margin-bottom:16px;border-radius:10px;font-weight:500;font-size:0.85rem;border:1px solid rgba(239,68,68,0.25);">
+                @Model.ErrorMessage
             </div>
+        }
 
-            <div class="form-row form-row-2">
-                <div class="form-group">
-                    <label class="form-label">Types de contact</label>
-                    <div style="display:flex; gap:8px;">
-                        <div class="select-wrapper" style="flex:1;">
-                            <select id="role-select" class="form-input">
-                                <option value="">Choisir un type à ajouter...</option>
-                                <option value="Client">Client</option>
-                                <option value="Fournisseur">Fournisseur</option>
-                                <option value="Employe">Employé</option>
-                                <option value="Partenaire">Partenaire</option>
-                                <option value="Investisseur">Investisseur</option>
-                            </select>
-                            <span class="select-icon">
-                                <svg viewBox="0 0 20 20" fill="currentColor">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+
+            @* ── Section Identité ─────────────────────────────────── *@
+            <div class="form-section-card">
+                <div class="form-section-header">
+                    <div class="form-section-icon">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <span class="form-section-title">Identité</span>
+                </div>
+                <div class="form-section-body" style="display:flex;flex-direction:column;gap:14px;">
+                    <div class="form-group" style="margin:0;">
+                        <label asp-for="CurrentContact.FullName" class="form-label">Nom complet / Raison sociale *</label>
+                        <input asp-for="CurrentContact.FullName" id="CurrentContact_FullName"
+                               class="form-input" placeholder="ex: John Doe ou Sarl Dubois" required
+                               oninput="syncBannerName(this.value)" />
+                    </div>
+                    <div class="form-group" style="margin:0;">
+                        <label asp-for="CurrentContact.Website" class="form-label">
+                            Site web
+                            <span style="color:var(--accent-light);font-size:0.72rem;font-weight:600;margin-left:4px;">Auto-enrichissement</span>
+                        </label>
+                        <div style="position:relative;">
+                            <input asp-for="CurrentContact.Website" id="input-website"
+                                   class="form-input" placeholder="ex: tesla.com"
+                                   onblur="enrichWebsite()" />
+                            <span id="spinner-website" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--accent);">
+                                <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin 1s linear infinite;">
+                                    <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
                                 </svg>
                             </span>
                         </div>
-                        <button type="button" class="btn-add-role" onclick="addRoleTag()">Ajouter</button>
+                        <div id="msg-website" style="font-size:0.75rem;color:#22c55e;margin-top:5px;display:none;">
+                            ✓ Données récupérées depuis le site
+                        </div>
                     </div>
-
-                    <div class="tags-container" id="tags-container">
-                    </div>
-
-                    <input type="hidden" asp-for="SelectedRoles" id="SelectedRoles" />
-                </div>
-
-                <div class="form-group">
-                    <label for="AvatarImage" class="form-label">Photo ou Logo</label>
-                    <input id="AvatarImage" name="AvatarImage" type="file" accept="image/*" class="file-input-hidden" style="display:none;" />
-                    <label for="AvatarImage" class="file-input-button-mini">
-                        <svg style="width: 12px; height: 12px; margin-right: 4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                            <polyline points="17 8 12 3 7 8"></polyline>
-                            <line x1="12" y1="3" x2="12" y2="15"></line>
-                        </svg>
-                        <span>Choisir un fichier</span>
-                    </label>
-                    <div style="margin-top:12px; color:var(--text-muted); font-size:0.8rem;">
-                        (Optionnel. Format : 500x500px).
+                    <div class="form-group" style="margin:0;">
+                        <label for="CurrentContact_Comment" class="form-label">Notes internes</label>
+                        <textarea asp-for="CurrentContact.Comment" id="CurrentContact_Comment"
+                                  class="form-input form-textarea" placeholder="Description, contexte, remarques..."
+                                  rows="4" style="resize:vertical;"></textarea>
                     </div>
                 </div>
             </div>
 
-            <div class="form-row">
-                <div class="form-group form-row-span-2">
-                    <label for="Comment" class="form-label">Notes internes</label>
-                    <textarea asp-for="CurrentContact.Comment" id="CurrentContact_Comment" class="form-input form-textarea" placeholder="Description de l'entité..." rows="4"></textarea>
-                </div>
-            </div>
+            @* ── Section Coordonnées + Avatar + Rôles ─────────────── *@
+            <div style="display:flex;flex-direction:column;gap:16px;">
 
-            <div class="form-footer" style="margin-top: 16px;">
-                <button type="submit" id="btn-submit" class="btn-primary" style="display:flex; align-items:center; justify-content:center;">
-                    <span id="btn-spinner" style="display:none; margin-right:8px;">
-                        <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation: spin 1s linear infinite;"><circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"></circle></svg>
-                    </span>
-                    <span id="btn-text">Enregistrer</span>
-                </button>
+                <div class="form-section-card">
+                    <div class="form-section-header">
+                        <div class="form-section-icon">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.8 19.79 19.79 0 01.4 1.13 2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.09a16 16 0 006 6l.36-.36a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 15z"/>
+                            </svg>
+                        </div>
+                        <span class="form-section-title">Coordonnées</span>
+                    </div>
+                    <div class="form-section-body" style="display:flex;flex-direction:column;gap:14px;">
+                        <div class="form-group" style="margin:0;">
+                            <label asp-for="CurrentContact.Email" class="form-label">Adresse email</label>
+                            <div style="position:relative;">
+                                <input asp-for="CurrentContact.Email" id="input-email"
+                                       class="form-input" placeholder="nom@@domaine.com"
+                                       onblur="validateEmail()" style="padding-right:38px;" />
+                                <span id="spinner-email" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--accent);">
+                                    <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin 1s linear infinite;">
+                                        <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <span id="icon-email" class="validation-icon"></span>
+                            </div>
+                            <div id="msg-email" class="validation-msg error">Serveur de messagerie introuvable.</div>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label asp-for="CurrentContact.Phone" class="form-label">Téléphone</label>
+                            <div style="position:relative;">
+                                <input asp-for="CurrentContact.Phone" id="input-phone"
+                                       class="form-input" placeholder="+33 6 00 00 00 00"
+                                       onblur="validatePhone()" style="padding-right:38px;" />
+                                <span id="spinner-phone" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--accent);">
+                                    <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin 1s linear infinite;">
+                                        <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+                                    </svg>
+                                </span>
+                                <span id="icon-phone" class="validation-icon"></span>
+                            </div>
+                            <div id="msg-phone" class="validation-msg error">Format de numéro invalide.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section-card">
+                    <div class="form-section-header">
+                        <div class="form-section-icon">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/>
+                                <path d="M16 11l2 2 4-4" stroke-width="2.5"/>
+                            </svg>
+                        </div>
+                        <span class="form-section-title">Types de contact</span>
+                    </div>
+                    <div class="form-section-body">
+                        <div style="display:flex;gap:8px;">
+                            <div class="select-wrapper" style="flex:1;">
+                                <select id="role-select" class="form-input">
+                                    <option value="">Choisir un type...</option>
+                                    <option value="Client">Client</option>
+                                    <option value="Fournisseur">Fournisseur</option>
+                                    <option value="Employe">Employé</option>
+                                    <option value="Partenaire">Partenaire</option>
+                                    <option value="Investisseur">Investisseur</option>
+                                </select>
+                                <span class="select-icon">
+                                    <svg viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                    </svg>
+                                </span>
+                            </div>
+                            <button type="button" class="btn-add-role" onclick="addRoleTag()">+ Ajouter</button>
+                        </div>
+                        <div class="tags-container" id="tags-container"></div>
+                        <input type="hidden" asp-for="SelectedRoles" id="SelectedRoles" />
+                    </div>
+                </div>
+
+                <div class="form-section-card">
+                    <div class="form-section-header">
+                        <div class="form-section-icon">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                        </div>
+                        <span class="form-section-title">Photo / Logo</span>
+                    </div>
+                    <div class="form-section-body">
+                        <div class="avatar-upload-zone">
+                            <div class="avatar-preview-box" id="avatar-preview-box">
+                                <svg id="avatar-placeholder-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="rgba(123,94,255,0.5)" stroke-width="1.5">
+                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                            </div>
+                            <div class="avatar-upload-info">
+                                <p>Optionnel · Format recommandé : 500×500 px</p>
+                                <input id="AvatarImage" name="AvatarImage" type="file" accept="image/*"
+                                       style="display:none;" onchange="previewAvatar(this)" />
+                                <label for="AvatarImage" class="file-input-button-mini" style="cursor:pointer;">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                                        <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                                    </svg>
+                                    Choisir un fichier
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="form-footer" style="margin-top:16px;">
+            <button type="submit" id="btn-submit" class="btn-primary"
+                    style="display:flex;align-items:center;justify-content:center;gap:8px;"
+                    onclick="handleFormSubmit()">
+                <span id="btn-spinner" style="display:none;">
+                    <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin 1s linear infinite;">
+                        <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+                    </svg>
+                </span>
+                <span id="btn-text">@(isEdit ? "Enregistrer les modifications" : "Créer le contact")</span>
+            </button>
+            @if (!isEdit)
+            {
                 <a asp-page="/AnnuaireList" class="btn-secondary btn-cancel">Annuler</a>
+            }
+        </div>
+    </form>
+
+    @* ═══ SECTION RELATIONS (mode édition uniquement) ═══════════════════ *@
+    @if (isEdit)
+    {
+        <div class="form-section-card">
+            <div class="form-section-header">
+                <div class="form-section-icon">
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                </div>
+                <span class="form-section-title">Réseau relationnel</span>
+                <span style="margin-left:auto;font-size:0.72rem;color:var(--text-muted-2);">Liens professionnels visibles dans le graphe global</span>
             </div>
-        </form>
-    </div>
+            <div class="form-section-body">
+
+                @* Mini-graphe *@
+                <div class="mini-graph-wrap" id="mini-graph-wrap">
+                    <canvas id="miniGraphCanvas"></canvas>
+                    <div class="mini-graph-empty" id="mini-graph-empty" style="display:none;">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" style="opacity:0.25;margin-bottom:8px;">
+                            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                        </svg>
+                        <p>Aucune relation définie pour ce contact.</p>
+                        <p style="font-size:0.75rem;color:var(--text-muted-2);margin-top:4px;">Ajoutez-en une ci-dessous pour voir le réseau.</p>
+                    </div>
+                    <div class="mini-graph-controls">
+                        <button type="button" class="mini-ctrl-btn" onclick="miniResetZoom()" title="Recentrer">⊕</button>
+                        <button type="button" class="mini-ctrl-btn" onclick="miniReSimulate()" title="Réorganiser">↺</button>
+                    </div>
+                </div>
+
+                @* Liste des relations *@
+                <div id="relations-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+                    <p id="relations-empty" style="color:var(--text-muted);font-size:0.82rem;margin:0;display:none;">
+                        Aucune relation. Ajoutez-en une ci-dessous.
+                    </p>
+                </div>
+
+                @* Formulaire d'ajout *@
+                <div class="add-relation-panel">
+                    <p class="add-relation-title">Ajouter une relation</p>
+                    <div class="form-row form-row-2" style="margin-bottom:14px;">
+                        <div class="form-group" style="margin:0;">
+                            <label class="form-label">Type de relation</label>
+                            <input id="rel-type-input" type="text" class="form-input"
+                                   list="rel-type-suggestions"
+                                   placeholder="ex: Actionnaire de, Client de..." />
+                            <datalist id="rel-type-suggestions">
+                                <option value="Employé chez"></option>
+                                <option value="Client de"></option>
+                                <option value="Fournisseur de"></option>
+                                <option value="Partenaire de"></option>
+                                <option value="Actionnaire de"></option>
+                                <option value="Filiale de"></option>
+                                <option value="Dirige"></option>
+                                <option value="Concurrent de"></option>
+                                <option value="Investisseur dans"></option>
+                            </datalist>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label class="form-label">Contact cible</label>
+                            <div style="position:relative;" id="rel-contact-picker">
+                                <input id="rel-contact-search" type="text" class="form-input"
+                                       placeholder="Rechercher un contact..."
+                                       autocomplete="off"
+                                       oninput="filterContactSuggestions(this.value)"
+                                       onfocus="showContactDropdown()" />
+                                <input type="hidden" id="rel-target-id" value="" />
+                                <div id="rel-contact-dropdown"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="addRelation()" id="btn-add-relation" class="btn-add-role">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-1px;">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                        Ajouter la relation
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
 </section>
 
 @section Scripts {
 <script>
-    var tagsSet = {};
+/* ══════════════════════════════════════════════════════════════
+   TAGS / RÔLES
+══════════════════════════════════════════════════════════════ */
+var tagsSet = {};
 
-    function handleFormSubmit() {
-        var btn = document.getElementById('btn-submit');
-        var spinner = document.getElementById('btn-spinner');
-        var txt = document.getElementById('btn-text');
-        
-        btn.style.opacity = '0.8';
-        btn.style.pointerEvents = 'none';
-        
-        spinner.style.display = 'inline-block';
-        txt.innerText = 'Enregistrement...';
-    }
-
-    // Initialisation depuis le modèle existant
-    window.onload = function() {
-        var initialRoles = document.getElementById('SelectedRoles').value;
-        if (initialRoles) {
-            var roles = initialRoles.split(',');
-            for (var i = 0; i < roles.length; i++) {
-                if(roles[i].trim() !== "") {
-                    tagsSet[roles[i].trim()] = true;
-                }
-            }
-            renderTags();
-        }
-    };
-
-    function addRoleTag() {
-        var select = document.getElementById('role-select');
-        var val = select.value;
-        if (!val) return;
-
-        if (!tagsSet[val]) {
-            tagsSet[val] = true;
-            renderTags();
-        }
-        select.value = '';
-    }
-
-    function removeTag(val) {
-        delete tagsSet[val];
+window.addEventListener('DOMContentLoaded', function () {
+    var initialRoles = document.getElementById('SelectedRoles').value;
+    if (initialRoles) {
+        initialRoles.split(',').forEach(function (r) {
+            if (r.trim()) tagsSet[r.trim()] = true;
+        });
         renderTags();
     }
-
-    function renderTags() {
-        var container = document.getElementById('tags-container');
-        container.innerHTML = '';
-
-        var arr = Object.keys(tagsSet);
-        document.getElementById('SelectedRoles').value = arr.join(',');
-
-        for (var i = 0; i < arr.length; i++) {
-            var tag = arr[i];
-            var span = document.createElement('span');
-            span.className = 'tag-pill';
-
-            var textNode = document.createTextNode(tag + ' ');
-            span.appendChild(textNode);
-
-            var removeBtn = document.createElement('span');
-            removeBtn.className = 'remove-tag';
-            removeBtn.title = 'Supprimer';
-            removeBtn.textContent = '\u00D7';
-            removeBtn.setAttribute('data-tag', tag);
-            removeBtn.onclick = function () {
-                removeTag(this.getAttribute('data-tag'));
-            };
-            span.appendChild(removeBtn);
-
-            container.appendChild(span);
-        }
+    @if (isEdit)
+    {
+        @:loadRelations();
+        @:loadContactsCache();
+        @:initMiniGraph();
+        @:document.addEventListener('click', function (e) {
+        @:    if (!document.getElementById('rel-contact-picker')?.contains(e.target))
+        @:        hideContactDropdown();
+        @:});
     }
+});
 
-    /* === VALIDATION AJAX (EMAIL / PHONE) === */
-    const svgCheck = `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>`;
-    const svgCross = `<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>`;
-
-    async function validateEmail() {
-        const input = document.getElementById('input-email');
-        const spinner = document.getElementById('spinner-email');
-        const icon = document.getElementById('icon-email');
-        const msg = document.getElementById('msg-email');
-        const email = input.value;
-
-        // Reset
-        input.classList.remove('input-valid', 'input-invalid');
-        icon.style.display = 'none';
-        icon.className = 'validation-icon';
-        msg.style.display = 'none';
-
-        if (!email) return;
-
-        spinner.style.display = 'inline-block';
-
-        try {
-            const response = await fetch(`?handler=ValidateEmail&email=${encodeURIComponent(email)}`);
-            const data = await response.json();
-            
-            spinner.style.display = 'none';
-            icon.style.display = 'inline-block';
-            
-            if (data.isValid) {
-                input.classList.add('input-valid');
-                icon.classList.add('success');
-                icon.innerHTML = svgCheck;
-            } else {
-                input.classList.add('input-invalid');
-                icon.classList.add('error');
-                icon.innerHTML = svgCross;
-                msg.style.display = 'block';
-            }
-        } catch (e) {
-            spinner.style.display = 'none';
-        }
-    }
-
-    async function validatePhone() {
-        const input = document.getElementById('input-phone');
-        const spinner = document.getElementById('spinner-phone');
-        const icon = document.getElementById('icon-phone');
-        const msg = document.getElementById('msg-phone');
-        const phone = input.value;
-
-        // Reset
-        input.classList.remove('input-valid', 'input-invalid');
-        icon.style.display = 'none';
-        icon.className = 'validation-icon';
-        msg.style.display = 'none';
-
-        if (!phone) return;
-
-        spinner.style.display = 'inline-block';
-
-        try {
-            const response = await fetch(`?handler=ValidatePhone&phone=${encodeURIComponent(phone)}`);
-            const data = await response.json();
-            
-            spinner.style.display = 'none';
-            icon.style.display = 'inline-block';
-            
-            if (data.isValid) {
-                input.classList.add('input-valid');
-                icon.classList.add('success');
-                icon.innerHTML = svgCheck;
-            } else {
-                input.classList.add('input-invalid');
-                icon.classList.add('error');
-                icon.innerHTML = svgCross;
-                msg.style.display = 'block';
-            }
-        } catch (e) {
-            spinner.style.display = 'none';
-        }
-    }
-
-    /* === AUTO ENRICHISSEMENT === */
-    async function enrichWebsite() {
-        const input = document.getElementById('input-website');
-        const spinner = document.getElementById('spinner-website');
-        const msg = document.getElementById('msg-website');
-        const fullnameInput = document.getElementById('CurrentContact_FullName');
-        const commentInput = document.getElementById('CurrentContact_Comment');
-
-        const website = input.value;
-        
-        msg.style.display = 'none';
-        if (!website) return;
-
-        spinner.style.display = 'inline-block';
-
-        try {
-            console.log("Enrichissement pour:", website);
-            const response = await fetch(`?handler=EnrichFromWebsite&website=${encodeURIComponent(website)}`);
-            const data = await response.json();
-            console.log("Données reçues:", data);
-            
-            spinner.style.display = 'none';
-
-            let updated = false;
-
-            if (fullnameInput && data.fullName && (!fullnameInput.value || fullnameInput.value.length < 3)) {
-                fullnameInput.value = data.fullName;
-                fullnameInput.classList.add('input-valid');
-                updated = true;
-            }
-
-            if (commentInput && data.comment && (!commentInput.value || commentInput.value.length < 5)) {
-                commentInput.value = data.comment;
-                commentInput.classList.add('input-valid');
-                updated = true;
-            }
-
-            if (updated) {
-                msg.style.display = 'block';
-                input.classList.add('input-valid');
-                
-                setTimeout(() => {
-                    fullnameInput.classList.remove('input-valid');
-                    commentInput.classList.remove('input-valid');
-                    input.classList.remove('input-valid');
-                    msg.style.display = 'none';
-                }, 4000);
-            } else {
-                console.warn("Aucune donnée nouvelle à insérer.");
-            }
-        } catch (e) {
-            console.error("Erreur enrichWebsite:", e);
-            spinner.style.display = 'none';
-        }
-    }
-
-    /* === ASSISTANT IA MAGIQUE === */
-    async function callAiAssistant() {
-        const promptInput = document.getElementById('ai-prompt');
-        const loader = document.getElementById('ai-loader');
-        const btn = document.getElementById('ai-btn');
-        const description = promptInput.value.trim();
-
-        if (!description) return;
-
-        loader.style.display = 'flex';
-        btn.disabled = true;
-
-        try {
-            const response = await fetch('?handler=AiMagicEnrich', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
-                },
-                body: JSON.stringify(description)
-            });
-
-            const data = await response.json();
-            console.log("IA Result:", data);
-
-            if (data.error) {
-                console.error("Détails de l'erreur IA :", data.error);
-                alert("L'assistant a rencontré un problème technique :\n\n" + data.error + "\n\nRegardez la console noire de l'ERP pour plus de détails.");
-            } else {
-                // Mise à jour du tag de modèle
-                const modelTag = document.getElementById('ai-status-bar');
-                const modelName = document.getElementById('ai-model-name');
-                if (data.ModelUsed) {
-                    modelTag.style.display = 'flex';
-                    modelName.innerText = data.ModelUsed;
-                }
-
-                // Remplissage des champs
-                if (data.FullName) fillField('CurrentContact_FullName', data.FullName);
-                if (data.Email) fillField('input-email', data.Email);
-                if (data.Phone) fillField('input-phone', data.Phone);
-                if (data.Website) fillField('input-website', data.Website);
-                if (data.Comment) fillField('CurrentContact_Comment', data.Comment);
-
-                // Les rôles sont désactivés pour l'instant (saisie manuelle souhaitée par l'utilisateur)
-
-                // Petit message de succès
-                promptInput.value = "";
-                promptInput.placeholder = "Fiche générée avec succès ! ✨";
-            }
-        } catch (e) {
-            console.error("AI Error:", e);
-            alert("L'assistant Gemini est temporairement indisponible.");
-        } finally {
-            loader.style.display = 'none';
-            btn.disabled = false;
-        }
-    }
-
-    function fillField(id, value) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.value = value;
-            el.classList.add('input-valid');
-            el.style.animation = 'pulse-fill 0.5s ease';
-            setTimeout(() => el.classList.remove('input-valid'), 3000);
-        }
-    }
-</script>
-<style>
-    @@keyframes pulse-fill {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.02); background: rgba(123, 94, 255, 0.2); }
-        100% { transform: scale(1); }
-    }
-</style>
+function addRoleTag() {
+    var select = document.getElementById('role-select');
+    var val = select.value;
+    if (!val) return;
+    if (!tagsSet[val]) { tagsSet[val] = true; renderTags(); }
+    select.value = '';
 }
+
+function removeTag(val) {
+    delete tagsSet[val];
+    renderTags();
+}
+
+function renderTags() {
+    var container = document.getElementById('tags-container');
+    container.innerHTML = '';
+    var arr = Object.keys(tagsSet);
+    document.getElementById('SelectedRoles').value = arr.join(',');
+    arr.forEach(function (tag) {
+        var span = document.createElement('span');
+        span.className = 'tag-pill';
+        span.textContent = tag;
+        var btn = document.createElement('span');
+        btn.className = 'remove-tag';
+        btn.title = 'Supprimer';
+        btn.textContent = '×';
+        btn.setAttribute('data-tag', tag);
+        btn.onclick = function () { removeTag(this.getAttribute('data-tag')); };
+        span.appendChild(btn);
+        container.appendChild(span);
+    });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BANNER SYNC
+══════════════════════════════════════════════════════════════ */
+function syncBannerName(val) {
+    var el = document.getElementById('banner-name');
+    var ini = document.getElementById('banner-initials');
+    if (el)  el.textContent  = val || 'Nouveau contact';
+    if (ini) ini.textContent = val && val.length >= 2 ? val.substring(0, 2).toUpperCase() : (val ? val.toUpperCase() : '?');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   AVATAR PREVIEW
+══════════════════════════════════════════════════════════════ */
+function previewAvatar(input) {
+    if (!input.files || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function (e) {
+        var box = document.getElementById('avatar-preview-box');
+        box.innerHTML = '<img src="' + e.target.result + '" alt="Preview" style="width:100%;height:100%;object-fit:cover;border-radius:14px;" />';
+        box.style.border = '2px solid rgba(34,197,94,0.4)';
+        // Mise à jour de la bannière profil
+        var bannerAvatar = document.getElementById('banner-avatar');
+        if (bannerAvatar) {
+            var existing = bannerAvatar.querySelector('img');
+            if (!existing) {
+                var img = document.createElement('img');
+                img.src = e.target.result;
+                img.alt = 'Avatar';
+                bannerAvatar.appendChild(img);
+            } else {
+                existing.src = e.target.result;
+            }
+        }
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SOUMISSION FORMULAIRE
+══════════════════════════════════════════════════════════════ */
+function handleFormSubmit() {
+    var btn     = document.getElementById('btn-submit');
+    var spinner = document.getElementById('btn-spinner');
+    var txt     = document.getElementById('btn-text');
+    btn.style.opacity       = '0.8';
+    btn.style.pointerEvents = 'none';
+    spinner.style.display   = 'inline-block';
+    txt.textContent         = 'Enregistrement...';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TOASTS
+══════════════════════════════════════════════════════════════ */
+function showToast(msg, type) {
+    var t = document.createElement('div');
+    var isErr = type === 'error';
+    t.style.cssText = [
+        'position:fixed;bottom:28px;left:50%;',
+        'transform:translateX(-50%) translateY(16px);',
+        'padding:11px 22px;border-radius:12px;',
+        'font-size:0.85rem;font-weight:600;color:#fff;',
+        'opacity:0;z-index:99999;transition:all 0.3s ease;',
+        'pointer-events:none;white-space:nowrap;',
+        isErr
+            ? 'background:linear-gradient(135deg,#e85d5d,#b33b3b);box-shadow:0 8px 24px rgba(232,93,93,0.35);'
+            : 'background:linear-gradient(135deg,#7B5EFF,#5b3fd4);box-shadow:0 8px 24px rgba(123,94,255,0.35);'
+    ].join('');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(function () {
+        t.style.opacity   = '1';
+        t.style.transform = 'translateX(-50%) translateY(0)';
+    });
+    setTimeout(function () {
+        t.style.opacity   = '0';
+        setTimeout(function () { t.remove(); }, 350);
+    }, 2800);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VALIDATION EMAIL / TÉLÉPHONE
+══════════════════════════════════════════════════════════════ */
+var svgCheck = '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>';
+var svgCross = '<svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>';
+
+async function validateEmail() {
+    var input   = document.getElementById('input-email');
+    var spinner = document.getElementById('spinner-email');
+    var icon    = document.getElementById('icon-email');
+    var msg     = document.getElementById('msg-email');
+    var email   = input.value;
+    input.classList.remove('input-valid', 'input-invalid');
+    icon.style.display = 'none'; icon.className = 'validation-icon';
+    msg.style.display  = 'none';
+    if (!email) return;
+    spinner.style.display = 'inline-block';
+    try {
+        var resp = await fetch('?handler=ValidateEmail&email=' + encodeURIComponent(email));
+        var data = await resp.json();
+        spinner.style.display = 'none';
+        icon.style.display    = 'inline-block';
+        if (data.isValid) {
+            input.classList.add('input-valid');   icon.classList.add('success'); icon.innerHTML = svgCheck;
+        } else {
+            input.classList.add('input-invalid'); icon.classList.add('error');   icon.innerHTML = svgCross;
+            msg.style.display = 'block';
+        }
+    } catch { spinner.style.display = 'none'; }
+}
+
+async function validatePhone() {
+    var input   = document.getElementById('input-phone');
+    var spinner = document.getElementById('spinner-phone');
+    var icon    = document.getElementById('icon-phone');
+    var msg     = document.getElementById('msg-phone');
+    var phone   = input.value;
+    input.classList.remove('input-valid', 'input-invalid');
+    icon.style.display = 'none'; icon.className = 'validation-icon';
+    msg.style.display  = 'none';
+    if (!phone) return;
+    spinner.style.display = 'inline-block';
+    try {
+        var resp = await fetch('?handler=ValidatePhone&phone=' + encodeURIComponent(phone));
+        var data = await resp.json();
+        spinner.style.display = 'none';
+        icon.style.display    = 'inline-block';
+        if (data.isValid) {
+            input.classList.add('input-valid');   icon.classList.add('success'); icon.innerHTML = svgCheck;
+        } else {
+            input.classList.add('input-invalid'); icon.classList.add('error');   icon.innerHTML = svgCross;
+            msg.style.display = 'block';
+        }
+    } catch { spinner.style.display = 'none'; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   AUTO-ENRICHISSEMENT SITE
+══════════════════════════════════════════════════════════════ */
+async function enrichWebsite() {
+    var input   = document.getElementById('input-website');
+    var spinner = document.getElementById('spinner-website');
+    var msg     = document.getElementById('msg-website');
+    var fn      = document.getElementById('CurrentContact_FullName');
+    var comment = document.getElementById('CurrentContact_Comment');
+    var website = input.value;
+    msg.style.display = 'none';
+    if (!website) return;
+    spinner.style.display = 'inline-block';
+    try {
+        var resp = await fetch('?handler=EnrichFromWebsite&website=' + encodeURIComponent(website));
+        var data = await resp.json();
+        spinner.style.display = 'none';
+        var updated = false;
+        if (fn      && data.fullName && (!fn.value      || fn.value.length      < 3)) { fn.value      = data.fullName; fn.classList.add('input-valid');      updated = true; }
+        if (comment && data.comment  && (!comment.value || comment.value.length < 5)) { comment.value = data.comment;  comment.classList.add('input-valid'); updated = true; }
+        if (updated) {
+            msg.style.display = 'block';
+            input.classList.add('input-valid');
+            setTimeout(function () {
+                fn?.classList.remove('input-valid');
+                comment?.classList.remove('input-valid');
+                input.classList.remove('input-valid');
+                msg.style.display = 'none';
+            }, 4000);
+        }
+    } catch { spinner.style.display = 'none'; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ASSISTANT IA
+══════════════════════════════════════════════════════════════ */
+async function callAiAssistant() {
+    var promptEl    = document.getElementById('ai-prompt');
+    var loader      = document.getElementById('ai-loader');
+    var btn         = document.getElementById('ai-btn');
+    var description = promptEl.value.trim();
+    if (!description) return;
+    loader.style.display = 'flex';
+    btn.disabled = true;
+    try {
+        var resp = await fetch('?handler=AiMagicEnrich', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+            },
+            body: JSON.stringify(description)
+        });
+        var data = await resp.json();
+        if (data.error) {
+            showToast('Erreur IA : ' + data.error, 'error');
+        } else {
+            var modelBar  = document.getElementById('ai-status-bar');
+            var modelName = document.getElementById('ai-model-name');
+            if (data.ModelUsed) { modelBar.style.display = 'flex'; modelName.textContent = data.ModelUsed; }
+            if (data.FullName)  fillField('CurrentContact_FullName', data.FullName);
+            if (data.Email)     fillField('input-email',             data.Email);
+            if (data.Phone)     fillField('input-phone',             data.Phone);
+            if (data.Website)   fillField('input-website',           data.Website);
+            if (data.Comment)   fillField('CurrentContact_Comment',  data.Comment);
+            promptEl.value       = '';
+            promptEl.placeholder = '✨ Fiche générée avec succès !';
+            showToast('Fiche générée avec succès via ' + (data.ModelUsed || 'Gemini'), 'success');
+        }
+    } catch {
+        showToast('L\'assistant Gemini est temporairement indisponible.', 'error');
+    } finally {
+        loader.style.display = 'none';
+        btn.disabled = false;
+    }
+}
+
+function fillField(id, value) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.value = value;
+    el.classList.add('input-valid');
+    setTimeout(function () { el.classList.remove('input-valid'); }, 3000);
+    if (id === 'CurrentContact_FullName') syncBannerName(value);
+}
+
+@if (isEdit)
+{
+@:/* ══════════════════════════════════════════════════════════════
+@:   RELATIONS — DATA
+@:══════════════════════════════════════════════════════════════ */
+@:const CURRENT_CONTACT_ID   = @Model.CurrentContact.Id;
+@:const CURRENT_CONTACT_NAME = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CurrentContact.FullName));
+@:let allContacts   = [];
+@:let relationsData = [];
+
+@:async function loadRelations() {
+@:    var resp = await fetch('?handler=Relations&contactId=' + CURRENT_CONTACT_ID);
+@:    relationsData = await resp.json();
+@:    renderRelations(relationsData);
+@:    buildMiniGraph(relationsData);
+@:}
+
+@:async function loadContactsCache() {
+@:    var resp = await fetch('?handler=AllContactsForRelation&excludeId=' + CURRENT_CONTACT_ID);
+@:    allContacts = await resp.json();
+@:}
+
+@:/* ─── Dropdown contact ──────────────────────────────────────── */
+@:function showContactDropdown()    { filterContactSuggestions(document.getElementById('rel-contact-search').value); }
+@:function hideContactDropdown()    { document.getElementById('rel-contact-dropdown').style.display = 'none'; }
+
+@:function filterContactSuggestions(q) {
+@:    var dd       = document.getElementById('rel-contact-dropdown');
+@:    var filtered = q.trim()
+@:        ? allContacts.filter(function (c) { return c.name.toLowerCase().includes(q.toLowerCase()); })
+@:        : allContacts.slice(0, 30);
+@:    if (!filtered.length) { dd.style.display = 'none'; return; }
+@:    dd.innerHTML = filtered.map(function (c) {
+@:        return '<div class="rel-dd-item" onclick="selectContact(' + c.id + ', \'' + c.name.replace(/'/g, "\\'") + '\')">' + c.name + '</div>';
+@:    }).join('');
+@:    dd.style.display = 'block';
+@:}
+
+@:function selectContact(id, name) {
+@:    document.getElementById('rel-target-id').value     = id;
+@:    document.getElementById('rel-contact-search').value = name;
+@:    document.getElementById('rel-contact-search').classList.add('input-valid');
+@:    setTimeout(function () { document.getElementById('rel-contact-search').classList.remove('input-valid'); }, 2000);
+@:    hideContactDropdown();
+@:}
+
+@:/* ─── Rendu liste relations ─────────────────────────────────── */
+@:function renderRelations(relations) {
+@:    var list  = document.getElementById('relations-list');
+@:    var empty = document.getElementById('relations-empty');
+@:    list.querySelectorAll('.relation-row').forEach(function (el) { el.remove(); });
+@:    if (!relations || !relations.length) { empty.style.display = 'block'; return; }
+@:    empty.style.display = 'none';
+@:    relations.forEach(function (r) { list.insertBefore(buildRelationRow(r), empty); });
+@:}
+
+@:function buildRelationRow(r) {
+@:    var row = document.createElement('div');
+@:    row.className    = 'relation-row';
+@:    row.dataset.id   = r.id;
+@:    var src  = document.createElement('span'); src.className  = 'rel-contact-name'; src.textContent = r.sourceName;
+@:    var arr1 = document.createElement('span'); arr1.className = 'rel-arrow';         arr1.textContent = '→';
+@:    var pill = document.createElement('span'); pill.className = 'rel-type-pill';     pill.textContent = r.relationType;
+@:    var arr2 = document.createElement('span'); arr2.className = 'rel-arrow';         arr2.textContent = '→';
+@:    var tgt  = document.createElement('span'); tgt.className  = 'rel-contact-name'; tgt.textContent = r.targetName;
+@:    var btn  = document.createElement('button');
+@:    btn.type = 'button'; btn.title = 'Supprimer'; btn.className = 'rel-delete-btn';
+@:    btn.innerHTML = '✕';
+@:    btn.onclick = function () { deleteRelation(r.id, btn); };
+@:    row.append(src, arr1, pill, arr2, tgt, btn);
+@:    return row;
+@:}
+
+@:/* ─── CRUD relations ────────────────────────────────────────── */
+@:async function addRelation() {
+@:    var targetId = parseInt(document.getElementById('rel-target-id').value);
+@:    var relType  = document.getElementById('rel-type-input').value.trim();
+@:    var btn      = document.getElementById('btn-add-relation');
+@:    if (!targetId) { showToast('Sélectionnez un contact cible.', 'error'); return; }
+@:    if (!relType)  { showToast('Saisissez un type de relation.', 'error'); return; }
+@:    btn.disabled = true; btn.style.opacity = '0.6';
+@:    try {
+@:        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+@:        var resp  = await fetch('?handler=AddRelation', {
+@:            method: 'POST',
+@:            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+@:            body: JSON.stringify({ sourceId: CURRENT_CONTACT_ID, targetId: targetId, relationType: relType })
+@:        });
+@:        var data = await resp.json();
+@:        if (data.ok) {
+@:            document.getElementById('relations-empty').style.display = 'none';
+@:            var list = document.getElementById('relations-list');
+@:            list.insertBefore(buildRelationRow(data), document.getElementById('relations-empty'));
+@:            document.getElementById('rel-contact-search').value = '';
+@:            document.getElementById('rel-target-id').value      = '';
+@:            document.getElementById('rel-type-input').value     = '';
+@:            relationsData.push(data);
+@:            buildMiniGraph(relationsData);
+@:            showToast('Relation ajoutée.', 'success');
+@:        } else {
+@:            showToast(data.message || 'Erreur lors de l\'ajout.', 'error');
+@:        }
+@:    } catch { showToast('Erreur technique.', 'error'); }
+@:    finally { btn.disabled = false; btn.style.opacity = '1'; }
+@:}
+
+@:async function deleteRelation(id, btnEl) {
+@:    btnEl.disabled = true; btnEl.textContent = '…';
+@:    try {
+@:        var token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+@:        var resp  = await fetch('?handler=DeleteRelation', {
+@:            method: 'POST',
+@:            headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': token },
+@:            body: JSON.stringify(id)
+@:        });
+@:        var data = await resp.json();
+@:        if (data.ok) {
+@:            var row = document.querySelector('.relation-row[data-id="' + id + '"]');
+@:            if (row) row.remove();
+@:            if (!document.getElementById('relations-list').querySelector('.relation-row'))
+@:                document.getElementById('relations-empty').style.display = 'block';
+@:            relationsData = relationsData.filter(function (r) { return r.id !== id; });
+@:            buildMiniGraph(relationsData);
+@:            showToast('Relation supprimée.', 'success');
+@:        }
+@:    } catch { showToast('Erreur technique.', 'error'); btnEl.disabled = false; btnEl.textContent = '✕'; }
+@:}
+
+@:/* ══════════════════════════════════════════════════════════════
+@:   MINI-GRAPHE EGO NETWORK
+@:══════════════════════════════════════════════════════════════ */
+@:let miniCanvas, miniCtx, miniAnim = null;
+@:let miniNodes = [], miniEdges = [];
+@:let miniZoom = 1, miniPanX = 0, miniPanY = 0;
+@:let miniDragging = false, miniDragStart = {x:0,y:0}, miniPanStart = {x:0,y:0};
+@:let miniHovered = null;
+
+@:const ROLE_COLOR_MAP = { 0:'#9C8CFF', 1:'#4ade80', 2:'#c084fc', 4:'#7dd3fc', 8:'#fb923c', 16:'#fde047' };
+
+@:function getRoleColorMini(roles) {
+@:    if (!roles) return '#9C8CFF';
+@:    for (var bit of [1, 2, 16, 8, 4]) { if (roles & bit) return ROLE_COLOR_MAP[bit]; }
+@:    return '#9C8CFF';
+@:}
+
+@:function initMiniGraph() {
+@:    miniCanvas = document.getElementById('miniGraphCanvas');
+@:    if (!miniCanvas) return;
+@:    miniCtx = miniCanvas.getContext('2d');
+@:    var wrap = miniCanvas.parentElement;
+@:    miniCanvas.width  = wrap.offsetWidth;
+@:    miniCanvas.height = wrap.offsetHeight;
+@:    setupMiniGraphEvents();
+@:}
+
+@:function buildMiniGraph(relations) {
+@:    if (!miniCanvas) return;
+@:    var emptyEl = document.getElementById('mini-graph-empty');
+
+@:    if (!relations || !relations.length) {
+@:        if (emptyEl) emptyEl.style.display = 'block';
+@:        miniNodes = []; miniEdges = [];
+@:        drawMiniGraph();
+@:        return;
+@:    }
+@:    if (emptyEl) emptyEl.style.display = 'none';
+
+@:    // Nœud central (le contact courant)
+@:    var nodeMap = {};
+@:    nodeMap[CURRENT_CONTACT_ID] = {
+@:        id: CURRENT_CONTACT_ID,
+@:        name: CURRENT_CONTACT_NAME,
+@:        roles: 0,
+@:        initials: CURRENT_CONTACT_NAME.length >= 2 ? CURRENT_CONTACT_NAME.substring(0,2).toUpperCase() : '?',
+@:        isCurrent: true,
+@:        x: miniCanvas.width / 2, y: miniCanvas.height / 2,
+@:        vx: 0, vy: 0, r: 32
+@:    };
+
+@:    // Nœuds connectés
+@:    relations.forEach(function (r) {
+@:        [{ id: r.sourceId, name: r.sourceName }, { id: r.targetId, name: r.targetName }].forEach(function (n) {
+@:            if (!nodeMap[n.id]) {
+@:                var contact = allContacts.find(function(c) { return c.id === n.id; });
+@:                nodeMap[n.id] = {
+@:                    id: n.id, name: n.name,
+@:                    roles: contact ? contact.roles || 0 : 0,
+@:                    initials: n.name.length >= 2 ? n.name.substring(0,2).toUpperCase() : '?',
+@:                    isCurrent: false,
+@:                    x: miniCanvas.width  / 2 + (Math.random() - 0.5) * miniCanvas.width  * 0.5,
+@:                    y: miniCanvas.height / 2 + (Math.random() - 0.5) * miniCanvas.height * 0.5,
+@:                    vx: 0, vy: 0, r: 24
+@:                };
+@:            }
+@:        });
+@:    });
+
+@:    miniNodes = Object.values(nodeMap);
+@:    miniEdges = relations.map(function (r) { return { source: r.sourceId, target: r.targetId, type: r.relationType }; });
+
+@:    miniReSimulate();
+@:}
+
+@:function miniReSimulate() {
+@:    if (!miniCanvas || !miniNodes.length) return;
+@:    if (miniAnim) cancelAnimationFrame(miniAnim);
+@:    miniNodes.forEach(function (n) {
+@:        if (n.isCurrent) { n.x = miniCanvas.width / 2; n.y = miniCanvas.height / 2; }
+@:        else {
+@:            var angle = Math.random() * Math.PI * 2;
+@:            var r = Math.min(miniCanvas.width, miniCanvas.height) * 0.3;
+@:            n.x = miniCanvas.width  / 2 + r * Math.cos(angle);
+@:            n.y = miniCanvas.height / 2 + r * Math.sin(angle);
+@:        }
+@:        n.vx = 0; n.vy = 0;
+@:    });
+@:    var frame = 0, maxFrames = 150;
+@:    function tick() {
+@:        miniSimulateStep(Math.max(0, 1 - frame / maxFrames));
+@:        drawMiniGraph();
+@:        frame++;
+@:        if (frame < maxFrames) miniAnim = requestAnimationFrame(tick);
+@:    }
+@:    miniAnim = requestAnimationFrame(tick);
+@:}
+
+@:function miniSimulateStep(alpha) {
+@:    var W = miniCanvas.width, H = miniCanvas.height;
+@:    var cx = W / 2, cy = H / 2;
+@:    for (var i = 0; i < miniNodes.length; i++) {
+@:        for (var j = i + 1; j < miniNodes.length; j++) {
+@:            var a = miniNodes[i], b = miniNodes[j];
+@:            var dx = b.x - a.x, dy = b.y - a.y;
+@:            var dist = Math.max(Math.sqrt(dx*dx + dy*dy), 1);
+@:            var force = (6000 / (dist * dist)) * alpha * 0.015;
+@:            var fx = (dx/dist)*force, fy = (dy/dist)*force;
+@:            a.vx -= fx; a.vy -= fy; b.vx += fx; b.vy += fy;
+@:        }
+@:    }
+@:    miniEdges.forEach(function (e) {
+@:        var s = miniNodes.find(function(n) { return n.id === e.source; });
+@:        var t = miniNodes.find(function(n) { return n.id === e.target; });
+@:        if (!s || !t) return;
+@:        var dx = t.x - s.x, dy = t.y - s.y;
+@:        var dist = Math.max(Math.sqrt(dx*dx + dy*dy), 1);
+@:        var ideal = 120, force = (dist - ideal) * 0.01 * alpha;
+@:        var fx = (dx/dist)*force, fy = (dy/dist)*force;
+@:        s.vx += fx; s.vy += fy; t.vx -= fx; t.vy -= fy;
+@:    });
+@:    miniNodes.forEach(function (n) {
+@:        if (n.isCurrent) { n.vx = 0; n.vy = 0; n.x = W/2; n.y = H/2; return; }
+@:        n.vx += (cx - n.x) * 0.002 * alpha;
+@:        n.vy += (cy - n.y) * 0.002 * alpha;
+@:        n.vx *= 0.85; n.vy *= 0.85;
+@:        n.x  += n.vx;  n.y  += n.vy;
+@:        n.x = Math.max(n.r + 8, Math.min(W - n.r - 8, n.x));
+@:        n.y = Math.max(n.r + 8, Math.min(H - n.r - 8, n.y));
+@:    });
+@:}
+
+@:function drawMiniGraph() {
+@:    if (!miniCtx) return;
+@:    miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
+@:    if (!miniNodes.length) return;
+@:    miniCtx.save();
+@:    miniCtx.translate(miniPanX, miniPanY);
+@:    miniCtx.scale(miniZoom, miniZoom);
+
+@:    // Arêtes
+@:    miniEdges.forEach(function (e) {
+@:        var s = miniNodes.find(function(n){return n.id===e.source;}),
+@:            t = miniNodes.find(function(n){return n.id===e.target;});
+@:        if (!s || !t) return;
+@:        var dx = t.x-s.x, dy = t.y-s.y, dist = Math.max(Math.sqrt(dx*dx+dy*dy),1);
+@:        var ux = dx/dist, uy = dy/dist;
+@:        var sx = s.x + ux*s.r, sy = s.y + uy*s.r;
+@:        var tx2 = t.x - ux*t.r, ty2 = t.y - uy*t.r;
+@:        miniCtx.beginPath(); miniCtx.moveTo(sx, sy); miniCtx.lineTo(tx2, ty2);
+@:        miniCtx.strokeStyle = 'rgba(148,163,184,0.3)'; miniCtx.lineWidth = 1.5; miniCtx.stroke();
+@:        // Flèche
+@:        var al = 7, aa = 0.4, ang = Math.atan2(uy, ux);
+@:        miniCtx.beginPath();
+@:        miniCtx.moveTo(tx2, ty2);
+@:        miniCtx.lineTo(tx2 - al*Math.cos(ang-aa), ty2 - al*Math.sin(ang-aa));
+@:        miniCtx.moveTo(tx2, ty2);
+@:        miniCtx.lineTo(tx2 - al*Math.cos(ang+aa), ty2 - al*Math.sin(ang+aa));
+@:        miniCtx.strokeStyle = 'rgba(148,163,184,0.5)'; miniCtx.lineWidth = 1.2; miniCtx.stroke();
+@:        // Label
+@:        if (e.type) {
+@:            var mx = (sx+tx2)/2, my = (sy+ty2)/2;
+@:            miniCtx.fillStyle = 'rgba(148,163,184,0.6)';
+@:            miniCtx.font = '9px "Plus Jakarta Sans", sans-serif';
+@:            miniCtx.textAlign = 'center'; miniCtx.fillText(e.type, mx, my - 4);
+@:        }
+@:    });
+
+@:    // Nœuds
+@:    miniNodes.forEach(function (n) {
+@:        var isHov     = miniHovered && miniHovered.id === n.id;
+@:        var color     = n.isCurrent ? '#7B5EFF' : getRoleColorMini(n.roles);
+@:        var r         = isHov ? n.r + 3 : n.r;
+@:        // Halo (nœud courant ou hover)
+@:        if (n.isCurrent || isHov) {
+@:            var haloGrad = miniCtx.createRadialGradient(n.x, n.y, r*0.5, n.x, n.y, r*2.2);
+@:            haloGrad.addColorStop(0, color + '44');
+@:            haloGrad.addColorStop(1, 'transparent');
+@:            miniCtx.beginPath(); miniCtx.arc(n.x, n.y, r*2.2, 0, Math.PI*2);
+@:            miniCtx.fillStyle = haloGrad; miniCtx.fill();
+@:        }
+@:        // Cercle
+@:        var grad = miniCtx.createRadialGradient(n.x-r*0.3, n.y-r*0.3, r*0.1, n.x, n.y, r);
+@:        grad.addColorStop(0, color + 'CC');
+@:        grad.addColorStop(1, color + (n.isCurrent ? 'AA' : '66'));
+@:        miniCtx.beginPath(); miniCtx.arc(n.x, n.y, r, 0, Math.PI*2);
+@:        miniCtx.fillStyle = grad; miniCtx.fill();
+@:        miniCtx.beginPath(); miniCtx.arc(n.x, n.y, r, 0, Math.PI*2);
+@:        miniCtx.strokeStyle = isHov || n.isCurrent ? color : color + '88';
+@:        miniCtx.lineWidth   = n.isCurrent ? 2.5 : (isHov ? 2 : 1.5);
+@:        miniCtx.stroke();
+@:        // Initiales
+@:        miniCtx.fillStyle = '#fff';
+@:        miniCtx.font = '700 ' + Math.round(r*0.42) + 'px "Plus Jakarta Sans", sans-serif';
+@:        miniCtx.textAlign = 'center'; miniCtx.textBaseline = 'middle';
+@:        miniCtx.fillText(n.initials, n.x, n.y);
+@:        // Nom sous le nœud
+@:        var label = n.name.length > 14 ? n.name.slice(0,12) + '…' : n.name;
+@:        miniCtx.fillStyle = isHov || n.isCurrent ? '#fff' : 'rgba(196,206,231,0.75)';
+@:        miniCtx.font      = (n.isCurrent ? '700' : '500') + ' 10px "Plus Jakarta Sans", sans-serif';
+@:        miniCtx.textAlign = 'center'; miniCtx.textBaseline = 'top';
+@:        miniCtx.fillText(label, n.x, n.y + r + 5);
+@:    });
+
+@:    miniCtx.restore();
+@:}
+
+@:function miniResetZoom() { miniZoom = 1; miniPanX = 0; miniPanY = 0; drawMiniGraph(); }
+
+@:function getMiniNodeAt(mx, my) {
+@:    var wx = (mx - miniPanX) / miniZoom, wy = (my - miniPanY) / miniZoom;
+@:    return miniNodes.find(function(n) { return Math.hypot(n.x-wx, n.y-wy) <= n.r + 4; }) || null;
+@:}
+
+@:function setupMiniGraphEvents() {
+@:    if (!miniCanvas) return;
+@:    miniCanvas.addEventListener('wheel', function(e) {
+@:        e.preventDefault();
+@:        miniZoom = Math.max(0.4, Math.min(2.5, miniZoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+@:        drawMiniGraph();
+@:    }, { passive: false });
+@:    miniCanvas.addEventListener('mousedown', function(e) {
+@:        miniDragging = true;
+@:        miniDragStart = { x: e.offsetX, y: e.offsetY };
+@:        miniPanStart  = { x: miniPanX,  y: miniPanY  };
+@:        miniCanvas.style.cursor = 'grabbing';
+@:    });
+@:    miniCanvas.addEventListener('mousemove', function(e) {
+@:        if (miniDragging) {
+@:            miniPanX = miniPanStart.x + (e.offsetX - miniDragStart.x);
+@:            miniPanY = miniPanStart.y + (e.offsetY - miniDragStart.y);
+@:            drawMiniGraph(); return;
+@:        }
+@:        var node = getMiniNodeAt(e.offsetX, e.offsetY);
+@:        if (node !== miniHovered) { miniHovered = node; miniCanvas.style.cursor = node ? 'pointer' : 'default'; drawMiniGraph(); }
+@:    });
+@:    miniCanvas.addEventListener('mouseup',    function() { miniDragging = false; miniCanvas.style.cursor = miniHovered ? 'pointer' : 'default'; });
+@:    miniCanvas.addEventListener('mouseleave', function() { miniDragging = false; miniHovered = null; drawMiniGraph(); });
+@:    miniCanvas.addEventListener('click', function(e) {
+@:        var node = getMiniNodeAt(e.offsetX, e.offsetY);
+@:        if (node && !node.isCurrent) window.location.href = '/AnnuaireNew/' + node.id;
+@:    });
+@:}
+}
+</script>
+}
+

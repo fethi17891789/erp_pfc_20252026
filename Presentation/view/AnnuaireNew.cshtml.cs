@@ -118,8 +118,60 @@ namespace erp_pfc_20252026.Pages
             }
         }
 
-        // ======================= ENDPOINTS API AJAX =======================
+        // ======================= ENDPOINTS RELATIONS =======================
 
+        public async Task<IActionResult> OnGetRelationsAsync(int contactId)
+        {
+            var relations = await _annuaireService.GetRelationsForContactAsync(contactId);
+            var result = relations.Select(r => new
+            {
+                id = r.Id,
+                sourceId = r.SourceContactId,
+                sourceName = r.SourceContact?.FullName ?? "?",
+                targetId = r.TargetContactId,
+                targetName = r.TargetContact?.FullName ?? "?",
+                relationType = r.RelationType
+            });
+            return new JsonResult(result);
+        }
+
+        public async Task<IActionResult> OnGetAllContactsForRelationAsync(int excludeId)
+        {
+            var contacts = await _annuaireService.GetAllContactsAsync();
+            var result = contacts
+                .Where(c => c.Id != excludeId)
+                .Select(c => new { id = c.Id, name = c.FullName });
+            return new JsonResult(result);
+        }
+
+        public async Task<IActionResult> OnPostAddRelationAsync([FromBody] AddRelationDto dto)
+        {
+            if (dto == null || dto.SourceId <= 0 || dto.TargetId <= 0 || string.IsNullOrWhiteSpace(dto.RelationType))
+                return new JsonResult(new { ok = false, message = "Données incomplètes." });
+
+            var relation = await _annuaireService.AddRelationAsync(dto.SourceId, dto.TargetId, dto.RelationType.Trim());
+            var source = await _annuaireService.GetContactByIdAsync(dto.SourceId);
+            var target = await _annuaireService.GetContactByIdAsync(dto.TargetId);
+
+            return new JsonResult(new
+            {
+                ok = true,
+                id = relation.Id,
+                sourceId = dto.SourceId,
+                sourceName = source?.FullName ?? "?",
+                targetId = dto.TargetId,
+                targetName = target?.FullName ?? "?",
+                relationType = dto.RelationType.Trim()
+            });
+        }
+
+        public async Task<IActionResult> OnPostDeleteRelationAsync([FromBody] int id)
+        {
+            await _annuaireService.DeleteRelationAsync(id);
+            return new JsonResult(new { ok = true });
+        }
+
+        // ======================= ENDPOINTS API AJAX =======================
 
         public async Task<IActionResult> OnGetEnrichFromWebsite(string website)
         {
@@ -212,5 +264,12 @@ RÉPONDS UNIQUEMENT EN JSON VALIDE :
                 return new JsonResult(new { error = $"Erreur interne : {ex.Message}" });
             }
         }
+    }
+
+    public class AddRelationDto
+    {
+        public int SourceId { get; set; }
+        public int TargetId { get; set; }
+        public string RelationType { get; set; } = string.Empty;
     }
 }

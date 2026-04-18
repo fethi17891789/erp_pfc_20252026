@@ -53,5 +53,37 @@ namespace Metier.CRM
         {
             return await _context.ContactRelations.ToListAsync();
         }
+
+        public async Task<List<ContactRelation>> GetRelationsForContactAsync(int contactId)
+        {
+            return await _context.ContactRelations
+                .Include(r => r.SourceContact)
+                .Include(r => r.TargetContact)
+                .Where(r => r.SourceContactId == contactId || r.TargetContactId == contactId)
+                .ToListAsync();
+        }
+
+        public async Task<ContactRelation> AddRelationAsync(int sourceId, int targetId, string relationType)
+        {
+            var relation = new ContactRelation
+            {
+                SourceContactId = sourceId,
+                TargetContactId = targetId,
+                RelationType = relationType
+            };
+            _context.ContactRelations.Add(relation);
+            await _context.SaveChangesAsync();
+            return relation;
+        }
+
+        public async Task DeleteRelationAsync(int id)
+        {
+            var rel = await _context.ContactRelations.FindAsync(id);
+            if (rel != null)
+            {
+                _context.ContactRelations.Remove(rel);
+                await _context.SaveChangesAsync();
+            }
+        }
     }
 }
