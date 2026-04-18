@@ -6,7 +6,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - ERP Suite</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="~/fonts/plus-jakarta-sans.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/Common.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/Home.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
@@ -253,7 +253,8 @@
 
     @if (currentUserId > 0)
     {
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+        <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
+        <script src="~/lib/marked/marked.min.js" asp-append-version="true"></script>
         <script src="~/js/Notifications.js" asp-append-version="true"></script>
         <script src="~/js/Presence.js" asp-append-version="true"></script>
     }
