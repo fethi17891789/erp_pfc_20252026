@@ -618,7 +618,7 @@ function setView(view) {
 let graphNodes = [], graphEdges = [];
 let canvas, ctx, simAnim = null;
 let zoom = 1, panX = 0, panY = 0;
-let isDragging = false, dragStart = { x: 0, y: 0 }, panStart = { x: 0, y: 0 };
+let isDragging = false, hasDragged = false, dragStart = { x: 0, y: 0 }, panStart = { x: 0, y: 0 };
 let hoveredNode = null;
 
 function initGraph() {
@@ -658,9 +658,13 @@ function updateGraphFilter() {
         }))];
 
     // Arêtes implicites : Moi → chaque contact visible
-    const moiEdges = filteredContacts.map(c => ({
-        source: -1, target: c.id, type: '', isMoiEdge: true
-    }));
+    const moiEdges = filteredContacts.map(c => {
+        let rLabel = 'Contact';
+        for (const bit of [1, 2, 4, 8, 16]) {
+            if (c.roles & bit) { rLabel = ROLE_META[bit].label; break; }
+        }
+        return { source: -1, target: c.id, type: rLabel, isMoiEdge: true };
+    });
 
     // Relations explicites entre contacts
     const relationEdges = GRAPH_DATA.edges
@@ -767,25 +771,42 @@ function drawGraph() {
         const tx = t.x - ux * t.r, ty = t.y - uy * t.r;
 
         if (e.isMoiEdge) {
-            // Lien implicite Moi → contact : pointillé violet subtil, sans flèche
-            ctx.beginPath();
-            ctx.setLineDash([4, 7]);
-            ctx.moveTo(sx, sy);
-            ctx.lineTo(tx, ty);
-            ctx.strokeStyle = 'rgba(123,94,255,0.22)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-            ctx.setLineDash([]);
-        } else {
-            // Relation explicite entre contacts : trait plein + flèche + label
+            // Relation avec l'entreprise host : mise en valeur visuelle forte
             ctx.beginPath();
             ctx.moveTo(sx, sy);
             ctx.lineTo(tx, ty);
-            ctx.strokeStyle = 'rgba(148,163,184,0.35)';
-            ctx.lineWidth = 1.5;
+            const gradLine = ctx.createLinearGradient(sx, sy, tx, ty);
+            gradLine.addColorStop(0, 'rgba(123,94,255, 0.95)');
+            gradLine.addColorStop(1, 'rgba(123,94,255, 0.45)');
+            ctx.strokeStyle = gradLine;
+            ctx.lineWidth = 2.2;
             ctx.stroke();
 
-            const arrowLen = 8, arrowAngle = 0.4;
+            // Flèche pour relation entreprise (pointant vers l'entreprise, au contact s & t: source=-1, target=c)
+            // L'entreprise est s (source). Donc sx, sy est le bord du noeud entreprise.
+            // On oriente la flèche vers sx, sy.
+            const arrowLen = 9, arrowAngle = 0.4;
+            const revAng = Math.atan2(-uy, -ux);
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx - arrowLen * Math.cos(revAng - arrowAngle),
+                       sy - arrowLen * Math.sin(revAng - arrowAngle));
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(sx - arrowLen * Math.cos(revAng + arrowAngle),
+                       sy - arrowLen * Math.sin(revAng + arrowAngle));
+            ctx.strokeStyle = 'rgba(123,94,255, 0.7)';
+            ctx.lineWidth = 1.8;
+            ctx.stroke();
+        } else {
+            // Relation explicite entre contacts : mise en retrait (plus discrète)
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(tx, ty);
+            ctx.strokeStyle = 'rgba(148,163,184,0.2)';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
+
+            const arrowLen = 7, arrowAngle = 0.4;
             ctx.beginPath();
             ctx.moveTo(tx, ty);
             ctx.lineTo(tx - arrowLen * Math.cos(Math.atan2(uy, ux) - arrowAngle),
@@ -793,17 +814,17 @@ function drawGraph() {
             ctx.moveTo(tx, ty);
             ctx.lineTo(tx - arrowLen * Math.cos(Math.atan2(uy, ux) + arrowAngle),
                        ty - arrowLen * Math.sin(Math.atan2(uy, ux) + arrowAngle));
-            ctx.strokeStyle = 'rgba(148,163,184,0.55)';
-            ctx.lineWidth = 1.2;
+            ctx.strokeStyle = 'rgba(148,163,184,0.35)';
+            ctx.lineWidth = 1;
             ctx.stroke();
+        }
 
-            if (e.type) {
-                const mx = (sx + tx) / 2, my = (sy + ty) / 2;
-                ctx.fillStyle = 'rgba(148,163,184,0.7)';
-                ctx.font = '10px "Plus Jakarta Sans", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(e.type, mx, my - 4);
-            }
+        if (e.type) {
+            const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+            ctx.fillStyle = e.isMoiEdge ? 'rgba(167,139,250,0.95)' : 'rgba(148,163,184,0.6)';
+            ctx.font = e.isMoiEdge ? 'bold 10px "Plus Jakarta Sans", sans-serif' : '10px "Plus Jakarta Sans", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(e.type, mx, my - 4);
         }
     }
 
@@ -914,6 +935,7 @@ function setupGraphEvents() {
 
     canvas.addEventListener('mousedown', e => {
         isDragging = true;
+        hasDragged = false;
         dragStart = { x: e.offsetX, y: e.offsetY };
         panStart  = { x: panX, y: panY };
         canvas.style.cursor = 'grabbing';
@@ -921,6 +943,7 @@ function setupGraphEvents() {
 
     canvas.addEventListener('mousemove', e => {
         if (isDragging) {
+            hasDragged = true;
             panX = panStart.x + (e.offsetX - dragStart.x);
             panY = panStart.y + (e.offsetY - dragStart.y);
             drawGraph();
@@ -935,9 +958,15 @@ function setupGraphEvents() {
         updateTooltip(e, node);
     });
 
-    canvas.addEventListener('mouseup', () => {
+    canvas.addEventListener('mouseup', e => {
         isDragging = false;
         canvas.style.cursor = hoveredNode ? 'pointer' : 'default';
+        if (!hasDragged) {
+            const node = getNodeAt(e.offsetX, e.offsetY);
+            if (node && !node.isMoi) {
+                window.location.href = `/AnnuaireNew/${node.id}`;
+            }
+        }
     });
 
     canvas.addEventListener('mouseleave', () => {
@@ -945,11 +974,6 @@ function setupGraphEvents() {
         hoveredNode = null;
         hideTooltip();
         drawGraph();
-    });
-
-    canvas.addEventListener('click', e => {
-        const node = getNodeAt(e.offsetX, e.offsetY);
-        if (node && !node.isMoi) window.location.href = `/AnnuaireNew/${node.id}`;
     });
 }
 
@@ -966,7 +990,7 @@ function updateTooltip(e, node) {
         document.getElementById('ttName').textContent   = node.name;
         document.getElementById('ttDomain').textContent = node.domain || '';
         document.getElementById('ttEmail').textContent  = node.email  || '';
-        document.getElementById('ttRoles').innerHTML    = getRoleBadges(node.roles);
+        document.getElementById('ttRoles').innerHTML    = getRoleBadges(node.roles) + '<div style="margin-top:8px;font-size:10px;color:var(--accent-color);font-weight:600;"><i class="bi bi-box-arrow-up-right me-1"></i>Cliquez pour ouvrir</div>';
     }
 
     const wrap = canvas.parentElement.getBoundingClientRect();

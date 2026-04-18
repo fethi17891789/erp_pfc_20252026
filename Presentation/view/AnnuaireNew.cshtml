@@ -1312,19 +1312,33 @@ function fillField(id, value) {
 @:    }
 @:    if (emptyEl) emptyEl.style.display = 'none';
 
-@:    // Nœud central (le contact courant)
+@:    // Nœud "Moi" — ancré au centre, comme dans le grand graphe
 @:    var nodeMap = {};
+@:    nodeMap[-1] = {
+@:        id: -1,
+@:        name: 'Mon Entreprise',
+@:        roles: 0,
+@:        initials: 'MOI',
+@:        isMoi: true,
+@:        isCurrent: false,
+@:        x: miniCanvas.width / 2, y: miniCanvas.height / 2,
+@:        vx: 0, vy: 0, r: 30
+@:    };
+
+@:    // Nœud du contact courant
 @:    nodeMap[CURRENT_CONTACT_ID] = {
 @:        id: CURRENT_CONTACT_ID,
 @:        name: CURRENT_CONTACT_NAME,
 @:        roles: 0,
 @:        initials: CURRENT_CONTACT_NAME.length >= 2 ? CURRENT_CONTACT_NAME.substring(0,2).toUpperCase() : '?',
 @:        isCurrent: true,
-@:        x: miniCanvas.width / 2, y: miniCanvas.height / 2,
-@:        vx: 0, vy: 0, r: 32
+@:        isMoi: false,
+@:        x: miniCanvas.width / 2 + (Math.random() - 0.5) * miniCanvas.width * 0.4,
+@:        y: miniCanvas.height / 2 + (Math.random() - 0.5) * miniCanvas.height * 0.4,
+@:        vx: 0, vy: 0, r: 28
 @:    };
 
-@:    // Nœuds connectés
+@:    // Nœuds connectés via relations
 @:    relations.forEach(function (r) {
 @:        [{ id: r.sourceId, name: r.sourceName }, { id: r.targetId, name: r.targetName }].forEach(function (n) {
 @:            if (!nodeMap[n.id]) {
@@ -1334,16 +1348,37 @@ function fillField(id, value) {
 @:                    roles: contact ? contact.roles || 0 : 0,
 @:                    initials: n.name.length >= 2 ? n.name.substring(0,2).toUpperCase() : '?',
 @:                    isCurrent: false,
+@:                    isMoi: false,
 @:                    x: miniCanvas.width  / 2 + (Math.random() - 0.5) * miniCanvas.width  * 0.5,
 @:                    y: miniCanvas.height / 2 + (Math.random() - 0.5) * miniCanvas.height * 0.5,
-@:                    vx: 0, vy: 0, r: 24
+@:                    vx: 0, vy: 0, r: 22
 @:                };
 @:            }
 @:        });
 @:    });
 
 @:    miniNodes = Object.values(nodeMap);
-@:    miniEdges = relations.map(function (r) { return { source: r.sourceId, target: r.targetId, type: r.relationType }; });
+
+@:    // Arêtes implicites : Moi → chaque contact
+@:    var moiEdges = [];
+@:    miniNodes.forEach(function(n) {
+@:        if (n.id !== -1) {
+@:            var rLabel = 'Contact';
+@:            if (n.roles & 1) rLabel = 'Client';
+@:            else if (n.roles & 2) rLabel = 'Fournisseur';
+@:            else if (n.roles & 4) rLabel = 'Employé';
+@:            else if (n.roles & 8) rLabel = 'Partenaire';
+@:            else if (n.roles & 16) rLabel = 'Investisseur';
+@:            moiEdges.push({ source: -1, target: n.id, type: rLabel, isMoiEdge: true });
+@:        }
+@:    });
+
+@:    // Relations explicites (trait plein + flèche)
+@:    var relationEdges = relations.map(function (r) {
+@:        return { source: r.sourceId, target: r.targetId, type: r.relationType, isMoiEdge: false };
+@:    });
+
+@:    miniEdges = moiEdges.concat(relationEdges);
 
 @:    miniReSimulate();
 @:}
@@ -1352,13 +1387,11 @@ function fillField(id, value) {
 @:    if (!miniCanvas || !miniNodes.length) return;
 @:    if (miniAnim) cancelAnimationFrame(miniAnim);
 @:    miniNodes.forEach(function (n) {
-@:        if (n.isCurrent) { n.x = miniCanvas.width / 2; n.y = miniCanvas.height / 2; }
-@:        else {
-@:            var angle = Math.random() * Math.PI * 2;
-@:            var r = Math.min(miniCanvas.width, miniCanvas.height) * 0.3;
-@:            n.x = miniCanvas.width  / 2 + r * Math.cos(angle);
-@:            n.y = miniCanvas.height / 2 + r * Math.sin(angle);
-@:        }
+@:        if (n.isMoi) { n.x = miniCanvas.width / 2; n.y = miniCanvas.height / 2; n.vx = 0; n.vy = 0; return; }
+@:        var angle = Math.random() * Math.PI * 2;
+@:        var rad = Math.min(miniCanvas.width, miniCanvas.height) * 0.28;
+@:        n.x = miniCanvas.width  / 2 + rad * Math.cos(angle) * (0.5 + Math.random());
+@:        n.y = miniCanvas.height / 2 + rad * Math.sin(angle) * (0.5 + Math.random());
 @:        n.vx = 0; n.vy = 0;
 @:    });
 @:    var frame = 0, maxFrames = 150;
@@ -1390,15 +1423,15 @@ function fillField(id, value) {
 @:        if (!s || !t) return;
 @:        var dx = t.x - s.x, dy = t.y - s.y;
 @:        var dist = Math.max(Math.sqrt(dx*dx + dy*dy), 1);
-@:        var ideal = 120, force = (dist - ideal) * 0.01 * alpha;
+@:        var ideal = 100, force = (dist - ideal) * 0.012 * alpha;
 @:        var fx = (dx/dist)*force, fy = (dy/dist)*force;
 @:        s.vx += fx; s.vy += fy; t.vx -= fx; t.vy -= fy;
 @:    });
 @:    miniNodes.forEach(function (n) {
-@:        if (n.isCurrent) { n.vx = 0; n.vy = 0; n.x = W/2; n.y = H/2; return; }
-@:        n.vx += (cx - n.x) * 0.002 * alpha;
-@:        n.vy += (cy - n.y) * 0.002 * alpha;
-@:        n.vx *= 0.85; n.vy *= 0.85;
+@:        if (n.isMoi) { n.vx = 0; n.vy = 0; n.x = W/2; n.y = H/2; return; }
+@:        n.vx += (cx - n.x) * 0.0015 * alpha;
+@:        n.vy += (cy - n.y) * 0.0015 * alpha;
+@:        n.vx *= 0.84; n.vy *= 0.84;
 @:        n.x  += n.vx;  n.y  += n.vy;
 @:        n.x = Math.max(n.r + 8, Math.min(W - n.r - 8, n.x));
 @:        n.y = Math.max(n.r + 8, Math.min(H - n.r - 8, n.y));
@@ -1420,23 +1453,47 @@ function fillField(id, value) {
 @:        if (!s || !t) return;
 @:        var dx = t.x-s.x, dy = t.y-s.y, dist = Math.max(Math.sqrt(dx*dx+dy*dy),1);
 @:        var ux = dx/dist, uy = dy/dist;
-@:        var sx = s.x + ux*s.r, sy = s.y + uy*s.r;
+@:        var sx2 = s.x + ux*s.r, sy2 = s.y + uy*s.r;
 @:        var tx2 = t.x - ux*t.r, ty2 = t.y - uy*t.r;
-@:        miniCtx.beginPath(); miniCtx.moveTo(sx, sy); miniCtx.lineTo(tx2, ty2);
-@:        miniCtx.strokeStyle = 'rgba(148,163,184,0.3)'; miniCtx.lineWidth = 1.5; miniCtx.stroke();
-@:        // Flèche
-@:        var al = 7, aa = 0.4, ang = Math.atan2(uy, ux);
-@:        miniCtx.beginPath();
-@:        miniCtx.moveTo(tx2, ty2);
-@:        miniCtx.lineTo(tx2 - al*Math.cos(ang-aa), ty2 - al*Math.sin(ang-aa));
-@:        miniCtx.moveTo(tx2, ty2);
-@:        miniCtx.lineTo(tx2 - al*Math.cos(ang+aa), ty2 - al*Math.sin(ang+aa));
-@:        miniCtx.strokeStyle = 'rgba(148,163,184,0.5)'; miniCtx.lineWidth = 1.2; miniCtx.stroke();
+
+@:        if (e.isMoiEdge) {
+@:            // Relation avec l'entreprise host : forte mise en valeur
+@:            miniCtx.beginPath();
+@:            miniCtx.moveTo(sx2, sy2); miniCtx.lineTo(tx2, ty2);
+@:            var gradLine = miniCtx.createLinearGradient(sx2, sy2, tx2, ty2);
+@:            gradLine.addColorStop(0, 'rgba(123,94,255, 0.95)');
+@:            gradLine.addColorStop(1, 'rgba(123,94,255, 0.45)');
+@:            miniCtx.strokeStyle = gradLine;
+@:            miniCtx.lineWidth = 2.2;
+@:            miniCtx.stroke();
+@:
+@:            // Flèche (pointant vers l'entreprise, sx2, sy2)
+@:            var al = 9, aa = 0.4, revAng = Math.atan2(-uy, -ux);
+@:            miniCtx.beginPath();
+@:            miniCtx.moveTo(sx2, sy2);
+@:            miniCtx.lineTo(sx2 - al*Math.cos(revAng-aa), sy2 - al*Math.sin(revAng-aa));
+@:            miniCtx.moveTo(sx2, sy2);
+@:            miniCtx.lineTo(sx2 - al*Math.cos(revAng+aa), sy2 - al*Math.sin(revAng+aa));
+@:            miniCtx.strokeStyle = 'rgba(123,94,255,0.7)'; miniCtx.lineWidth = 1.8; miniCtx.stroke();
+@:        } else {
+@:            // Relation explicite : mise en retrait
+@:            miniCtx.beginPath(); miniCtx.moveTo(sx2, sy2); miniCtx.lineTo(tx2, ty2);
+@:            miniCtx.strokeStyle = 'rgba(148,163,184,0.2)'; miniCtx.lineWidth = 1.2; miniCtx.stroke();
+@:            // Flèche
+@:            var al = 7, aa = 0.4, ang = Math.atan2(uy, ux);
+@:            miniCtx.beginPath();
+@:            miniCtx.moveTo(tx2, ty2);
+@:            miniCtx.lineTo(tx2 - al*Math.cos(ang-aa), ty2 - al*Math.sin(ang-aa));
+@:            miniCtx.moveTo(tx2, ty2);
+@:            miniCtx.lineTo(tx2 - al*Math.cos(ang+aa), ty2 - al*Math.sin(ang+aa));
+@:            miniCtx.strokeStyle = 'rgba(148,163,184,0.35)'; miniCtx.lineWidth = 1; miniCtx.stroke();
+@:        }
+@:
 @:        // Label
 @:        if (e.type) {
-@:            var mx = (sx+tx2)/2, my = (sy+ty2)/2;
-@:            miniCtx.fillStyle = 'rgba(148,163,184,0.6)';
-@:            miniCtx.font = '9px "Plus Jakarta Sans", sans-serif';
+@:            var mx = (sx2+tx2)/2, my = (sy2+ty2)/2;
+@:            miniCtx.fillStyle = e.isMoiEdge ? 'rgba(167,139,250,0.95)' : 'rgba(148,163,184,0.6)';
+@:            miniCtx.font = e.isMoiEdge ? 'bold 9px "Plus Jakarta Sans", sans-serif' : '9px "Plus Jakarta Sans", sans-serif';
 @:            miniCtx.textAlign = 'center'; miniCtx.fillText(e.type, mx, my - 4);
 @:        }
 @:    });
@@ -1444,37 +1501,55 @@ function fillField(id, value) {
 @:    // Nœuds
 @:    miniNodes.forEach(function (n) {
 @:        var isHov     = miniHovered && miniHovered.id === n.id;
-@:        var color     = n.isCurrent ? '#7B5EFF' : getRoleColorMini(n.roles);
+@:        var color     = n.isMoi ? '#7b5eff' : (n.isCurrent ? '#7B5EFF' : getRoleColorMini(n.roles));
 @:        var r         = isHov ? n.r + 3 : n.r;
-@:        // Halo (nœud courant ou hover)
-@:        if (n.isCurrent || isHov) {
+
+@:        // Halo glow (Moi, contact courant, ou hover)
+@:        if (isHov || n.isMoi || n.isCurrent) {
 @:            var haloGrad = miniCtx.createRadialGradient(n.x, n.y, r*0.5, n.x, n.y, r*2.2);
-@:            haloGrad.addColorStop(0, color + '44');
+@:            haloGrad.addColorStop(0, color + (n.isMoi ? '44' : '55'));
 @:            haloGrad.addColorStop(1, 'transparent');
 @:            miniCtx.beginPath(); miniCtx.arc(n.x, n.y, r*2.2, 0, Math.PI*2);
 @:            miniCtx.fillStyle = haloGrad; miniCtx.fill();
 @:        }
-@:        // Cercle
+
+@:        // Cercle principal
+@:        miniCtx.beginPath(); miniCtx.arc(n.x, n.y, r, 0, Math.PI*2);
 @:        var grad = miniCtx.createRadialGradient(n.x-r*0.3, n.y-r*0.3, r*0.1, n.x, n.y, r);
-@:        grad.addColorStop(0, color + 'CC');
-@:        grad.addColorStop(1, color + (n.isCurrent ? 'AA' : '66'));
-@:        miniCtx.beginPath(); miniCtx.arc(n.x, n.y, r, 0, Math.PI*2);
+@:        if (n.isMoi) {
+@:            grad.addColorStop(0, '#a78bfa');
+@:            grad.addColorStop(1, '#6d28d9');
+@:        } else {
+@:            grad.addColorStop(0, color + 'CC');
+@:            grad.addColorStop(1, color + '66');
+@:        }
 @:        miniCtx.fillStyle = grad; miniCtx.fill();
+
+@:        // Bordure
 @:        miniCtx.beginPath(); miniCtx.arc(n.x, n.y, r, 0, Math.PI*2);
-@:        miniCtx.strokeStyle = isHov || n.isCurrent ? color : color + '88';
-@:        miniCtx.lineWidth   = n.isCurrent ? 2.5 : (isHov ? 2 : 1.5);
+@:        miniCtx.strokeStyle = n.isMoi ? '#a78bfa' : (isHov || n.isCurrent ? color : color + '88');
+@:        miniCtx.lineWidth   = n.isMoi ? 2.5 : (n.isCurrent ? 2 : (isHov ? 2 : 1.5));
 @:        miniCtx.stroke();
+
 @:        // Initiales
 @:        miniCtx.fillStyle = '#fff';
-@:        miniCtx.font = '700 ' + Math.round(r*0.42) + 'px "Plus Jakarta Sans", sans-serif';
+@:        miniCtx.font = '700 ' + Math.round(r * (n.isMoi ? 0.4 : 0.42)) + 'px "Plus Jakarta Sans", sans-serif';
 @:        miniCtx.textAlign = 'center'; miniCtx.textBaseline = 'middle';
 @:        miniCtx.fillText(n.initials, n.x, n.y);
+
 @:        // Nom sous le nœud
 @:        var label = n.name.length > 14 ? n.name.slice(0,12) + '…' : n.name;
-@:        miniCtx.fillStyle = isHov || n.isCurrent ? '#fff' : 'rgba(196,206,231,0.75)';
-@:        miniCtx.font      = (n.isCurrent ? '700' : '500') + ' 10px "Plus Jakarta Sans", sans-serif';
+@:        miniCtx.fillStyle = n.isMoi ? '#c4b5fd' : (isHov || n.isCurrent ? '#fff' : 'rgba(196,206,231,0.8)');
+@:        miniCtx.font      = ((n.isMoi || n.isCurrent) ? '600' : '500') + ' ' + (n.isMoi ? '11' : '10') + 'px "Plus Jakarta Sans", sans-serif';
 @:        miniCtx.textAlign = 'center'; miniCtx.textBaseline = 'top';
 @:        miniCtx.fillText(label, n.x, n.y + r + 5);
+@:        
+@:        // Indice de navigation
+@:        if (isHov && !n.isCurrent && !n.isMoi) {
+@:            miniCtx.fillStyle = 'rgba(123,94,255, 0.9)';
+@:            miniCtx.font = '600 8px "Plus Jakarta Sans", sans-serif';
+@:            miniCtx.fillText("Cliquez pour ouvrir", n.x, n.y + r + 20);
+@:        }
 @:    });
 
 @:    miniCtx.restore();
@@ -1487,6 +1562,7 @@ function fillField(id, value) {
 @:    return miniNodes.find(function(n) { return Math.hypot(n.x-wx, n.y-wy) <= n.r + 4; }) || null;
 @:}
 
+@:var hasMiniDragged = false;
 @:function setupMiniGraphEvents() {
 @:    if (!miniCanvas) return;
 @:    miniCanvas.addEventListener('wheel', function(e) {
@@ -1496,12 +1572,14 @@ function fillField(id, value) {
 @:    }, { passive: false });
 @:    miniCanvas.addEventListener('mousedown', function(e) {
 @:        miniDragging = true;
+@:        hasMiniDragged = false;
 @:        miniDragStart = { x: e.offsetX, y: e.offsetY };
 @:        miniPanStart  = { x: miniPanX,  y: miniPanY  };
 @:        miniCanvas.style.cursor = 'grabbing';
 @:    });
 @:    miniCanvas.addEventListener('mousemove', function(e) {
 @:        if (miniDragging) {
+@:            hasMiniDragged = true;
 @:            miniPanX = miniPanStart.x + (e.offsetX - miniDragStart.x);
 @:            miniPanY = miniPanStart.y + (e.offsetY - miniDragStart.y);
 @:            drawMiniGraph(); return;
@@ -1509,12 +1587,17 @@ function fillField(id, value) {
 @:        var node = getMiniNodeAt(e.offsetX, e.offsetY);
 @:        if (node !== miniHovered) { miniHovered = node; miniCanvas.style.cursor = node ? 'pointer' : 'default'; drawMiniGraph(); }
 @:    });
-@:    miniCanvas.addEventListener('mouseup',    function() { miniDragging = false; miniCanvas.style.cursor = miniHovered ? 'pointer' : 'default'; });
-@:    miniCanvas.addEventListener('mouseleave', function() { miniDragging = false; miniHovered = null; drawMiniGraph(); });
-@:    miniCanvas.addEventListener('click', function(e) {
-@:        var node = getMiniNodeAt(e.offsetX, e.offsetY);
-@:        if (node && !node.isCurrent) window.location.href = '/AnnuaireNew/' + node.id;
+@:    miniCanvas.addEventListener('mouseup', function(e) {
+@:        miniDragging = false;
+@:        miniCanvas.style.cursor = miniHovered ? 'pointer' : 'default';
+@:        if (!hasMiniDragged) {
+@:            var node = getMiniNodeAt(e.offsetX, e.offsetY);
+@:            if (node && !node.isCurrent && !node.isMoi) {
+@:                window.location.href = '/AnnuaireNew/' + node.id;
+@:            }
+@:        }
 @:    });
+@:    miniCanvas.addEventListener('mouseleave', function() { miniDragging = false; miniHovered = null; drawMiniGraph(); });
 @:}
 }
 </script>
