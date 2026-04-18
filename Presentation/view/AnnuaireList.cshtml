@@ -640,19 +640,34 @@ function updateGraphFilter() {
 
     const filteredIds = new Set(filteredContacts.map(c => c.id));
 
-    graphNodes = GRAPH_DATA.nodes
+    // Nœud "Moi" — toujours présent au centre, ancré, jamais déplacé
+    const moiNode = {
+        id: -1, name: 'Mon Entreprise', initials: 'MOI',
+        roles: 0, domain: '', email: '', isMoi: true,
+        x: canvas.width / 2, y: canvas.height / 2,
+        vx: 0, vy: 0, r: 36
+    };
+
+    graphNodes = [moiNode, ...GRAPH_DATA.nodes
         .filter(n => filteredIds.has(n.id))
         .map(n => ({
             ...n,
             x: canvas.width  / 2 + (Math.random() - 0.5) * canvas.width  * 0.6,
             y: canvas.height / 2 + (Math.random() - 0.5) * canvas.height * 0.6,
-            vx: 0, vy: 0,
-            r: 28
-        }));
+            vx: 0, vy: 0, r: 28
+        }))];
 
-    graphEdges = GRAPH_DATA.edges.filter(e =>
-        filteredIds.has(e.source) && filteredIds.has(e.target)
-    );
+    // Arêtes implicites : Moi → chaque contact visible
+    const moiEdges = filteredContacts.map(c => ({
+        source: -1, target: c.id, type: '', isMoiEdge: true
+    }));
+
+    // Relations explicites entre contacts
+    const relationEdges = GRAPH_DATA.edges
+        .filter(e => filteredIds.has(e.source) && filteredIds.has(e.target))
+        .map(e => ({ ...e, isMoiEdge: false }));
+
+    graphEdges = [...moiEdges, ...relationEdges];
 
     reSimulate();
 }
@@ -661,8 +676,9 @@ function reSimulate() {
     if (!canvas) return;
     if (simAnim) cancelAnimationFrame(simAnim);
 
-    // Re-scatter nodes
+    // Re-scatter nodes (Moi reste ancré au centre)
     graphNodes.forEach(n => {
+        if (n.isMoi) { n.x = canvas.width / 2; n.y = canvas.height / 2; n.vx = 0; n.vy = 0; return; }
         const angle = Math.random() * Math.PI * 2;
         const r = Math.min(canvas.width, canvas.height) * 0.28;
         n.x = canvas.width  / 2 + r * Math.cos(angle) * (0.5 + Math.random());
@@ -714,8 +730,9 @@ function simulateStep(alpha) {
         t.vx -= fx; t.vy -= fy;
     }
 
-    // Gravité vers le centre + amortissement
+    // Gravité vers le centre + amortissement (Moi ancré, ne bouge pas)
     graphNodes.forEach(n => {
+        if (n.isMoi) { n.vx = 0; n.vy = 0; n.x = W / 2; n.y = H / 2; return; }
         n.vx += (cx - n.x) * 0.0015 * alpha;
         n.vy += (cy - n.y) * 0.0015 * alpha;
         n.vx *= 0.84; n.vy *= 0.84;
@@ -749,51 +766,61 @@ function drawGraph() {
         const sx = s.x + ux * s.r, sy = s.y + uy * s.r;
         const tx = t.x - ux * t.r, ty = t.y - uy * t.r;
 
-        // Ligne
-        ctx.beginPath();
-        ctx.moveTo(sx, sy);
-        ctx.lineTo(tx, ty);
-        ctx.strokeStyle = 'rgba(148,163,184,0.25)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        if (e.isMoiEdge) {
+            // Lien implicite Moi → contact : pointillé violet subtil, sans flèche
+            ctx.beginPath();
+            ctx.setLineDash([4, 7]);
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(tx, ty);
+            ctx.strokeStyle = 'rgba(123,94,255,0.22)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            ctx.setLineDash([]);
+        } else {
+            // Relation explicite entre contacts : trait plein + flèche + label
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(tx, ty);
+            ctx.strokeStyle = 'rgba(148,163,184,0.35)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
 
-        // Flèche
-        const arrowLen = 8, arrowAngle = 0.4;
-        ctx.beginPath();
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(tx - arrowLen * Math.cos(Math.atan2(uy, ux) - arrowAngle),
-                   ty - arrowLen * Math.sin(Math.atan2(uy, ux) - arrowAngle));
-        ctx.moveTo(tx, ty);
-        ctx.lineTo(tx - arrowLen * Math.cos(Math.atan2(uy, ux) + arrowAngle),
-                   ty - arrowLen * Math.sin(Math.atan2(uy, ux) + arrowAngle));
-        ctx.strokeStyle = 'rgba(148,163,184,0.45)';
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
+            const arrowLen = 8, arrowAngle = 0.4;
+            ctx.beginPath();
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx - arrowLen * Math.cos(Math.atan2(uy, ux) - arrowAngle),
+                       ty - arrowLen * Math.sin(Math.atan2(uy, ux) - arrowAngle));
+            ctx.moveTo(tx, ty);
+            ctx.lineTo(tx - arrowLen * Math.cos(Math.atan2(uy, ux) + arrowAngle),
+                       ty - arrowLen * Math.sin(Math.atan2(uy, ux) + arrowAngle));
+            ctx.strokeStyle = 'rgba(148,163,184,0.55)';
+            ctx.lineWidth = 1.2;
+            ctx.stroke();
 
-        // Label relation (au milieu)
-        if (e.type) {
-            const mx = (sx + tx) / 2, my = (sy + ty) / 2;
-            ctx.fillStyle = 'rgba(148,163,184,0.6)';
-            ctx.font = '10px "Plus Jakarta Sans", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(e.type, mx, my - 4);
+            if (e.type) {
+                const mx = (sx + tx) / 2, my = (sy + ty) / 2;
+                ctx.fillStyle = 'rgba(148,163,184,0.7)';
+                ctx.font = '10px "Plus Jakarta Sans", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(e.type, mx, my - 4);
+            }
         }
     }
 
     // ── Nœuds ────────────────────────────────────────────────────
     for (const n of graphNodes) {
         const isHovered = hoveredNode && hoveredNode.id === n.id;
-        const color = getRoleColor(n.roles);
+        const color = n.isMoi ? '#7b5eff' : getRoleColor(n.roles);
         const r = isHovered ? n.r + 3 : n.r;
 
         // Halo glow
-        if (isHovered) {
-            const grad = ctx.createRadialGradient(n.x, n.y, r * 0.5, n.x, n.y, r * 2);
-            grad.addColorStop(0, color + '55');
-            grad.addColorStop(1, 'transparent');
+        if (isHovered || n.isMoi) {
+            const haloGrad = ctx.createRadialGradient(n.x, n.y, r * 0.5, n.x, n.y, r * 2.2);
+            haloGrad.addColorStop(0, color + (n.isMoi ? '44' : '55'));
+            haloGrad.addColorStop(1, 'transparent');
             ctx.beginPath();
-            ctx.arc(n.x, n.y, r * 2, 0, Math.PI * 2);
-            ctx.fillStyle = grad;
+            ctx.arc(n.x, n.y, r * 2.2, 0, Math.PI * 2);
+            ctx.fillStyle = haloGrad;
             ctx.fill();
         }
 
@@ -801,28 +828,33 @@ function drawGraph() {
         ctx.beginPath();
         ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
         const grad = ctx.createRadialGradient(n.x - r * 0.3, n.y - r * 0.3, r * 0.1, n.x, n.y, r);
-        grad.addColorStop(0, color + 'CC');
-        grad.addColorStop(1, color + '66');
+        if (n.isMoi) {
+            grad.addColorStop(0, '#a78bfa');
+            grad.addColorStop(1, '#6d28d9');
+        } else {
+            grad.addColorStop(0, color + 'CC');
+            grad.addColorStop(1, color + '66');
+        }
         ctx.fillStyle = grad;
         ctx.fill();
 
         // Bordure
         ctx.beginPath();
         ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.strokeStyle = isHovered ? color : color + '88';
-        ctx.lineWidth = isHovered ? 2 : 1.5;
+        ctx.strokeStyle = n.isMoi ? '#a78bfa' : (isHovered ? color : color + '88');
+        ctx.lineWidth = n.isMoi ? 2.5 : (isHovered ? 2 : 1.5);
         ctx.stroke();
 
         // Initiales
         ctx.fillStyle = '#fff';
-        ctx.font = `700 ${Math.round(r * 0.45)}px "Plus Jakarta Sans", sans-serif`;
+        ctx.font = `700 ${Math.round(r * (n.isMoi ? 0.4 : 0.45))}px "Plus Jakarta Sans", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(n.initials, n.x, n.y);
 
         // Nom sous le nœud
-        ctx.fillStyle = isHovered ? '#fff' : 'rgba(196,206,231,0.8)';
-        ctx.font = `${isHovered ? '600' : '500'} 11px "Plus Jakarta Sans", sans-serif`;
+        ctx.fillStyle = n.isMoi ? '#c4b5fd' : (isHovered ? '#fff' : 'rgba(196,206,231,0.8)');
+        ctx.font = `${(isHovered || n.isMoi) ? '600' : '500'} ${n.isMoi ? 12 : 11}px "Plus Jakarta Sans", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
         const label = n.name.length > 16 ? n.name.slice(0, 14) + '…' : n.name;
@@ -917,7 +949,7 @@ function setupGraphEvents() {
 
     canvas.addEventListener('click', e => {
         const node = getNodeAt(e.offsetX, e.offsetY);
-        if (node) window.location.href = `/AnnuaireNew/${node.id}`;
+        if (node && !node.isMoi) window.location.href = `/AnnuaireNew/${node.id}`;
     });
 }
 
@@ -925,10 +957,17 @@ function updateTooltip(e, node) {
     const tt = document.getElementById('graphTooltip');
     if (!node) { hideTooltip(); return; }
 
-    document.getElementById('ttName').textContent   = node.name;
-    document.getElementById('ttDomain').textContent = node.domain || '';
-    document.getElementById('ttEmail').textContent  = node.email  || '';
-    document.getElementById('ttRoles').innerHTML    = getRoleBadges(node.roles);
+    if (node.isMoi) {
+        document.getElementById('ttName').textContent   = 'Mon Entreprise';
+        document.getElementById('ttDomain').textContent = 'Centre de votre réseau';
+        document.getElementById('ttEmail').textContent  = `${graphNodes.length - 1} contact(s) connecté(s)`;
+        document.getElementById('ttRoles').innerHTML    = '';
+    } else {
+        document.getElementById('ttName').textContent   = node.name;
+        document.getElementById('ttDomain').textContent = node.domain || '';
+        document.getElementById('ttEmail').textContent  = node.email  || '';
+        document.getElementById('ttRoles').innerHTML    = getRoleBadges(node.roles);
+    }
 
     const wrap = canvas.parentElement.getBoundingClientRect();
     const canvasRect = canvas.getBoundingClientRect();
