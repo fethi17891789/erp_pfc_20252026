@@ -16,6 +16,32 @@ Le nom marketing du produit est **« SKYRA »** (anciennement « ERP Suite »). 
 
 ---
 
+## 🧭 PHILOSOPHIE UX — RÈGLE FONDAMENTALE
+
+> **SKYRA doit être aussi puissant qu'Odoo, mais significativement plus simple à utiliser.**
+
+Odoo est réputé pour sa richesse fonctionnelle mais souffre d'une complexité excessive qui décourage les utilisateurs. SKYRA vise à offrir autant (voire plus) de fonctionnalités tout en restant **intuitif dès la première utilisation**.
+
+### Principes UX à respecter impérativement dans tout développement :
+
+1. **0-click pour les tâches fréquentes** — Les valeurs par défaut doivent être intelligentes. L'utilisateur ne doit pas avoir à configurer ce qui est évident.
+
+2. **Zéro jargon ERP sans explication** — Les labels doivent être compréhensibles sans formation. Si un terme technique est inévitable (BOM, MRP, OF), il doit être accompagné d'une explication courte en sous-texte ou tooltip.
+
+3. **Feedback immédiat et visible** — Chaque action doit produire un retour visuel dans les 300ms : toast de succès/erreur, spinner de chargement, état de bouton "en cours". Utiliser systématiquement des toasts animés (pattern déjà en place sur ProduitNew), jamais `alert()` ou `confirm()` natif du navigateur.
+
+4. **États vides utiles (Empty States)** — Une page vide n'est jamais une impasse. Elle doit expliquer quoi faire et proposer un CTA clair (bouton "Créer votre premier X").
+
+5. **L'IA suggère proactivement** — L'assistant Gemini intégré doit être accessible depuis n'importe quel module pour guider l'utilisateur ("Comment créer une BOM ?", "Explique-moi le MRP").
+
+6. **Cohérence absolue des patterns** — Un même type d'action doit toujours se faire de la même façon dans tous les modules : même style de modale de suppression (jamais `confirm()` natif), même style de toast, même position des boutons d'action.
+
+7. **Navigation contextuelle** — La sidebar doit toujours indiquer où on est. Le sous-module actif doit automatiquement ouvrir son accordéon parent. Un fil d'Ariane (breadcrumb) doit apparaître sur les pages de détail.
+
+8. **Simplicité ≠ moins de fonctionnalités** — Ne jamais supprimer une fonctionnalité au nom de la simplicité. Simplifier = mieux organiser, mieux présenter, mieux guider. Les options avancées peuvent être dans des sections "Avancé" collapsibles.
+
+---
+
 ## 📐 Architecture Technique
 
 ### Stack Principal
