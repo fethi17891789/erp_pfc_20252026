@@ -25,6 +25,16 @@ namespace Donnees.Logistique
         public string Statut { get; set; } = "En Cours"; // En Cours, Termine, Annule
 
         // Stockage du tracé sous forme de JSON (points de passage)
-        public string? TraceJson { get; set; } 
+        public string? TraceJson { get; set; }
+
+        // ─── Champs RSE / Empreinte Carbone ─────────────────────────────────
+        /// <summary>CO2 total émis en grammes pour ce trajet</summary>
+        public double Co2EmisGrammes { get; set; } = 0;
+
+        /// <summary>Durée de ralenti moteur en minutes (moteur allumé, vitesse ≤ 2 km/h)</summary>
+        public double DureeArretMinutes { get; set; } = 0;
+
+        /// <summary>Type d'itinéraire choisi : Rapide ou Ecologique</summary>
+        public string? ItineraireType { get; set; }
     }
 }

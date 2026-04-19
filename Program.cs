@@ -705,7 +705,12 @@ using (var scope7 = app.Services.CreateScope())
                     ""Latitude"" DOUBLE PRECISION NULL,
                     ""Longitude"" DOUBLE PRECISION NULL,
                     ""DerniereMiseAJour"" TIMESTAMP WITHOUT TIME ZONE NULL,
-                    ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+                    ""DateCreation"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""Marque"" VARCHAR(100) NULL,
+                    ""Modele"" VARCHAR(100) NULL,
+                    ""Annee"" INT NULL,
+                    ""TypeCarburant"" VARCHAR(50) NULL,
+                    ""EmissionCO2ParKm"" DOUBLE PRECISION NULL
                 );
 
                 CREATE TABLE IF NOT EXISTS ""LogistiqueCapteurs"" (
@@ -728,7 +733,10 @@ using (var scope7 = app.Services.CreateScope())
                     ""Destination"" VARCHAR(255),
                     ""DistanceParcourueKm"" DOUBLE PRECISION NOT NULL DEFAULT 0,
                     ""Statut"" VARCHAR(50) NOT NULL DEFAULT 'En Cours',
-                    ""TraceJson"" TEXT NULL
+                    ""TraceJson"" TEXT NULL,
+                    ""Co2EmisGrammes"" DOUBLE PRECISION NOT NULL DEFAULT 0,
+                    ""DureeArretMinutes"" DOUBLE PRECISION NOT NULL DEFAULT 0,
+                    ""ItineraireType"" VARCHAR(50) NULL
                 );";
 
             using (var cmd = new NpgsqlCommand(createLogistiqueTablesSql, conn))
@@ -737,6 +745,32 @@ using (var scope7 = app.Services.CreateScope())
                 cmd.ExecuteNonQuery();
                 Console.WriteLine("[DEBUG] Tables Logistique prêtes.");
             }
+
+            // Migration RSE : ajout des colonnes sur tables existantes (idempotent)
+            var alterCols = new[]
+            {
+                @"ALTER TABLE ""LogistiqueVehicules"" ADD COLUMN IF NOT EXISTS ""Marque"" VARCHAR(100) NULL",
+                @"ALTER TABLE ""LogistiqueVehicules"" ADD COLUMN IF NOT EXISTS ""Modele"" VARCHAR(100) NULL",
+                @"ALTER TABLE ""LogistiqueVehicules"" ADD COLUMN IF NOT EXISTS ""Annee"" INT NULL",
+                @"ALTER TABLE ""LogistiqueVehicules"" ADD COLUMN IF NOT EXISTS ""TypeCarburant"" VARCHAR(50) NULL",
+                @"ALTER TABLE ""LogistiqueVehicules"" ADD COLUMN IF NOT EXISTS ""EmissionCO2ParKm"" DOUBLE PRECISION NULL",
+                @"ALTER TABLE ""LogistiqueTrajets"" ADD COLUMN IF NOT EXISTS ""Co2EmisGrammes"" DOUBLE PRECISION NOT NULL DEFAULT 0",
+                @"ALTER TABLE ""LogistiqueTrajets"" ADD COLUMN IF NOT EXISTS ""DureeArretMinutes"" DOUBLE PRECISION NOT NULL DEFAULT 0",
+                @"ALTER TABLE ""LogistiqueTrajets"" ADD COLUMN IF NOT EXISTS ""ItineraireType"" VARCHAR(50) NULL",
+            };
+            foreach (var sql in alterCols)
+            {
+                try
+                {
+                    using var cmdAlt = new NpgsqlCommand(sql, conn);
+                    cmdAlt.ExecuteNonQuery();
+                }
+                catch (Exception ex2)
+                {
+                    Console.WriteLine($"[DEBUG] ALTER (ignoré si colonne existe déjà) : {ex2.Message}");
+                }
+            }
+            Console.WriteLine("[DEBUG] Colonnes RSE Logistique prêtes.");
         }
     }
     catch (Exception ex)

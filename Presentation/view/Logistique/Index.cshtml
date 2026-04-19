@@ -260,8 +260,12 @@
                                             @(isOnline ? "En route" : "Disponible")
                                         </div>
                                     </div>
-                                    <div style="font-size:0.75rem; color:var(--text-muted); display:flex; gap:10px; align-items:center;">
+                                    <div style="font-size:0.75rem; color:var(--text-muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                                         <span>🚛 @v.TypeTransport</span>
+                                        @if(!string.IsNullOrEmpty(v.TypeCarburant)) {
+                                            var co2Color = v.EmissionCO2ParKm <= 50 ? "#22c55e" : v.EmissionCO2ParKm <= 130 ? "#eab308" : "#ef4444";
+                                            <span style="color:@co2Color; font-size:0.65rem; background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:999px;">@v.TypeCarburant @(v.EmissionCO2ParKm.HasValue ? $"· {v.EmissionCO2ParKm:F0} g/km" : "")</span>
+                                        }
                                         @if(v.Latitude.HasValue) {
                                             <span style="color:var(--accent-light);">📍 @v.Latitude.Value.ToString("F4"), @v.Longitude.Value.ToString("F4")</span>
                                         }
@@ -293,31 +297,54 @@
                     <div id="map" style="height: 100%; width: 100%;"></div>
                     
                     <!-- Panneau de Stats Live (Uniquement sur sélection) -->
-                    <div id="live-stats-panel" class="live-stats-panel">
+                    <div id="live-stats-panel" class="live-stats-panel" style="min-width:240px;">
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                             <h5 id="live-stat-name" style="margin:0; font-size:1rem; color:var(--accent-light);">Véhicule</h5>
                             <button onclick="closeLiveStats()" style="background:none; border:none; color:white; cursor:pointer; opacity:0.5;">✕</button>
                         </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:10px;">
                             <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
-                                <div style="font-size:0.7rem; color:var(--text-muted);">Vitesse</div>
-                                <div id="live-stat-speed" style="font-size:1.1rem; font-weight:700;">0 km/h</div>
+                                <div style="font-size:0.65rem; color:var(--text-muted);">Vitesse</div>
+                                <div id="live-stat-speed" style="font-size:1rem; font-weight:700;">0 km/h</div>
                             </div>
                             <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
-                                <div style="font-size:0.7rem; color:var(--text-muted);">Distance</div>
-                                <div id="live-stat-distance" style="font-size:1.1rem; font-weight:700;">0.00 km</div>
+                                <div style="font-size:0.65rem; color:var(--text-muted);">Distance</div>
+                                <div id="live-stat-distance" style="font-size:1rem; font-weight:700;">0.00 km</div>
                             </div>
                             <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
-                                <div style="font-size:0.7rem; color:var(--text-muted);">Temps</div>
-                                <div id="live-stat-duration" style="font-size:1.1rem; font-weight:700;">00:00</div>
+                                <div style="font-size:0.65rem; color:var(--text-muted);">Temps</div>
+                                <div id="live-stat-duration" style="font-size:1rem; font-weight:700;">00:00</div>
                             </div>
+                        </div>
+
+                        <!-- Jauge CO2 -->
+                        <div id="co2-panel" style="background:rgba(255,255,255,0.04); border-radius:10px; padding:10px; margin-bottom:8px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                                <span style="font-size:0.68rem; color:var(--text-muted);">🌿 CO2 Émis</span>
+                                <span id="live-co2-value" style="font-size:0.8rem; font-weight:700; color:#22c55e;">0 g</span>
+                            </div>
+                            <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden;">
+                                <div id="co2-gauge-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#22c55e,#eab308); border-radius:999px; transition:width 0.8s ease, background 0.8s ease;"></div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; margin-top:3px;">
+                                <span style="font-size:0.6rem; color:#22c55e;">Vert</span>
+                                <span style="font-size:0.6rem; color:#eab308;">3 kg</span>
+                                <span style="font-size:0.6rem; color:#ef4444;">8 kg</span>
+                            </div>
+                        </div>
+
+                        <!-- Recommandation RSE -->
+                        <div id="rse-reco-panel" style="display:none; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:10px;">
+                            <div style="font-size:0.7rem; color:#f87171; font-weight:600; margin-bottom:4px;">⚠️ Seuil CO2 dépassé</div>
+                            <div id="rse-reco-text" style="font-size:0.68rem; color:var(--text-muted); line-height:1.4;"></div>
                         </div>
                     </div>
 
                     <div class="map-controls">
-                        <button class="header-btn" title="Générer Rapport" style="padding:10px; border-radius:12px;">📈</button>
+                        <a href="/Logistique/Environnement" class="header-btn" title="Dashboard RSE" style="padding:10px; border-radius:12px; text-decoration:none; display:flex; align-items:center; justify-content:center;">🌿</a>
                         <button class="header-btn" title="Couches Carte" style="padding:10px; border-radius:12px;" onclick="resetMapLayers()">🔁</button>
                     </div>
+
                 </div>
             </div>
 
@@ -336,6 +363,7 @@
                                 <th>Départ</th>
                                 <th>Arrivée</th>
                                 <th>Distance</th>
+                                <th>CO2</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
@@ -357,31 +385,69 @@
         <h3>Ajouter un nouveau véhicule</h3>
         <p>Renseignez les informations pour intégrer le véhicule à la flotte.</p>
 
-        <form method="post" asp-page-handler="AddVehicule" class="logout-modal-actions" style="flex-direction:column; gap:16px; align-items:stretch;">
-            <div class="form-group">
-                <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Nom du véhicule</label>
-                <input name="nom" type="text" class="job-input" placeholder="Ex: Camion Livraison A" required 
-                       style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white;" />
+        <form method="post" asp-page-handler="AddVehicule" class="logout-modal-actions" style="flex-direction:column; gap:14px; align-items:stretch;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Nom du véhicule *</label>
+                    <input name="nom" type="text" placeholder="Ex: Camion Livraison A" required
+                           style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Plaque *</label>
+                    <input name="matricule" type="text" placeholder="Ex: 12345-113-16" required
+                           style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
+                </div>
             </div>
 
-            <div class="form-group">
-                <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Plaque d'immatriculation</label>
-                <input name="matricule" type="text" class="job-input" placeholder="Ex: 12345-113-16" required 
-                       style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white;" />
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Marque</label>
+                    <input name="marque" type="text" placeholder="Ex: Renault, Mercedes..."
+                           style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Modèle</label>
+                    <input name="modele" type="text" placeholder="Ex: Master, Sprinter..."
+                           style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
+                </div>
             </div>
 
-            <div class="form-group">
-                <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Type de transport</label>
-                <select name="type" class="job-input" style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; cursor:pointer;">
-                    <option value="Camion">Camion</option>
-                    <option value="Fourgonnette">Fourgonnette</option>
-                    <option value="Moto">Moto</option>
-                    <option value="Drone">Drone</option>
-                </select>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+                <div class="form-group">
+                    <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Année</label>
+                    <input name="annee" type="number" min="1980" max="2030" placeholder="Ex: 2022"
+                           style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Carburant</label>
+                    <select name="carburant" style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; cursor:pointer; font-size:0.85rem;">
+                        <option value="">-- Choisir --</option>
+                        <option value="Essence">Essence</option>
+                        <option value="Diesel">Diesel</option>
+                        <option value="Hybride">Hybride</option>
+                        <option value="Hybride Rechargeable">Hybride Rechargeable</option>
+                        <option value="Électrique">Électrique</option>
+                        <option value="GNV">GNV</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Type *</label>
+                    <select name="type" style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; cursor:pointer; font-size:0.85rem;">
+                        <option value="Camion">Camion</option>
+                        <option value="Fourgonnette">Fourgonnette</option>
+                        <option value="Moto">Moto</option>
+                        <option value="Drone">Drone</option>
+                    </select>
+                </div>
             </div>
 
-            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
-                <button type="button" class="btn-secondary" 
+            <div style="background:rgba(123,94,255,0.08); border:1px solid rgba(123,94,255,0.2); border-radius:10px; padding:10px 14px; display:flex; gap:10px; align-items:center;">
+                <svg style="width:16px; height:16px; color:var(--accent-light); flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span style="font-size:0.75rem; color:var(--text-muted);">L'empreinte carbone (g CO2/km) sera estimée automatiquement par IA lors de la création.</span>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:4px;">
+                <button type="button" class="btn-secondary"
                         onclick="document.getElementById('add-vehicule-modal').style.display='none'"
                         style="padding: 10px 24px; border-radius: 999px; cursor: pointer; font-weight: 600;">
                     Annuler
@@ -738,22 +804,26 @@
         }
     }, 1000);
 
-    connection.on("ReceivePositionWithTrace", function (vehiculeId, trajetId, lat, lon, speed, duration, distanceKm) {
-        // MAJ Marqueur avec Label et Distance
+    connection.on("ReceivePositionWithTrace", function (vehiculeId, trajetId, lat, lon, speed, duration, distanceKm, co2Grammes) {
         const card = document.querySelector(`.vehicle-card[data-vehicule-id="${vehiculeId}"]`);
         const label = card ? card.querySelector('h4').innerText : "Véhicule #" + vehiculeId;
-        
+
         addOrUpdateMarker(vehiculeId, lat, lon, label, { speed: speed, duration: duration, distance: distanceKm });
-        
+
+        // MAJ CO2 temps réel
+        if (selectedVehiculeId == vehiculeId && co2Grammes !== undefined) {
+            updateCO2Gauge(co2Grammes, vehiculeId);
+        }
+
         // MAJ Tracé
         if (activeTrajets[trajetId]) {
             activeTrajets[trajetId].polyline.addLatLng([lat, lon]);
-            // Recalage éventuel de la startTime si le serveur envoie une info plus précise
+            activeTrajets[trajetId].lastCO2 = co2Grammes || 0;
         }
     });
 
-    connection.on("TrajetEnded", function (vehiculeId, trajetId, rawTraceJson, distanceKm) {
-        console.log("✅ Trajet terminé :", vehiculeId, trajetId, "Distance:", distanceKm);
+    connection.on("TrajetEnded", function (vehiculeId, trajetId, rawTraceJson, distanceKm, co2Grammes) {
+        console.log("✅ Trajet terminé :", vehiculeId, trajetId, "Distance:", distanceKm, "CO2:", co2Grammes, "g");
         
         // 1. Reset Statut UI Direct et Instantané
         const card = document.querySelector(`.vehicle-card[data-vehicule-id="${vehiculeId}"]`);
@@ -796,12 +866,15 @@
                 row.onclick = () => showHistoryTrace(t.traceJson);
                 
                 const dateStart = new Date(t.dateDebut).toLocaleString('fr-FR');
+                const co2Kg = (t.co2EmisGrammes || 0) / 1000;
+                const co2Color = co2Kg < 3 ? '#22c55e' : co2Kg < 8 ? '#eab308' : '#ef4444';
                 row.innerHTML = `
                     <td>${dateStart}</td>
                     <td><span style="background:rgba(123,94,255,0.2); color:var(--accent-light); padding:2px 8px; border-radius:4px; font-size:0.75rem;">ID #${t.vehiculeId}</span></td>
                     <td>${t.origine || 'N/A'}</td>
                     <td>${t.destination || 'N/A'}</td>
                     <td><strong>${t.distanceParcourueKm.toFixed(2)} km</strong></td>
+                    <td><span style="color:${co2Color}; font-weight:700; font-size:0.8rem;">${co2Kg > 0 ? co2Kg.toFixed(2) + ' kg' : '—'}</span></td>
                     <td style="color:var(--accent-light); font-weight:bold; font-size:0.75rem;">VOIR TRACÉ ➔</td>
                 `;
                 tbody.appendChild(row);
@@ -834,6 +907,60 @@
             map.fitBounds(poly.getBounds(), { padding: [50, 50] });
         } catch (e) {
             console.error("Erreur parsing trace:", e);
+        }
+    }
+
+    // ── CO2 Gauge ────────────────────────────────────────────────────────
+    // Stocker les données véhicules pour recommandations RSE
+    var vehiculesData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+        Model.Vehicules.Select(v => new {
+            id = v.Id,
+            nom = v.Nom,
+            typeCarburant = v.TypeCarburant ?? "",
+            emissionCO2ParKm = v.EmissionCO2ParKm ?? 0
+        })
+    ));
+
+    function updateCO2Gauge(co2Grammes, vehiculeId) {
+        const co2Kg = co2Grammes / 1000;
+        const valEl = document.getElementById('live-co2-value');
+        const barEl = document.getElementById('co2-gauge-bar');
+        const recoPanel = document.getElementById('rse-reco-panel');
+        const recoText = document.getElementById('rse-reco-text');
+        if (!valEl || !barEl) return;
+
+        // Affichage
+        valEl.innerText = co2Kg >= 1 ? co2Kg.toFixed(2) + ' kg' : co2Grammes.toFixed(0) + ' g';
+
+        // Jauge : 0 → 8 kg = 0 → 100%
+        const pct = Math.min(100, (co2Kg / 8) * 100);
+        barEl.style.width = pct + '%';
+
+        if (co2Kg < 3) {
+            barEl.style.background = 'linear-gradient(90deg,#22c55e,#22c55e)';
+            valEl.style.color = '#22c55e';
+            recoPanel.style.display = 'none';
+        } else if (co2Kg < 8) {
+            barEl.style.background = 'linear-gradient(90deg,#22c55e,#eab308)';
+            valEl.style.color = '#eab308';
+            recoPanel.style.display = 'none';
+        } else {
+            barEl.style.background = 'linear-gradient(90deg,#eab308,#ef4444)';
+            valEl.style.color = '#ef4444';
+
+            // Recommandation : trouver un véhicule moins polluant
+            const currentVeh = vehiculesData.find(v => v.id == vehiculeId);
+            if (currentVeh && currentVeh.emissionCO2ParKm > 0) {
+                const alternatives = vehiculesData
+                    .filter(v => v.id != vehiculeId && v.emissionCO2ParKm > 0 && v.emissionCO2ParKm < currentVeh.emissionCO2ParKm)
+                    .sort((a, b) => a.emissionCO2ParKm - b.emissionCO2ParKm);
+                if (alternatives.length > 0) {
+                    const best = alternatives[0];
+                    const saving = ((currentVeh.emissionCO2ParKm - best.emissionCO2ParKm) / currentVeh.emissionCO2ParKm * 100).toFixed(0);
+                    recoText.innerHTML = `Alternatif suggéré : <strong>${best.nom}</strong> (${best.typeCarburant || 'N/A'}, ${best.emissionCO2ParKm} g/km) — économiserait environ <strong>${saving}%</strong> de CO2 sur ce trajet.`;
+                    recoPanel.style.display = 'block';
+                }
+            }
         }
     }
 

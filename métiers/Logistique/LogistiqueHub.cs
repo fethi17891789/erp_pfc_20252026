@@ -40,18 +40,45 @@ namespace Metier.Logistique
             return trajet.Id;
         }
 
-        public async Task UpdatePositionWithTrace(int vehiculeId, int trajetId, double lat, double lon, double speed, string duration, double distanceKm)
+        public async Task UpdatePositionWithTrace(int vehiculeId, int trajetId, double lat, double lon, double speed, string duration, double distanceKm, double dureeArretMinutes = 0)
         {
             await _logistiqueService.UpdatePositionVehiculeAsync(vehiculeId, lat, lon);
-            // Diffuser le point GPS de la trace avec stats incluant la distance
-            await Clients.Others.SendAsync("ReceivePositionWithTrace", vehiculeId, trajetId, lat, lon, speed, duration, distanceKm);
+
+            // Calcul CO2 temps réel
+            double co2Grammes = 0;
+            var vehicule = await _logistiqueService.GetVehiculeByIdAsync(vehiculeId);
+            if (vehicule?.EmissionCO2ParKm.HasValue == true)
+            {
+                co2Grammes = LogistiqueService.CalculerCO2Trajet(
+                    distanceKm, dureeArretMinutes,
+                    vehicule.EmissionCO2ParKm.Value,
+                    vehicule.TypeCarburant,
+                    vehicule.TypeTransport);
+            }
+
+            // Diffuser avec CO2
+            await Clients.Others.SendAsync("ReceivePositionWithTrace", vehiculeId, trajetId, lat, lon, speed, duration, distanceKm, co2Grammes);
         }
 
-        public async Task EndTrajet(int vehiculeId, int trajetId, string destination, double distanceKm, string traceJson)
+        public async Task EndTrajet(int vehiculeId, int trajetId, string destination, double distanceKm, string traceJson, double dureeArretMinutes = 0, string itineraireType = null)
         {
-            _connectionMap.TryRemove(Context.ConnectionId, out _); // Retirer du mapping (fin propre)
-            await _logistiqueService.EndTrajetAsync(trajetId, destination, distanceKm, traceJson);
-            await Clients.Others.SendAsync("TrajetEnded", vehiculeId, trajetId, traceJson, distanceKm);
+            _connectionMap.TryRemove(Context.ConnectionId, out _);
+
+            // Calcul CO2 final
+            double co2Grammes = 0;
+            var vehicule = await _logistiqueService.GetVehiculeByIdAsync(vehiculeId);
+            if (vehicule?.EmissionCO2ParKm.HasValue == true)
+            {
+                co2Grammes = LogistiqueService.CalculerCO2Trajet(
+                    distanceKm, dureeArretMinutes,
+                    vehicule.EmissionCO2ParKm.Value,
+                    vehicule.TypeCarburant,
+                    vehicule.TypeTransport);
+            }
+
+            await _logistiqueService.EndTrajetAsync(trajetId, destination, distanceKm, traceJson, itineraireType);
+            await _logistiqueService.UpdateCO2TrajetAsync(trajetId, co2Grammes, dureeArretMinutes);
+            await Clients.Others.SendAsync("TrajetEnded", vehiculeId, trajetId, traceJson, distanceKm, co2Grammes);
         }
 
         public async Task<List<Trajet>> GetTrajetHistory()

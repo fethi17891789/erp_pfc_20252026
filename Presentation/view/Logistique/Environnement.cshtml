@@ -1,0 +1,629 @@
+@page
+@model erp_pfc_20252026.Pages.Logistique.EnvironnementModel
+@{
+    ViewData["Title"] = "Bilan Carbone RSE";
+}
+
+@section Styles {
+<style>
+/* ── Layout ─────────────────────────────────────────────────────────── */
+.rse-page { padding: 28px 32px; overflow-y: auto; height: 100%; }
+
+/* ── KPI Cards ──────────────────────────────────────────────────────── */
+.kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+    margin-bottom: 32px;
+}
+
+.kpi-card {
+    position: relative;
+    background: rgba(8, 10, 28, 0.6);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 22px;
+    padding: 24px;
+    overflow: hidden;
+    cursor: default;
+    transition: transform 0.4s cubic-bezier(0.16,1,0.3,1),
+                box-shadow 0.4s cubic-bezier(0.16,1,0.3,1),
+                border-color 0.4s;
+}
+
+/* Glow de fond au survol */
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--kpi-bg-hover);
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+    border-radius: inherit;
+}
+
+/* Effet shimmer qui traverse la carte */
+.kpi-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(105deg, transparent, rgba(255,255,255,0.04), transparent);
+    transition: left 0.6s cubic-bezier(0.16,1,0.3,1);
+    pointer-events: none;
+}
+
+.kpi-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--kpi-color, rgba(123,94,255,0.4));
+    box-shadow: 0 12px 40px var(--kpi-shadow, rgba(123,94,255,0.18)),
+                0 0 0 1px var(--kpi-color, rgba(123,94,255,0.15)) inset;
+}
+.kpi-card:hover::before { opacity: 1; }
+.kpi-card:hover::after  { left: 160%; }
+
+/* Ligne colorée en bas de la carte */
+.kpi-bottom-line {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--kpi-line);
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: opacity 0.4s, transform 0.5s cubic-bezier(0.16,1,0.3,1);
+    border-radius: 0 0 22px 22px;
+}
+.kpi-card:hover .kpi-bottom-line { opacity: 1; transform: scaleX(1); }
+
+/* Icône */
+.kpi-icon {
+    width: 44px; height: 44px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 18px;
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+.kpi-card:hover .kpi-icon { transform: scale(1.12) rotate(-4deg); }
+.kpi-icon svg { width: 20px; height: 20px; }
+
+/* Valeur */
+.kpi-value {
+    font-size: 2.1rem; font-weight: 900; line-height: 1;
+    margin-bottom: 5px;
+    background: var(--kpi-grad);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.03em;
+    transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+.kpi-card:hover .kpi-value { transform: translateX(3px); }
+
+.kpi-title {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 7px;
+}
+.kpi-sub { font-size: 0.72rem; color: var(--text-muted-2); line-height: 1.5; }
+
+/* ── Charts ──────────────────────────────────────────────────────────── */
+.chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 300px;
+    gap: 18px;
+    margin-bottom: 28px;
+}
+
+.chart-card {
+    background: rgba(8,10,28,0.5);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 22px;
+    padding: 26px;
+    transition: border-color 0.3s;
+}
+.chart-card:hover { border-color: rgba(123,94,255,0.18); }
+.chart-card-title { font-size: 0.95rem; font-weight: 700; color: white; margin-bottom: 3px; }
+.chart-card-sub   { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 22px; }
+
+/* ── Data cards (tables) ─────────────────────────────────────────────── */
+.data-card {
+    background: rgba(8,10,28,0.5);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 22px;
+    padding: 26px;
+    margin-bottom: 20px;
+    transition: border-color 0.3s;
+}
+.data-card:hover { border-color: rgba(123,94,255,0.12); }
+
+.data-card-title { font-size: 0.95rem; font-weight: 700; color: white; margin-bottom: 3px; }
+.data-card-sub   { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 22px; }
+
+/* ── Table ───────────────────────────────────────────────────────────── */
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table thead tr { border-bottom: 1px solid rgba(255,255,255,0.05); }
+.data-table th {
+    text-align: left; font-size: 0.65rem; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-muted-2);
+    padding: 0 14px 13px;
+}
+.data-table td {
+    padding: 14px;
+    font-size: 0.85rem; color: white;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    transition: background 0.15s;
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover td     { background: rgba(123,94,255,0.045); }
+
+/* ── Vehicle row ─────────────────────────────────────────────────────── */
+.veh-name { font-weight: 700; font-size: 0.88rem; }
+
+/* ── Badges ──────────────────────────────────────────────────────────── */
+.badge {
+    display: inline-block; font-size: 0.67rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px; letter-spacing: 0.02em;
+}
+.badge-purple { background: rgba(123,94,255,0.14); color: #c4b5fd; }
+.badge-green  { background: rgba(34,197,94,0.12);  color: #4ade80; }
+.badge-orange { background: rgba(234,179,8,0.12);  color: #fde047; }
+.badge-red    { background: rgba(239,68,68,0.12);  color: #f87171; }
+
+/* ── Progress bar ────────────────────────────────────────────────────── */
+.bar-track {
+    height: 5px; background: rgba(255,255,255,0.05);
+    border-radius: 999px; overflow: hidden;
+}
+.bar-fill {
+    height: 100%; border-radius: 999px; width: 0;
+    transition: width 1.4s cubic-bezier(0.16,1,0.3,1);
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────── */
+.empty-state {
+    text-align: center; padding: 52px 24px; color: var(--text-muted-2);
+}
+.empty-state svg { width: 36px; height: 36px; opacity: 0.2; display: block; margin: 0 auto 14px; }
+.empty-state p   { font-size: 0.88rem; margin: 0 0 5px; }
+.empty-state small { font-size: 0.75rem; }
+
+/* ── Modern List & Rows ──────────────────────────────────────────────── */
+.modern-list {
+    display: flex; flex-direction: column; gap: 10px; margin-top: 10px;
+}
+.modern-list-header {
+    display: flex; padding: 0 20px 10px 20px;
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.09em; color: var(--text-muted-2);
+    border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 6px;
+}
+.modern-row {
+    display: flex; align-items: center; padding: 18px 20px;
+    background: rgba(8, 10, 28, 0.6);
+    border: 1px solid rgba(255,255,255,0.04);
+    border-radius: 18px;
+    transition: all 0.3s cubic-bezier(0.16,1,0.3,1);
+    position: relative; overflow: hidden;
+}
+.modern-row::before {
+    content: ''; position: absolute; inset: 0;
+    background: var(--row-glow, transparent); opacity: 0; transition: opacity 0.3s;
+    pointer-events: none;
+}
+.modern-row:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.1);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.modern-row:hover::before { opacity: 1; }
+.modern-cell {
+    display: flex; color: white; position: relative; z-index: 1;
+}
+.veh-avatar {
+    width: 42px; height: 42px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+/* ── Fade-in entrée ──────────────────────────────────────────────────── */
+@@keyframes rseIn {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.kpi-card { animation: rseIn 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+.kpi-card:nth-child(1) { animation-delay: 0.04s; }
+.kpi-card:nth-child(2) { animation-delay: 0.10s; }
+.kpi-card:nth-child(3) { animation-delay: 0.16s; }
+.kpi-card:nth-child(4) { animation-delay: 0.22s; }
+</style>
+}
+
+@section HeaderLeft {
+    <div style="display:flex; align-items:center; gap:20px;">
+        <div>
+            <h1>Bilan Carbone RSE</h1>
+            <p>Empreinte écologique de la flotte — @System.DateTime.Now.ToString("MMMM yyyy", new System.Globalization.CultureInfo("fr-FR"))</p>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <a asp-page="/Logistique/Index" class="btn-secondary" style="display:flex;align-items:center;gap:8px;text-decoration:none;padding:8px 16px;border-radius:12px;font-size:0.8rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                Retour
+            </a>
+            <a href="/Logistique/Environnement?handler=ExportPdf" class="btn-primary" style="display:flex;align-items:center;gap:8px;text-decoration:none;padding:8px 18px;border-radius:12px;font-size:0.8rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exporter PDF
+            </a>
+        </div>
+    </div>
+}
+
+<section class="erp-content rse-page">
+
+    @* ── KPIs ─────────────────────────────────────────────────────────────── *@
+    <div class="kpi-grid">
+
+        <!-- CO2 total -->
+        <div class="kpi-card" style="
+            --kpi-color: rgba(34,197,94,0.4);
+            --kpi-shadow: rgba(34,197,94,0.15);
+            --kpi-bg-hover: radial-gradient(ellipse at 0% 0%, rgba(34,197,94,0.09), transparent 65%);
+            --kpi-line: linear-gradient(90deg, #22c55e, #4ade80);
+            --kpi-grad: linear-gradient(135deg, #4ade80, #22c55e);">
+            <div class="kpi-bottom-line"></div>
+            <div class="kpi-icon" style="background:rgba(34,197,94,0.12);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+            </div>
+            <div class="kpi-title">CO2 total ce mois</div>
+            <div class="kpi-value">@Model.Stats.TotalCO2KgCeMois.ToString("F2") kg</div>
+            <div class="kpi-sub">@Model.Stats.NombreTrajets trajets &nbsp;·&nbsp; @Model.Stats.DistanceTotaleKm.ToString("F1") km</div>
+        </div>
+
+        <!-- Véhicule polluant -->
+        <div class="kpi-card" style="
+            --kpi-color: rgba(239,68,68,0.4);
+            --kpi-shadow: rgba(239,68,68,0.15);
+            --kpi-bg-hover: radial-gradient(ellipse at 0% 0%, rgba(239,68,68,0.08), transparent 65%);
+            --kpi-line: linear-gradient(90deg, #ef4444, #f87171);
+            --kpi-grad: linear-gradient(135deg, #f87171, #ef4444);">
+            <div class="kpi-bottom-line"></div>
+            <div class="kpi-icon" style="background:rgba(239,68,68,0.12);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div class="kpi-title">Véhicule le plus polluant</div>
+            @if (Model.Stats.VehiculeLesPollant != null)
+            {
+                <div class="kpi-value" style="font-size:1.15rem; letter-spacing:-0.01em;">@Model.Stats.VehiculeLesPollant.Nom</div>
+                <div class="kpi-sub">@Model.Stats.VehiculeLesPollant.CO2TotalKgCeMois.ToString("F2") kg &nbsp;·&nbsp; @(Model.Stats.VehiculeLesPollant.TypeCarburant ?? "N/A")</div>
+            }
+            else
+            {
+                <div class="kpi-value">—</div>
+                <div class="kpi-sub">Aucune donnée ce mois</div>
+            }
+        </div>
+
+        <!-- Économies -->
+        <div class="kpi-card" style="
+            --kpi-color: rgba(234,179,8,0.4);
+            --kpi-shadow: rgba(234,179,8,0.12);
+            --kpi-bg-hover: radial-gradient(ellipse at 0% 0%, rgba(234,179,8,0.07), transparent 65%);
+            --kpi-line: linear-gradient(90deg, #eab308, #fde047);
+            --kpi-grad: linear-gradient(135deg, #fde047, #eab308);">
+            <div class="kpi-bottom-line"></div>
+            <div class="kpi-icon" style="background:rgba(234,179,8,0.12);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fde047" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </div>
+            <div class="kpi-title">Économies potentielles</div>
+            <div class="kpi-value">@Model.Stats.EconomiesPotentiellesKg.ToString("F2") kg</div>
+            <div class="kpi-sub">CO2 préservé si passage au 100% électrique</div>
+        </div>
+
+        <!-- Flotte -->
+        <div class="kpi-card" style="
+            --kpi-color: rgba(123,94,255,0.45);
+            --kpi-shadow: rgba(123,94,255,0.2);
+            --kpi-bg-hover: radial-gradient(ellipse at 0% 0%, rgba(123,94,255,0.1), transparent 65%);
+            --kpi-line: linear-gradient(90deg, #7b5eff, #a855f7);
+            --kpi-grad: linear-gradient(135deg, #a78bfa, #7b5eff);">
+            <div class="kpi-bottom-line"></div>
+            <div class="kpi-icon" style="background:rgba(123,94,255,0.15);">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            </div>
+            <div class="kpi-title">Véhicules en flotte</div>
+            <div class="kpi-value">@Model.Vehicules.Count</div>
+            @{
+                var nbElec  = Model.Vehicules.Count(v => v.TypeCarburant != null && v.TypeCarburant.ToLower().Contains("électr"));
+                var nbTherm = Model.Vehicules.Count - nbElec;
+            }
+            <div class="kpi-sub">@nbElec électrique(s) &nbsp;·&nbsp; @nbTherm thermique(s)</div>
+        </div>
+
+    </div>
+
+    @* ── Graphiques ───────────────────────────────────────────────────────── *@
+    <div class="chart-grid">
+
+        <div class="chart-card">
+            <div class="chart-card-title">Émissions mensuelles</div>
+            <div class="chart-card-sub">CO2 total émis en kg — 6 derniers mois</div>
+            <canvas id="chart-mensuel" height="155"></canvas>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-card-title">Mix énergétique</div>
+            <div class="chart-card-sub">Répartition de la flotte par carburant</div>
+            <canvas id="chart-carburant" height="185"></canvas>
+        </div>
+
+    </div>
+
+    @* ── Performance par véhicule ─────────────────────────────────────────── *@
+    <div class="data-card" style="background: transparent; border: none; padding: 0;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:16px;">
+            <div>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: white; margin: 0 0 4px 0; letter-spacing: -0.02em;">Performance RSE par véhicule</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted-2); margin: 0;">Données cumulées du mois en cours</p>
+            </div>
+            <button class="btn-secondary" style="font-size:0.75rem; padding: 6px 12px; border-radius: 8px;">Trier par CO2</button>
+        </div>
+
+        @if (Model.Stats.CO2ParVehicule.Any())
+        {
+            var maxCO2 = Model.Stats.CO2ParVehicule.Max(v => v.CO2TotalKgCeMois);
+            <div class="modern-list">
+                <div class="modern-list-header">
+                    <div style="width: 25%;">VÉHICULE</div>
+                    <div style="width: 15%; text-align:center;">CARBURANT</div>
+                    <div style="width: 15%; text-align:center;">IMPACT (g/km)</div>
+                    <div style="width: 20%; text-align:center;">DISTANCE / TRAJETS</div>
+                    <div style="width: 25%;">INTENSITÉ CARBONE</div>
+                </div>
+
+                @foreach(var v in Model.Stats.CO2ParVehicule)
+                {
+                    var pct = maxCO2 > 0 ? (v.CO2TotalKgCeMois / maxCO2 * 100) : 0;
+                    string badgeCls  = v.CO2TotalKgCeMois < 5 ? "badge-green" : v.CO2TotalKgCeMois < 20 ? "badge-orange" : "badge-red";
+                    string barColor  = v.CO2TotalKgCeMois < 5 ? "#4ade80"     : v.CO2TotalKgCeMois < 20 ? "#fde047"     : "#f87171";
+                    string bgGlow    = v.CO2TotalKgCeMois < 5 ? "rgba(34,197,94,0.1)" : v.CO2TotalKgCeMois < 20 ? "rgba(234,179,8,0.1)" : "rgba(239,68,68,0.1)";
+                    bool isElec      = v.TypeCarburant != null && v.TypeCarburant.ToLower().Contains("électr");
+                    
+                    <div class="modern-row" style="--row-glow: @bgGlow;">
+                        <div class="modern-cell" style="width: 25%; display: flex; align-items: center; gap: 12px;">
+                            <div class="veh-avatar" style="background: @(isElec ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.05)"); color: @(isElec ? "#4ade80" : "white");">
+                                @(isElec ? "⚡" : "🚛")
+                            </div>
+                            <div style="display:flex; flex-direction:column; justify-content:center;">
+                                <div class="veh-name" style="font-size:0.95rem;">@v.Nom</div>
+                                <div style="font-size:0.7rem; color:var(--text-muted);">ID: #@(Math.Abs(v.Nom.GetHashCode()).ToString().Substring(0, 4))</div>
+                            </div>
+                        </div>
+
+                        <div class="modern-cell" style="width: 15%; justify-content: center;">
+                            <span class="badge badge-purple" style="font-size:0.75rem; padding: 4px 12px;">@(v.TypeCarburant ?? "N/A")</span>
+                        </div>
+
+                        <div class="modern-cell" style="width: 15%; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+                            <div style="font-size:1.1rem; font-weight:700; color:white; font-variant-numeric:tabular-nums;">@v.EmissionCO2ParKm.ToString("F0")</div>
+                            <div style="font-size:0.65rem; color:var(--text-muted-2); text-transform:uppercase; letter-spacing:0.05em;">g/km</div>
+                        </div>
+
+                        <div class="modern-cell" style="width: 20%; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+                            <div style="font-size:0.9rem; font-weight:600; color:white; font-variant-numeric:tabular-nums;">@v.DistanceTotaleKm.ToString("F1") <span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);">km</span></div>
+                            <div style="font-size:0.7rem; color:var(--text-muted-2);">@v.NombreTrajets trajet(s)</div>
+                        </div>
+
+                        <div class="modern-cell" style="width: 25%; flex-direction: column; justify-content: center; align-items: flex-end; gap: 6px;">
+                            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
+                                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">@v.CO2TotalKgCeMois.ToString("F2") kg</span>
+                                <span class="badge @badgeCls" style="font-size:0.65rem;">@(pct.ToString("F0"))%</span>
+                            </div>
+                            <div class="bar-track" style="width:100%; height:8px; border-radius:10px; background:rgba(255,255,255,0.06); box-shadow:inset 0 1px 3px rgba(0,0,0,0.5);">
+                                <div class="bar-fill" data-width="@(pct.ToString("F0", System.Globalization.CultureInfo.InvariantCulture))" 
+                                     style="background: linear-gradient(90deg, @barColor 0%, rgba(255,255,255,0.8) 100%); 
+                                            box-shadow: 0 0 10px @barColor;"></div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="empty-state" style="background: rgba(8,10,28,0.5); border-radius: 22px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/></svg>
+                <p>Aucun trajet terminé ce mois</p>
+                <small>Les données apparaîtront après la fin des premiers trajets.</small>
+            </div>
+        }
+    </div>
+
+    @* ── Historique des trajets ───────────────────────────────────────────── *@
+    <div class="data-card" style="margin-top: 30px; background: rgba(8, 10, 28, 0.4); border: 1px solid rgba(255,255,255,0.03);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <div>
+                <div class="data-card-title" style="font-size: 1.1rem;">Historique Récent des Trajets</div>
+                <div class="data-card-sub" style="margin:0;">Impact carbone par kilomètre parcouru</div>
+            </div>
+            <div style="display:flex; gap: 8px;">
+                <span class="badge badge-green">Éco-conduite</span>
+                <span class="badge badge-red">Surconsommation</span>
+            </div>
+        </div>
+
+        @if (Model.DerniersTrajetsCO2.Any())
+        {
+            var vehiculesDict = Model.Vehicules.ToDictionary(v => v.Id, v => v.Nom);
+            <div class="modern-table-wrapper" style="overflow-x: auto; margin:0 -26px; padding:0 26px;">
+                <table class="data-table" style="min-width: 800px;">
+                    <thead><tr>
+                        <th style="padding-bottom:16px;">DATE & HEURE</th>
+                        <th style="padding-bottom:16px;">VÉHICULE</th>
+                        <th style="padding-bottom:16px;">PARCOURS</th>
+                        <th style="padding-bottom:16px; text-align:right;">DISTANCE</th>
+                        <th style="padding-bottom:16px; text-align:right;">RALENTI</th>
+                        <th style="padding-bottom:16px; text-align:right;">BILAN CO2</th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach(var t in Model.DerniersTrajetsCO2)
+                    {
+                        var co2Kg    = t.Co2EmisGrammes / 1000.0;
+                        string bCls  = co2Kg < 3 ? "badge-green" : co2Kg < 8 ? "badge-orange" : "badge-red";
+                        var vNom     = vehiculesDict.ContainsKey(t.VehiculeId) ? vehiculesDict[t.VehiculeId] : $"#{t.VehiculeId}";
+                        <tr style="transition: all 0.2s; border-bottom: 1px dashed rgba(255,255,255,0.05);">
+                            <td style="color:var(--text-muted); font-size:0.8rem; font-variant-numeric:tabular-nums; font-weight:500;">
+                                @t.DateDebut.ToString("dd MMM yyyy", new System.Globalization.CultureInfo("fr-FR"))<br/>
+                                <span style="font-size:0.7rem; color:var(--text-muted-2);">à @t.DateDebut.ToString("HH:mm")</span>
+                            </td>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:10px;">
+                                    <div style="width:28px; height:28px; border-radius:6px; background:rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:center; font-size:12px;">🚚</div>
+                                    <span style="font-weight:600; font-size:0.85rem;">@vNom</span>
+                                </div>
+                            </td>
+                            <td style="font-size:0.82rem; color:var(--text-muted);">
+                                <div style="display:flex; flex-direction:column; gap:4px;">
+                                    <div style="display:flex; align-items:center; gap:6px;"><div style="width:6px; height:6px; border-radius:50%; background:var(--accent);"></div> @(string.IsNullOrEmpty(t.Origine) ? "Point G" : t.Origine)</div>
+                                    <div style="display:flex; align-items:center; gap:6px;"><div style="width:6px; height:6px; border-radius:50%; border:1px solid var(--accent);"></div> @(string.IsNullOrEmpty(t.Destination) ? "Arrivée" : t.Destination)</div>
+                                </div>
+                            </td>
+                            <td style="text-align:right; font-variant-numeric:tabular-nums; font-weight:600;">@t.DistanceParcourueKm.ToString("F2")<span style="font-size:0.7rem; color:var(--text-muted); font-weight:normal; margin-left:4px;">km</span></td>
+                            <td style="text-align:right; color:var(--text-muted); font-variant-numeric:tabular-nums;">@t.DureeArretMinutes.ToString("F1")<span style="font-size:0.7rem; margin-left:4px;">min</span></td>
+                            <td style="text-align:right;">
+                                <span class="badge @bCls" style="padding: 6px 14px; font-size:0.75rem;">
+                                    @(co2Kg > 0 ? co2Kg.ToString("F2") + " kg" : "0 kg")
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 0 1-2.827 0l-4.244-4.243a8 8 0 1 1 11.314 0z"/><path d="M15 11a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
+                <p>Aucun trajet avec données CO2</p>
+                <small>Démarrez un trajet depuis l'application mobile pour générer l'historique.</small>
+            </div>
+        }
+    </div>
+
+</section>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    Chart.defaults.color = '#7F83A5';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.04)';
+    Chart.defaults.font.family = "'Plus Jakarta Sans', sans-serif";
+
+    // ── Barres de progression animées au chargement ───────────────────
+    setTimeout(() => {
+        document.querySelectorAll('.bar-fill[data-width]').forEach(el => {
+            el.style.width = el.dataset.width + '%';
+        });
+    }, 300);
+
+    const monthLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.Label)));
+    const monthCO2   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.CO2TotalKg)));
+
+    // ── Bar chart mensuel ─────────────────────────────────────────────
+    const ctxBar = document.getElementById('chart-mensuel').getContext('2d');
+    const gradBar = ctxBar.createLinearGradient(0, 0, 0, 220);
+    gradBar.addColorStop(0, 'rgba(123,94,255,0.85)');
+    gradBar.addColorStop(1, 'rgba(123,94,255,0.15)');
+    const gradBarHover = ctxBar.createLinearGradient(0, 0, 0, 220);
+    gradBarHover.addColorStop(0, 'rgba(168,130,255,0.95)');
+    gradBarHover.addColorStop(1, 'rgba(168,130,255,0.25)');
+
+    new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+            labels: monthLabels,
+            datasets: [{
+                label: 'CO2',
+                data: monthCO2,
+                backgroundColor: gradBar,
+                hoverBackgroundColor: gradBarHover,
+                borderRadius: 10,
+                borderSkipped: false,
+            }]
+        },
+        options: {
+            responsive: true,
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(8,10,28,0.96)',
+                    borderColor: 'rgba(123,94,255,0.35)',
+                    borderWidth: 1,
+                    padding: 14,
+                    cornerRadius: 12,
+                    titleFont: { size: 12, weight: '700' },
+                    bodyFont: { size: 12 },
+                    callbacks: { label: ctx => `  ${ctx.parsed.y} kg CO2` }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.04)' },
+                    ticks: { callback: v => v + ' kg', font: { size: 11 }, padding: 8 }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { font: { size: 11 }, padding: 6 }
+                }
+            }
+        }
+    });
+
+    // ── Donut mix énergétique ─────────────────────────────────────────
+    const vehData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+        Model.Vehicules
+            .GroupBy(v => string.IsNullOrEmpty(v.TypeCarburant) ? "Inconnu" : v.TypeCarburant)
+            .Select(g => new { label = g.Key, count = g.Count() })
+    ));
+
+    new Chart(document.getElementById('chart-carburant'), {
+        type: 'doughnut',
+        data: {
+            labels: vehData.map(d => d.label),
+            datasets: [{
+                data: vehData.map(d => d.count),
+                backgroundColor: [
+                    'rgba(34,197,94,0.8)',
+                    'rgba(239,68,68,0.8)',
+                    'rgba(234,179,8,0.8)',
+                    'rgba(123,94,255,0.8)',
+                    'rgba(99,102,241,0.8)',
+                    'rgba(168,85,247,0.8)',
+                ],
+                borderColor: 'rgba(8,10,28,0.9)',
+                borderWidth: 3,
+                hoverOffset: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            cutout: '70%',
+            animation: { duration: 900, easing: 'easeOutQuart' },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { padding: 16, font: { size: 11 }, boxWidth: 10, boxHeight: 10, usePointStyle: true }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(8,10,28,0.96)',
+                    borderColor: 'rgba(123,94,255,0.35)',
+                    borderWidth: 1,
+                    padding: 12,
+                    cornerRadius: 12,
+                }
+            }
+        }
+    });
+</script>
+}

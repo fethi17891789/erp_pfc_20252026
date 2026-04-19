@@ -16,20 +16,22 @@ namespace Metier.Logistique
         private readonly ErpDbContext _context;
         private readonly IConfiguration _config;
         private readonly Metier.BlockchainService _blockchain;
+        private readonly Metier.IAService _iaService;
         private static readonly HttpClient _httpClient = new HttpClient();
 
-        public LogistiqueService(ErpDbContext context, IConfiguration config, Metier.BlockchainService blockchain)
+        public LogistiqueService(ErpDbContext context, IConfiguration config, Metier.BlockchainService blockchain, Metier.IAService iaService)
         {
             _context = context;
             _config = config;
             _blockchain = blockchain;
+            _iaService = iaService;
         }
 
         #region Maintenance
         public async Task CleanupAbandonedTrajetsAsync(int timeoutMinutes = 15)
         {
             try {
-                var limit = DateTime.UtcNow.AddMinutes(-timeoutMinutes);
+                var limit = DateTime.SpecifyKind(DateTime.UtcNow.AddMinutes(-timeoutMinutes), DateTimeKind.Utc);
                 
                 // 1. Chercher les véhicules "En Trajet" qui n'ont pas bougé depuis X minutes
                 var stagnantVehicules = await _context.LogistiqueVehicules
@@ -150,7 +152,7 @@ namespace Metier.Logistique
             return trajet;
         }
 
-        public async Task EndTrajetAsync(int trajetId, string destination = "", double distance = 0, string traceJson = null)
+        public async Task EndTrajetAsync(int trajetId, string destination = "", double distance = 0, string traceJson = null, string itineraireType = null)
         {
             try {
                 var trajet = await _context.LogistiqueTrajets.FindAsync(trajetId);
@@ -164,7 +166,8 @@ namespace Metier.Logistique
                 trajet.Destination = destination;
                 trajet.DistanceParcourueKm = distance;
                 trajet.Statut = "Termine";
-                trajet.TraceJson = traceJson; // On garde le brut en attendant le matching
+                trajet.TraceJson = traceJson;
+                if (!string.IsNullOrEmpty(itineraireType)) trajet.ItineraireType = itineraireType;
 
                 var v = await _context.LogistiqueVehicules.FindAsync(trajet.VehiculeId);
                 if (v != null) {
@@ -259,10 +262,235 @@ namespace Metier.Logistique
         {
             [System.Text.Json.Serialization.JsonPropertyName("lat")]
             public double Lat { get; set; }
-            
+
             [System.Text.Json.Serialization.JsonPropertyName("lon")]
             public double Lon { get; set; }
         }
         #endregion
+
+        #region CO2 & RSE
+
+        /// <summary>
+        /// Formule ADEME : estimation g CO2/km selon carburant, type véhicule, année.
+        /// Résultat instantané, sans appel réseau.
+        /// </summary>
+        public static double EstimerCO2ParKmFormule(string? typeCarburant, string? typeTransport, int? annee)
+        {
+            double baseVal = (typeCarburant ?? "").ToLower() switch
+            {
+                "électrique" or "electrique" or "electric" or "ev" => 20,
+                "hybride rechargeable" or "phev" or "plug-in hybride" => 55,
+                "hybride" or "hybrid" or "hev" or "mild hybrid" => 105,
+                "gnv" or "gpl" or "gaz" or "cng" or "lpg" => 120,
+                "diesel" => 145,
+                _ => 165  // Essence par défaut
+            };
+
+            double mult = (typeTransport ?? "").ToLower() switch
+            {
+                "camion" or "poids lourd" or "truck" => 2.2,
+                "fourgonnette" or "van" or "utilitaire" => 1.55,
+                "moto" or "scooter" or "moto-cross" => 0.75,
+                "drone" => 0.1,
+                _ => 1.0
+            };
+
+            if (annee.HasValue)
+            {
+                if      (annee >= 2021) mult *= 0.87;
+                else if (annee >= 2016) mult *= 0.96;
+                else if (annee <  2010) mult *= 1.18;
+            }
+
+            return Math.Round(baseVal * mult, 1);
+        }
+
+        /// <summary>
+        /// CO2 émis au ralenti (moteur allumé, vitesse ≤ 2 km/h) en g/minute.
+        /// </summary>
+        public static double CO2RalentiGParMinute(string? typeCarburant, string? typeTransport)
+        {
+            bool isTruck = (typeTransport ?? "").ToLower() == "camion";
+            return (typeCarburant ?? "").ToLower() switch
+            {
+                "électrique" or "electrique" or "ev" or "electric" => 0,
+                "hybride rechargeable" or "phev" => 5,
+                "hybride" => isTruck ? 14 : 9,
+                "gnv" or "gpl" => isTruck ? 32 : 17,
+                "diesel" => isTruck ? 50 : 26,
+                _ => isTruck ? 42 : 22  // Essence
+            };
+        }
+
+        /// <summary>
+        /// Calcule le CO2 total d'un trajet en grammes.
+        /// </summary>
+        public static double CalculerCO2Trajet(double distanceKm, double dureeArretMinutes, double emissionCO2ParKm, string? typeCarburant, string? typeTransport)
+        {
+            double co2Route   = distanceKm * emissionCO2ParKm;
+            double co2Ralenti = dureeArretMinutes * CO2RalentiGParMinute(typeCarburant, typeTransport);
+            return Math.Round(co2Route + co2Ralenti, 0);
+        }
+
+        /// <summary>
+        /// Appelle Gemini pour affiner l'estimation CO2 du véhicule.
+        /// Retourne la valeur affinée ou la formule en cas d'échec.
+        /// </summary>
+        public async Task<double> EstimerCO2ParKmAvecIAAsync(string marque, string modele, int? annee, string? typeCarburant, string? typeTransport)
+        {
+            double valeurFormule = EstimerCO2ParKmFormule(typeCarburant, typeTransport, annee);
+            try
+            {
+                var systemPrompt = "Tu es une base de données technique sur les émissions CO2 des véhicules. " +
+                    "Réponds UNIQUEMENT en JSON valide avec un seul champ 'co2_g_km' (nombre décimal, grammes CO2 par kilomètre en cycle mixte WLTP ou NEDC). " +
+                    "Si tu ne connais pas le modèle exact, fournis la meilleure estimation basée sur la catégorie et l'année. " +
+                    "Ne fournis aucun texte en dehors du JSON.";
+
+                var anneeStr = annee.HasValue ? $"Année: {annee}" : "";
+                var userPrompt = $"Véhicule: {marque} {modele}. Type: {typeTransport}. Carburant: {typeCarburant}. {anneeStr}. " +
+                    $"Quelle est l'émission CO2 en g/km (cycle mixte) ? Retourne uniquement: {{\"co2_g_km\": <valeur>}}";
+
+                var (json, _) = await _iaService.AskAiJsonAsync(systemPrompt, userPrompt);
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("co2_g_km", out var co2El))
+                {
+                    double iaVal = co2El.GetDouble();
+                    // Sanity check : valeur raisonnable entre 0 et 1000 g/km
+                    if (iaVal > 0 && iaVal < 1000)
+                    {
+                        Console.WriteLine($"[RSE IA] CO2 estimé par Gemini : {iaVal} g/km pour {marque} {modele}");
+                        return Math.Round(iaVal, 1);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[RSE IA] Fallback formule ADEME (erreur Gemini : {ex.Message})");
+            }
+            return valeurFormule;
+        }
+
+        /// <summary>
+        /// Met à jour les données CO2 d'un trajet en cours.
+        /// </summary>
+        public async Task UpdateCO2TrajetAsync(int trajetId, double co2Grammes, double dureeArretMinutes)
+        {
+            var trajet = await _context.LogistiqueTrajets.FindAsync(trajetId);
+            if (trajet != null)
+            {
+                trajet.Co2EmisGrammes = co2Grammes;
+                trajet.DureeArretMinutes = dureeArretMinutes;
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        /// <summary>
+        /// Statistiques RSE pour le dashboard environnement.
+        /// </summary>
+        public async Task<StatistiquesRSE> GetStatistiquesRSEAsync()
+        {
+            var vehicules = await _context.LogistiqueVehicules.OrderBy(v => v.Nom).ToListAsync();
+            var now = DateTime.UtcNow;
+            var debutMois = DateTime.SpecifyKind(new DateTime(now.Year, now.Month, 1), DateTimeKind.Utc);
+            var trajets = await _context.LogistiqueTrajets
+                .Where(t => t.Statut == "Termine" && t.DateDebut >= debutMois)
+                .ToListAsync();
+
+            var stats = new StatistiquesRSE
+            {
+                Vehicules = vehicules,
+                TotalCO2KgCeMois = Math.Round(trajets.Sum(t => t.Co2EmisGrammes) / 1000.0, 2),
+                NombreTrajets = trajets.Count,
+                DistanceTotaleKm = Math.Round(trajets.Sum(t => t.DistanceParcourueKm), 1)
+            };
+
+            // CO2 par véhicule ce mois
+            stats.CO2ParVehicule = vehicules.Select(v => new VehiculeRSEStat
+            {
+                VehiculeId = v.Id,
+                Nom = v.Nom,
+                TypeCarburant = v.TypeCarburant ?? "Inconnu",
+                EmissionCO2ParKm = v.EmissionCO2ParKm ?? 0,
+                CO2TotalKgCeMois = Math.Round(
+                    trajets.Where(t => t.VehiculeId == v.Id).Sum(t => t.Co2EmisGrammes) / 1000.0, 2),
+                NombreTrajets = trajets.Count(t => t.VehiculeId == v.Id),
+                DistanceTotaleKm = Math.Round(trajets.Where(t => t.VehiculeId == v.Id).Sum(t => t.DistanceParcourueKm), 1)
+            }).OrderByDescending(x => x.CO2TotalKgCeMois).ToList();
+
+            // Véhicule le + polluant
+            stats.VehiculeLesPollant = stats.CO2ParVehicule.FirstOrDefault();
+
+            // Économies potentielles : si on remplace les thermiques par l'électrique moyen (20 g/km)
+            var trajetsThermiques = trajets
+                .Join(vehicules.Where(v => v.TypeCarburant != null &&
+                      !v.TypeCarburant.ToLower().Contains("electr") &&
+                      !v.TypeCarburant.ToLower().Contains("électr")),
+                      t => t.VehiculeId, v => v.Id, (t, v) => new { t, v })
+                .ToList();
+            double co2ThermiqueActuel = trajetsThermiques.Sum(x => x.t.Co2EmisGrammes);
+            double co2SiElectrique = trajetsThermiques.Sum(x => x.t.DistanceParcourueKm * 20);
+            stats.EconomiesPotentiellesKg = Math.Round(Math.Max(0, co2ThermiqueActuel - co2SiElectrique) / 1000.0, 2);
+
+            // Données mensuelles (6 derniers mois)
+            stats.DonneesMensuelles = new List<MoisRSE>();
+            for (int i = 5; i >= 0; i--)
+            {
+                var debut = DateTime.SpecifyKind(new DateTime(now.Year, now.Month, 1).AddMonths(-i), DateTimeKind.Utc);
+                var fin = DateTime.SpecifyKind(debut.AddMonths(1), DateTimeKind.Utc);
+                var trajetsMois = await _context.LogistiqueTrajets
+                    .Where(t => t.Statut == "Termine" && t.DateDebut >= debut && t.DateDebut < fin)
+                    .ToListAsync();
+                stats.DonneesMensuelles.Add(new MoisRSE
+                {
+                    Label = debut.ToString("MMM yy", new System.Globalization.CultureInfo("fr-FR")),
+                    CO2TotalKg = Math.Round(trajetsMois.Sum(t => t.Co2EmisGrammes) / 1000.0, 2),
+                    DistanceKm = Math.Round(trajetsMois.Sum(t => t.DistanceParcourueKm), 1)
+                });
+            }
+
+            return stats;
+        }
+
+        public async Task<List<Trajet>> GetTrajetsAvecCO2Async(int limit = 20)
+        {
+            return await _context.LogistiqueTrajets
+                .Where(t => t.Statut == "Termine")
+                .OrderByDescending(t => t.DateDebut)
+                .Take(limit)
+                .ToListAsync();
+        }
+
+        #endregion
+    }
+
+    // DTOs pour les statistiques RSE
+    public class StatistiquesRSE
+    {
+        public List<Vehicule> Vehicules { get; set; } = new();
+        public double TotalCO2KgCeMois { get; set; }
+        public int NombreTrajets { get; set; }
+        public double DistanceTotaleKm { get; set; }
+        public double EconomiesPotentiellesKg { get; set; }
+        public List<VehiculeRSEStat> CO2ParVehicule { get; set; } = new();
+        public VehiculeRSEStat? VehiculeLesPollant { get; set; }
+        public List<MoisRSE> DonneesMensuelles { get; set; } = new();
+    }
+
+    public class VehiculeRSEStat
+    {
+        public int VehiculeId { get; set; }
+        public string Nom { get; set; } = "";
+        public string TypeCarburant { get; set; } = "";
+        public double EmissionCO2ParKm { get; set; }
+        public double CO2TotalKgCeMois { get; set; }
+        public int NombreTrajets { get; set; }
+        public double DistanceTotaleKm { get; set; }
+    }
+
+    public class MoisRSE
+    {
+        public string Label { get; set; } = "";
+        public double CO2TotalKg { get; set; }
+        public double DistanceKm { get; set; }
     }
 }

@@ -28,5 +28,21 @@ namespace Donnees.Logistique
         public DateTime? DerniereMiseAJour { get; set; }
 
         public DateTime DateCreation { get; set; } = DateTime.UtcNow;
+
+        // ─── Champs RSE / Empreinte Carbone ─────────────────────────────────
+        [StringLength(100)]
+        public string? Marque { get; set; }
+
+        [StringLength(100)]
+        public string? Modele { get; set; }
+
+        public int? Annee { get; set; }
+
+        /// <summary>Essence, Diesel, Hybride, Électrique, GNV</summary>
+        [StringLength(50)]
+        public string? TypeCarburant { get; set; }
+
+        /// <summary>Émission CO2 en g/km (estimée formule ADEME + IA Gemini)</summary>
+        public double? EmissionCO2ParKm { get; set; }
     }
 }

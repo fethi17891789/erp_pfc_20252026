@@ -70,12 +70,20 @@
                             </div>
                         </div>
                         <!-- TRACKING -->
-                        <a asp-page="/Logistique/Index" class="nav-sub-item @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Logistique") == true ? "nav-sub-link-active" : "")">
+                        <a asp-page="/Logistique/Index" class="nav-sub-item @(ViewContext.RouteData.Values["page"]?.ToString() == "/Logistique/Index" ? "nav-sub-link-active" : "")">
                             <svg class="nav-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="12" cy="10" r="3"></circle>
                                 <path d="M12 2a8 8 0 0 0-8 8c0 5.4 8 12 8 12s8-6.6 8-12a8 8 0 0 0-8-8z"></path>
                             </svg>
                             <span>Tracking & Logistique</span>
+                        </a>
+                        <!-- RSE / ENVIRONNEMENT -->
+                        <a asp-page="/Logistique/Environnement" class="nav-sub-item @(ViewContext.RouteData.Values["page"]?.ToString() == "/Logistique/Environnement" ? "nav-sub-link-active" : "")">
+                            <svg class="nav-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 20c4-8 8-12 10-12s6 4 10 12"></path>
+                                <path d="M12 8c0-4 2-6 4-6-2 2-2 4 0 6-2-2-4-2-4 0z"></path>
+                            </svg>
+                            <span>Bilan Carbone RSE</span>
                         </a>
                         
                         <!-- ANNUAIRE CRM -->

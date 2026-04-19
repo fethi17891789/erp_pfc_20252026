@@ -10,6 +10,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>ERP Tracking - Chauffeur</title>
     <link rel="stylesheet" href="~/fonts/plus-jakarta-sans.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.min.css" />
     <style>
         :root {
             --bg: #020617;
@@ -85,6 +86,157 @@
         .btn-demo:hover { transform: translateY(-2px); box-shadow: 0 6px 25px rgba(245, 158, 11, 0.4); }
         .btn-demo:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
         .is-tracking .btn-demo { display: none; }
+
+        /* ── Planificateur d'itinéraire ──────────────────────────────── */
+        .route-planner { display: none; margin-bottom: 20px; }
+        .is-planning .route-planner { display: block; animation: fadeIn 0.4s ease; }
+        .is-planning .initial-icon { display: none; }
+        .is-planning #btn-start { display: none; }
+        .is-planning #btn-demo { display: none; }
+        .is-planning #vehicule-selection-area { display: none !important; }
+        .is-planning .vehicule-box { display: none; }
+        .is-planning .subtitle-default { display: none; }
+
+        .rp-label {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--accent-light); font-weight: 700; margin-bottom: 6px; display: block;
+        }
+        .rp-input {
+            width: 100%; padding: 12px 14px; background: rgba(0,0,0,0.25);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+            color: white; font-size: 0.9rem; font-family: inherit; outline: none;
+            transition: border-color 0.2s;
+        }
+        .rp-input:focus { border-color: var(--accent); }
+
+        /* ── Overlay carte destination ───────────────────────────────── */
+        #map-overlay {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: #020617; flex-direction: column;
+        }
+        #map-overlay.active { display: flex; }
+        #map-overlay-header {
+            padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;
+            background: rgba(8,10,26,0.95); border-bottom: 1px solid rgba(123,94,255,0.25);
+            flex-shrink: 0;
+        }
+        #map-overlay-header h3 { margin: 0; font-size: 1rem; color: var(--accent-light); }
+        #map-overlay-footer {
+            padding: 12px 16px; background: rgba(8,10,26,0.95);
+            border-top: 1px solid rgba(123,94,255,0.25); flex-shrink: 0;
+        }
+        #map-dest-label {
+            font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;
+            min-height: 18px; text-align: center;
+        }
+        #dest-map { flex: 1; }
+        .map-crosshair {
+            position: absolute; top: 50%; left: 50%; z-index: 10000;
+            transform: translate(-50%, -50%); pointer-events: none;
+            width: 32px; height: 32px;
+        }
+        .map-crosshair::before, .map-crosshair::after {
+            content: ''; position: absolute; background: var(--accent);
+        }
+        .map-crosshair::before { width: 2px; height: 100%; left: 50%; top: 0; }
+        .map-crosshair::after { width: 100%; height: 2px; top: 50%; left: 0; }
+        #btn-confirm-dest {
+            width: 100%; padding: 13px; background: linear-gradient(135deg,#7b5eff,#a855f7);
+            border: none; border-radius: 12px; color: white; font-size: 0.95rem;
+            font-weight: 700; cursor: pointer; font-family: inherit;
+        }
+        #btn-confirm-dest:disabled { opacity: 0.4; cursor: not-allowed; }
+        .rp-gps-btn {
+            width: 100%; padding: 11px 14px; background: rgba(123,94,255,0.12);
+            border: 1px solid rgba(123,94,255,0.3); border-radius: 12px;
+            color: var(--accent-light); font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; display: flex; align-items: center; gap: 10px;
+            transition: all 0.2s; font-family: inherit;
+        }
+        .rp-gps-btn:active { background: rgba(123,94,255,0.22); }
+        .rp-gps-dot {
+            width: 8px; height: 8px; border-radius: 50%; background: #22c55e;
+            box-shadow: 0 0 8px #22c55e; flex-shrink: 0;
+        }
+        .rp-calc-btn {
+            width: 100%; padding: 14px; background: var(--accent);
+            border: none; border-radius: 14px; color: white;
+            font-size: 0.95rem; font-weight: 700; cursor: pointer;
+            font-family: inherit; transition: all 0.2s; margin-top: 6px;
+        }
+        .rp-calc-btn:active { transform: scale(0.98); }
+        .rp-calc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .route-card {
+            width: 100%; background: rgba(255,255,255,0.04);
+            border: 1.5px solid rgba(255,255,255,0.08); border-radius: 16px;
+            padding: 16px; margin-bottom: 10px; cursor: pointer;
+            transition: all 0.25s; text-align: left; font-family: inherit;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+        .route-card:active { transform: scale(0.99); }
+        .route-card.selected-fast {
+            border-color: var(--accent);
+            background: rgba(123,94,255,0.1);
+            box-shadow: 0 0 18px rgba(123,94,255,0.2);
+        }
+        .route-card.selected-eco {
+            border-color: #22c55e;
+            background: rgba(34,197,94,0.08);
+            box-shadow: 0 0 18px rgba(34,197,94,0.15);
+        }
+        .route-card-header {
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .route-card-type {
+            font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em;
+            font-weight: 800;
+        }
+        .route-card-type.fast { color: var(--accent-light); }
+        .route-card-type.eco { color: #4ade80; }
+        .route-card-co2 {
+            font-size: 0.75rem; font-weight: 700; padding: 3px 10px;
+            border-radius: 999px;
+        }
+        .route-card-co2.fast { background: rgba(123,94,255,0.15); color: var(--accent-light); }
+        .route-card-co2.eco { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .route-card-stats {
+            display: flex; gap: 16px;
+        }
+        .route-stat {
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .route-stat-val { font-size: 1.3rem; font-weight: 800; color: white; }
+        .route-stat-lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+        .route-card-saving {
+            font-size: 0.72rem; color: #4ade80; font-weight: 600;
+            background: rgba(34,197,94,0.1); border-radius: 8px; padding: 4px 8px;
+            display: inline-block;
+        }
+        .route-card-note {
+            font-size: 0.68rem; color: var(--text-muted); font-style: italic;
+        }
+        .rp-confirm-btn {
+            width: 100%; padding: 14px; border: none; border-radius: 14px;
+            color: white; font-size: 0.95rem; font-weight: 700; cursor: pointer;
+            font-family: inherit; transition: all 0.2s; margin-top: 4px;
+            background: #22c55e;
+        }
+        .rp-confirm-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+        .rp-cancel-btn {
+            width: 100%; padding: 11px; background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+            color: var(--text-muted); font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; font-family: inherit; margin-top: 8px; transition: all 0.2s;
+        }
+        .rp-cancel-btn:active { background: rgba(255,255,255,0.12); }
+        .rp-separator {
+            display: flex; align-items: center; gap: 10px; margin: 14px 0 10px;
+        }
+        .rp-separator hr { flex: 1; border: none; border-top: 1px solid rgba(255,255,255,0.07); }
+        .rp-separator span { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; text-transform: uppercase; letter-spacing: 0.08em; }
+        .rp-loading { text-align: center; padding: 20px; color: var(--text-muted); font-size: 0.85rem; display: none; }
+        #rp-routes-container { display: none; }
         .is-demo .btn-stop { display: none; } /* En démo, arrêt géré automatiquement */
         .demo-badge {
             position: absolute; top: 14px; right: 14px;
@@ -150,6 +302,7 @@
         .btn-secondary { background: rgba(255,255,255,0.1); color: white; flex: 1; }
         @@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         @@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @@keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -161,7 +314,7 @@
             </svg>
         </div>
         <h1>Assistant Trajet</h1>
-        <p class="subtitle" id="subtitle-text">Activez la localisation pour transmettre vos positions en direct.</p>
+        <p class="subtitle subtitle-default" id="subtitle-text">Sélectionnez votre véhicule et planifiez votre trajet.</p>
         @{
             var preSelectedVehiculeId = ViewContext.HttpContext.Request.Query["vehiculeId"].ToString();
             var hasPreSelection = !string.IsNullOrEmpty(preSelectedVehiculeId);
@@ -206,9 +359,103 @@
         </div>
         <span class="demo-badge">🎬 SIMULATION</span>
         <div class="demo-phase-banner aller" id="demo-phase-banner">🚚 En route vers le client...</div>
-        <button id="btn-start" class="btn btn-start">DÉMARRER LE TRAJET</button>
+        <!-- Bouton Planifier (visible avant tracking) -->
+        <button id="btn-plan" class="btn btn-start" onclick="openRoutePlanner()" style="background:linear-gradient(135deg,#7b5eff,#a855f7);">
+            Planifier mon itinéraire
+        </button>
+
+        <!-- ── Planificateur d'itinéraire ──────────────────────────── -->
+        <div class="route-planner" id="route-planner">
+            <div style="text-align:left; margin-bottom:16px;">
+                <div style="font-size:1.1rem; font-weight:800; color:white; margin-bottom:3px;">Planification du trajet</div>
+                <div style="font-size:0.78rem; color:var(--text-muted);">Définissez votre destination pour voir les itinéraires disponibles.</div>
+            </div>
+
+            <!-- Départ -->
+            <div style="margin-bottom:12px;">
+                <span class="rp-label">Point de départ</span>
+                <button class="rp-gps-btn" id="btn-get-gps" onclick="getGPSOrigin()">
+                    <div class="rp-gps-dot" id="gps-dot"></div>
+                    <span id="origin-label">Utiliser ma position GPS</span>
+                </button>
+            </div>
+
+            <!-- Destination -->
+            <div style="margin-bottom:14px;">
+                <span class="rp-label">Destination</span>
+                <button class="rp-gps-btn" id="btn-pick-dest" onclick="openMapPicker()">
+                    <div class="rp-gps-dot" id="dest-dot"></div>
+                    <span id="dest-label">Appuyer pour choisir sur la carte</span>
+                </button>
+                <div id="dest-status" style="font-size:0.72rem; color:var(--text-muted); margin-top:5px; min-height:16px;"></div>
+            </div>
+
+            <button class="rp-calc-btn" id="btn-calc" onclick="calculerRoutes()" disabled>
+                Calculer les itinéraires
+            </button>
+
+            <div class="rp-loading" id="rp-loading">
+                <div style="width:24px;height:24px;border:2px solid rgba(123,94,255,0.3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 10px;"></div>
+                Calcul en cours...
+            </div>
+
+            <!-- Résultats -->
+            <div id="rp-routes-container">
+                <div class="rp-separator">
+                    <hr/><span>Itinéraires disponibles</span><hr/>
+                </div>
+
+                <!-- Route Rapide -->
+                <button class="route-card" id="card-fast" onclick="selectRoute('fast')">
+                    <div class="route-card-header">
+                        <span class="route-card-type fast">Itinéraire rapide</span>
+                        <span class="route-card-co2 fast" id="fast-co2">— CO2</span>
+                    </div>
+                    <div class="route-card-stats">
+                        <div class="route-stat">
+                            <span class="route-stat-val" id="fast-dist">—</span>
+                            <span class="route-stat-lbl">Kilomètres</span>
+                        </div>
+                        <div class="route-stat">
+                            <span class="route-stat-val" id="fast-time">—</span>
+                            <span class="route-stat-lbl">Minutes</span>
+                        </div>
+                    </div>
+                    <div id="fast-note" class="route-card-note"></div>
+                </button>
+
+                <!-- Route Écologique -->
+                <button class="route-card" id="card-eco" onclick="selectRoute('eco')">
+                    <div class="route-card-header">
+                        <span class="route-card-type eco">Itinéraire écologique</span>
+                        <span class="route-card-co2 eco" id="eco-co2">— CO2</span>
+                    </div>
+                    <div class="route-card-stats">
+                        <div class="route-stat">
+                            <span class="route-stat-val" id="eco-dist">—</span>
+                            <span class="route-stat-lbl">Kilomètres</span>
+                        </div>
+                        <div class="route-stat">
+                            <span class="route-stat-val" id="eco-time">—</span>
+                            <span class="route-stat-lbl">Minutes</span>
+                        </div>
+                    </div>
+                    <div id="eco-saving" style="display:none;" class="route-card-saving"></div>
+                    <div id="eco-note" class="route-card-note"></div>
+                </button>
+
+                <button class="rp-confirm-btn" id="btn-confirm-route" onclick="confirmerItineraire()" disabled>
+                    Démarrer avec cet itinéraire
+                </button>
+            </div>
+
+            <button class="rp-cancel-btn" onclick="cancelRoutePlanner()">Annuler</button>
+        </div>
+        <!-- ── Fin planificateur ──────────────────────────────────── -->
+
+        <button id="btn-start" class="btn btn-start" style="display:none;">DÉMARRER LE TRAJET</button>
         <button id="btn-stop" class="btn btn-stop">TERMINER LE TRAJET</button>
-        <button id="btn-demo" class="btn btn-demo">🎬 LANCER LA SIMULATION DÉMO</button>
+        <button id="btn-demo" class="btn btn-demo">Lancer la simulation démo</button>
         <div class="demo-progress-bar">
             <div class="demo-progress-fill" id="demo-progress-fill"></div>
             <div class="demo-midpoint-marker" title="Point de livraison"></div>
@@ -255,6 +502,229 @@
         const hiddenVehiculeId = document.getElementById('hidden-vehicule-id');
         const stopModal = document.getElementById('stop-modal');
 
+        // ── Données véhicules (CO2) ──────────────────────────────────
+        const vehiculesData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+            Model.VehiculesDisponibles.Select(v => new {
+                id = v.Id,
+                nom = v.Nom,
+                co2ParKm = v.EmissionCO2ParKm ?? 0,
+                typeCarburant = v.TypeCarburant ?? "",
+                typeTransport = v.TypeTransport ?? ""
+            })
+        ));
+
+        // ── État planificateur ───────────────────────────────────────
+        let planningMode = false;
+        let rpOriginCoords = null;   // { lat, lon }
+        let rpDestCoords = null;     // { lat, lon }
+        let selectedRouteType = null; // 'fast' | 'eco'
+        let rpRouteData = {};        // { fast: {...}, eco: {...} }
+        let plannedItineraireType = null; // transmis à EndTrajet
+
+        function getVehiculeData() {
+            const vid = document.getElementById('hidden-vehicule-id')?.value
+                     || document.getElementById('vehicule-select')?.value;
+            return vehiculesData.find(v => v.id == vid) || null;
+        }
+
+        function openRoutePlanner() {
+            const vid = document.getElementById('hidden-vehicule-id')?.value
+                     || document.getElementById('vehicule-select')?.value;
+            if (!vid) { alert('Sélectionnez d\'abord un véhicule.'); return; }
+            planningMode = true;
+            container.classList.add('is-planning');
+            document.getElementById('btn-plan').style.display = 'none';
+            selectedRouteType = null;
+            rpOriginCoords = null;
+            rpDestCoords = null;
+            rpRouteData = {};
+            document.getElementById('rp-routes-container').style.display = 'none';
+            document.getElementById('btn-confirm-route').disabled = true;
+            document.getElementById('btn-calc').disabled = true;
+            document.getElementById('origin-label').innerText = 'Utiliser ma position GPS';
+            document.getElementById('rp-dest-input').value = '';
+            document.getElementById('dest-status').innerText = '';
+            document.getElementById('gps-dot').style.background = '#22c55e';
+            // Auto-récupérer GPS
+            getGPSOrigin();
+        }
+
+        function cancelRoutePlanner() {
+            planningMode = false;
+            container.classList.remove('is-planning');
+            document.getElementById('btn-plan').style.display = 'block';
+        }
+
+        async function getGPSOrigin() {
+            const btn = document.getElementById('btn-get-gps');
+            const label = document.getElementById('origin-label');
+            const dot = document.getElementById('gps-dot');
+            label.innerText = 'Localisation en cours...';
+            dot.style.background = '#eab308';
+            btn.disabled = true;
+            try {
+                const pos = await new Promise((res, rej) =>
+                    navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 8000 })
+                );
+                rpOriginCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+                label.innerText = `Position obtenue (${rpOriginCoords.lat.toFixed(4)}, ${rpOriginCoords.lon.toFixed(4)})`;
+                dot.style.background = '#22c55e';
+                checkCalcReady();
+            } catch(e) {
+                // Fallback : Alger centre
+                rpOriginCoords = { lat: 36.7372, lon: 3.0869 };
+                label.innerText = 'GPS indisponible — position par défaut';
+                dot.style.background = '#ef4444';
+                checkCalcReady();
+            } finally { btn.disabled = false; }
+        }
+
+
+        function checkCalcReady() {
+            document.getElementById('btn-calc').disabled = !(rpOriginCoords && rpDestCoords);
+        }
+
+        async function calculerRoutes() {
+            const btn = document.getElementById('btn-calc');
+            const loading = document.getElementById('rp-loading');
+            const container2 = document.getElementById('rp-routes-container');
+            btn.disabled = true;
+            loading.style.display = 'block';
+            container2.style.display = 'none';
+
+            const veh = getVehiculeData();
+            const co2ParKm = veh?.co2ParKm || 0;
+
+            try {
+                const orig = `${rpOriginCoords.lon.toFixed(6)},${rpOriginCoords.lat.toFixed(6)}`;
+                const dest = `${rpDestCoords.lon.toFixed(6)},${rpDestCoords.lat.toFixed(6)}`;
+                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${orig};${dest}?overview=false&alternatives=true`;
+
+                const resp = await fetch(osrmUrl, { signal: AbortSignal.timeout(10000) });
+                const data = await resp.json();
+
+                if (!data.routes || data.routes.length === 0) throw new Error('Aucun itinéraire trouvé.');
+
+                const routes = data.routes;
+                const r1 = routes[0];
+                const r1Dist = r1.distance / 1000;
+                const r1Time = Math.round(r1.duration / 60);
+                const r1Co2 = co2ParKm > 0 ? Math.round(r1Dist * co2ParKm) : 0;
+
+                // Route 2 : alternative OSRM ou synthétique (+8% dist, +15% temps, -8% CO2 via voies locales)
+                let r2Dist, r2Time, r2Co2, r2Note = '', r2Synthetic = false;
+                if (routes.length >= 2) {
+                    r2Dist = routes[1].distance / 1000;
+                    r2Time = Math.round(routes[1].duration / 60);
+                    r2Co2 = co2ParKm > 0 ? Math.round(r2Dist * co2ParKm * 0.94) : 0; // voies locales ~6% moins
+                } else {
+                    // Pas d'alternative OSRM → itinéraire synthétique "voies locales"
+                    r2Dist = Math.round(r1Dist * 1.08 * 10) / 10;
+                    r2Time = Math.round(r1Time * 1.18);
+                    r2Co2 = co2ParKm > 0 ? Math.round(r2Dist * co2ParKm * 0.9) : 0;
+                    r2Note = 'Estimé — évite les grands axes';
+                    r2Synthetic = true;
+                }
+
+                rpRouteData = {
+                    fast: { dist: r1Dist, time: r1Time, co2: r1Co2, type: 'Rapide' },
+                    eco:  { dist: r2Dist, time: r2Time, co2: r2Co2, note: r2Note, type: 'Ecologique' }
+                };
+
+                // Afficher Route Rapide
+                document.getElementById('fast-dist').innerText = r1Dist.toFixed(1);
+                document.getElementById('fast-time').innerText = r1Time;
+                document.getElementById('fast-co2').innerText = r1Co2 > 0 ? `~${(r1Co2/1000).toFixed(2)} kg CO2` : 'CO2 N/A';
+                document.getElementById('fast-note').innerText = '';
+
+                // Afficher Route Écologique
+                document.getElementById('eco-dist').innerText = r2Dist.toFixed(1);
+                document.getElementById('eco-time').innerText = r2Time;
+                document.getElementById('eco-co2').innerText = r2Co2 > 0 ? `~${(r2Co2/1000).toFixed(2)} kg CO2` : 'CO2 N/A';
+                document.getElementById('eco-note').innerText = r2Note;
+
+                const saving = document.getElementById('eco-saving');
+                if (r1Co2 > 0 && r2Co2 > 0 && r2Co2 < r1Co2) {
+                    const pct = Math.round((r1Co2 - r2Co2) / r1Co2 * 100);
+                    saving.innerText = `${pct}% moins de CO2 que l'itinéraire rapide`;
+                    saving.style.display = 'inline-block';
+                } else {
+                    saving.style.display = 'none';
+                }
+
+                // Reset sélection
+                selectedRouteType = null;
+                document.getElementById('card-fast').className = 'route-card';
+                document.getElementById('card-eco').className = 'route-card';
+                document.getElementById('btn-confirm-route').disabled = true;
+
+                container2.style.display = 'block';
+            } catch(e) {
+                document.getElementById('dest-status').innerText = 'Erreur calcul : ' + e.message;
+                document.getElementById('dest-status').style.color = '#ef4444';
+            } finally {
+                loading.style.display = 'none';
+                btn.disabled = !(rpOriginCoords && rpDestCoords);
+            }
+        }
+
+        function selectRoute(type) {
+            selectedRouteType = type;
+            document.getElementById('card-fast').className = 'route-card' + (type === 'fast' ? ' selected-fast' : '');
+            document.getElementById('card-eco').className  = 'route-card' + (type === 'eco'  ? ' selected-eco'  : '');
+            document.getElementById('btn-confirm-route').disabled = false;
+        }
+
+        async function confirmerItineraire() {
+            if (!selectedRouteType || !rpRouteData[selectedRouteType]) return;
+            const route = rpRouteData[selectedRouteType];
+            plannedItineraireType = route.type;
+
+            // Cacher le planificateur, lancer le trajet
+            planningMode = false;
+            container.classList.remove('is-planning');
+            document.getElementById('btn-plan').style.display = 'none';
+
+            // Déclencher le démarrage automatique
+            await startTripNow();
+        }
+
+        async function startTripNow() {
+            const vid = document.getElementById('hidden-vehicule-id')?.value
+                     || document.getElementById('vehicule-select')?.value;
+            if (!vid) return;
+
+            if (connection.state !== signalR.HubConnectionState.Connected) {
+                await connection.start();
+            }
+
+            try {
+                activeVehiculeId = vid;
+                btnStart.disabled = true;
+                activeTrajetId = await connection.invoke("StartTrajet", parseInt(activeVehiculeId), deviceId, "Démarrage mobile");
+
+                isTracking = true;
+                container.classList.add('is-tracking');
+                document.getElementById('subtitle-text').innerText = `Trajet #${activeTrajetId} en cours...`;
+
+                startTime = Date.now();
+                totalDistanceKm = 0;
+                lastPosition = null;
+                tracePoints = [];
+                idleStartTime = null;
+                totalIdleMs = 0;
+
+                chronoInterval = setInterval(updateChronomètre, 1000);
+                watchId = navigator.geolocation.watchPosition(onPositionReceived, onPositionError, {
+                    enableHighAccuracy: true, maximumAge: 3000, timeout: 10000
+                });
+            } catch(e) {
+                alert('Erreur démarrage : ' + e.message);
+                container.classList.remove('is-tracking');
+                document.getElementById('btn-plan').style.display = 'block';
+            }
+        }
+
         // --- ÉTAT ---
         let isTracking = false;
         let watchId = null;
@@ -267,6 +737,20 @@
         let tracePoints = [];
         let deviceId = localStorage.getItem('erp_device_id') || ('web-' + Math.random().toString(36).substr(2, 9));
         localStorage.setItem('erp_device_id', deviceId);
+
+        // --- Suivi ralenti (moteur allumé, vitesse ≤ 2 km/h) ---
+        let idleStartTime = null;   // timestamp début arrêt actuel
+        let totalIdleMs = 0;        // total accumulé en ms
+
+        function onIdleStart() { if (!idleStartTime) idleStartTime = Date.now(); }
+        function onIdleEnd() {
+            if (idleStartTime) { totalIdleMs += Date.now() - idleStartTime; idleStartTime = null; }
+        }
+        function getIdleMinutes() {
+            let ms = totalIdleMs;
+            if (idleStartTime) ms += Date.now() - idleStartTime; // en cours
+            return ms / 60000;
+        }
 
         // --- ÉTAT SIMULATION ---
         let isDemoMode = false;
@@ -315,6 +799,8 @@
                 totalDistanceKm = 0;
                 lastPosition = null;
                 tracePoints = [];
+                idleStartTime = null;
+                totalIdleMs = 0;
                 
                 chronoInterval = setInterval(updateChronomètre, 1000);
                 watchId = navigator.geolocation.watchPosition(onPositionReceived, onPositionError, { 
@@ -439,6 +925,8 @@
                 totalDistanceKm = 0;
                 lastPosition = null;
                 tracePoints = [];
+                idleStartTime = null;
+                totalIdleMs = 0;
 
                 container.classList.add('is-tracking', 'is-demo');
                 subtitleText.innerText = `🎬 SIMULATION #${activeTrajetId} en cours...`;
@@ -478,6 +966,7 @@
                     if (demoPointIndex === midPoint && !deliveryPauseDone) {
                         deliveryPauseDone = true;
                         clearInterval(demoInterval);
+                        onIdleStart(); // Début du ralenti livraison
                         // Affichage : livraison en cours
                         phaseBanner.className = 'demo-phase-banner livraison';
                         phaseBanner.innerText = '\ud83d\udce6 Livraison en cours... Arr\u00eat 3s';
@@ -485,10 +974,11 @@
                         uiLiveSpeed.innerText = '0';
                         if (activeTrajetId && connection.state === signalR.HubConnectionState.Connected) {
                             const pt = demoRoutePoints[midPoint];
-                            connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), pt.lat, pt.lon, 0, chronoDisplay.innerText, totalDistanceKm).catch(() => {});
+                            connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), pt.lat, pt.lon, 0, chronoDisplay.innerText, totalDistanceKm, getIdleMinutes()).catch(() => {});
                         }
                         // Pause 3 secondes puis reprise phase retour
                         await new Promise(r => setTimeout(r, 3000));
+                        onIdleEnd(); // Fin du ralenti livraison
                         phaseBanner.className = 'demo-phase-banner retour';
                         phaseBanner.innerText = '\u21a9\ufe0f Retour vers l\u2019entrep\u00f4t...';
                         statusText.innerText = "Simulation GPS Active";
@@ -529,9 +1019,9 @@
                     const progress = ((demoPointIndex + 1) / totalSteps) * 100;
                     demoProgressFill.style.width = progress + '%';
 
-                    // Envoyer aux dashboards via SignalR
+                    // Envoyer aux dashboards via SignalR (avec ralenti)
                     if (activeTrajetId && connection.state === signalR.HubConnectionState.Connected) {
-                        connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), lat, lon, parseFloat(speedKmh.toFixed(0)), chronoDisplay.innerText, totalDistanceKm).catch(() => {});
+                        connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), lat, lon, parseFloat(speedKmh.toFixed(0)), chronoDisplay.innerText, totalDistanceKm, getIdleMinutes()).catch(() => {});
                     }
 
                     tracePoints.push({ lat, lon, timestamp: ts });
@@ -603,9 +1093,12 @@
                 lastPosition = { lat, lon, timestamp: ts, sysTimestamp: now };
             }
 
-            // Sync Live Server (Inclut distance)
+            // Suivi ralenti
+            if (speedKmh <= 2) onIdleStart(); else onIdleEnd();
+
+            // Sync Live Server (Inclut distance + ralenti)
             if (activeTrajetId && connection.state === signalR.HubConnectionState.Connected) {
-                connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), lat, lon, parseFloat(speedDisplay), chronoDisplay.innerText, totalDistanceKm).catch(err => {});
+                connection.invoke("UpdatePositionWithTrace", parseInt(activeVehiculeId), parseInt(activeTrajetId), lat, lon, parseFloat(speedDisplay), chronoDisplay.innerText, totalDistanceKm, getIdleMinutes()).catch(err => {});
             }
 
             // Save Trace (Historique)
@@ -621,19 +1114,20 @@
 
         async function stopTrackingAndSend() {
             isTracking = false;
+            onIdleEnd(); // Clôturer le dernier arrêt si en cours
             if (watchId) navigator.geolocation.clearWatch(watchId);
             if (chronoInterval) clearInterval(chronoInterval);
 
             try {
                 let traceJson = JSON.stringify(tracePoints);
+                const idleMin = getIdleMinutes();
                 if (connection.state === signalR.HubConnectionState.Connected) {
                     const tid = parseInt(activeTrajetId) || 0;
                     const vid = parseInt(activeVehiculeId) || 0;
                     try {
-                        await connection.invoke("EndTrajet", vid, tid, "Terminé", totalDistanceKm, traceJson);
+                        await connection.invoke("EndTrajet", vid, tid, "Terminé", totalDistanceKm, traceJson, idleMin, plannedItineraireType || "");
                     } catch(e) {
-                        // Secours si trace trop lourde
-                        await connection.invoke("EndTrajet", vid, tid, "Terminé (Léger)", totalDistanceKm, "[]");
+                        await connection.invoke("EndTrajet", vid, tid, "Terminé (Léger)", totalDistanceKm, "[]", idleMin, plannedItineraireType || "");
                     }
                 }
                 
@@ -679,6 +1173,90 @@
             const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
+
+        // ── Carte de sélection destination ───────────────────────────
+        var destPickerMap = null;
+        var destPickerMarker = null;
+        var pendingDestCoords = null;
+
+        function openMapPicker() {
+            const overlay = document.getElementById('map-overlay');
+            overlay.classList.add('active');
+
+            if (!destPickerMap) {
+                destPickerMap = L.map('dest-map', { zoomControl: true });
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap', maxZoom: 19
+                }).addTo(destPickerMap);
+
+                destPickerMap.on('click', function(e) {
+                    const { lat, lng } = e.latlng;
+                    pendingDestCoords = { lat, lon: lng };
+                    if (destPickerMarker) destPickerMarker.setLatLng([lat, lng]);
+                    else destPickerMarker = L.marker([lat, lng]).addTo(destPickerMap);
+                    document.getElementById('map-dest-label').innerText = `Destination : ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                    document.getElementById('btn-confirm-dest').disabled = false;
+                    // Reverse geocode silencieux
+                    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`, {
+                        headers: { 'Accept-Language': 'fr', 'User-Agent': 'SKYRA-ERP/1.0' }
+                    }).then(r => r.json()).then(d => {
+                        if (d.display_name) {
+                            const short = d.display_name.split(',').slice(0,3).join(',');
+                            document.getElementById('map-dest-label').innerText = short;
+                            pendingDestCoords.address = short;
+                        }
+                    }).catch(() => {});
+                });
+            }
+
+            // Centrer sur GPS ou position par défaut
+            setTimeout(() => {
+                destPickerMap.invalidateSize();
+                if (rpOriginCoords) {
+                    destPickerMap.setView([rpOriginCoords.lat, rpOriginCoords.lon], 13);
+                } else {
+                    destPickerMap.setView([36.7372, 3.0869], 11);
+                }
+            }, 100);
+
+            document.getElementById('map-dest-label').innerText = 'Appuyez sur la carte pour définir la destination';
+            document.getElementById('btn-confirm-dest').disabled = true;
+            pendingDestCoords = null;
+        }
+
+        function closeMapPicker() {
+            document.getElementById('map-overlay').classList.remove('active');
+        }
+
+        function confirmDestination() {
+            if (!pendingDestCoords) return;
+            rpDestCoords = pendingDestCoords;
+            const label = rpDestCoords.address || `${rpDestCoords.lat.toFixed(4)}, ${rpDestCoords.lon.toFixed(4)}`;
+            document.getElementById('dest-label').innerText = label;
+            document.getElementById('dest-dot').style.background = '#22c55e';
+            document.getElementById('dest-status').innerText = label;
+            document.getElementById('dest-status').style.color = '#22c55e';
+            closeMapPicker();
+            checkCalcReady();
+        }
     </script>
+
+<!-- Overlay carte plein écran pour la sélection de destination -->
+<div id="map-overlay">
+    <div id="map-overlay-header">
+        <h3>Choisir la destination</h3>
+        <button onclick="closeMapPicker()" style="background:none;border:none;color:white;font-size:1.4rem;cursor:pointer;padding:0;">✕</button>
+    </div>
+    <div style="position:relative; flex:1; display:flex; flex-direction:column;">
+        <div id="dest-map" style="flex:1;"></div>
+        <div class="map-crosshair"></div>
+    </div>
+    <div id="map-overlay-footer">
+        <div id="map-dest-label">Appuyez sur la carte pour définir la destination</div>
+        <button id="btn-confirm-dest" onclick="confirmDestination()" disabled>Confirmer cette destination</button>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.min.js"></script>
 </body>
 </html>
