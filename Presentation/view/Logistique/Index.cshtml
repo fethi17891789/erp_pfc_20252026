@@ -506,7 +506,7 @@
         
         // Construire l'URL (en utilisant l'origine actuelle)
         const baseUrl = window.location.origin;
-        const trackingUrl = baseUrl + "/Logistique/Tracking?vehiculeId=" + vehiculeId;
+        const trackingUrl = baseUrl + "/Logistique/Tracking?vehiculeId=" + vehiculeId + "&v=" + Date.now();
         
         // Générer le nouveau QR code
         new QRCode(container, {
