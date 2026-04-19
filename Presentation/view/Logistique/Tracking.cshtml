@@ -140,6 +140,7 @@
         }
         .map-crosshair::before { width: 2px; height: 100%; left: 50%; top: 0; }
         .map-crosshair::after { width: 100%; height: 2px; top: 50%; left: 0; }
+        .map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(105%) contrast(90%); }
         #btn-confirm-dest {
             width: 100%; padding: 13px; background: linear-gradient(135deg,#7b5eff,#a855f7);
             border: none; border-radius: 12px; color: white; font-size: 0.95rem;
@@ -359,101 +360,20 @@
         </div>
         <span class="demo-badge">🎬 SIMULATION</span>
         <div class="demo-phase-banner aller" id="demo-phase-banner">🚚 En route vers le client...</div>
-        <!-- Bouton Planifier (visible avant tracking) -->
-        <button id="btn-plan" class="btn btn-start" onclick="openRoutePlanner()" style="background:linear-gradient(135deg,#7b5eff,#a855f7);">
-            Planifier mon itinéraire
-        </button>
-
-        <!-- ── Planificateur d'itinéraire ──────────────────────────── -->
-        <div class="route-planner" id="route-planner">
-            <div style="text-align:left; margin-bottom:16px;">
-                <div style="font-size:1.1rem; font-weight:800; color:white; margin-bottom:3px;">Planification du trajet</div>
-                <div style="font-size:0.78rem; color:var(--text-muted);">Définissez votre destination pour voir les itinéraires disponibles.</div>
-            </div>
-
-            <!-- Départ -->
-            <div style="margin-bottom:12px;">
-                <span class="rp-label">Point de départ</span>
-                <button class="rp-gps-btn" id="btn-get-gps" onclick="getGPSOrigin()">
-                    <div class="rp-gps-dot" id="gps-dot"></div>
-                    <span id="origin-label">Utiliser ma position GPS</span>
-                </button>
-            </div>
-
-            <!-- Destination -->
-            <div style="margin-bottom:14px;">
-                <span class="rp-label">Destination</span>
-                <button class="rp-gps-btn" id="btn-pick-dest" onclick="openMapPicker()">
-                    <div class="rp-gps-dot" id="dest-dot"></div>
-                    <span id="dest-label">Appuyer pour choisir sur la carte</span>
-                </button>
-                <div id="dest-status" style="font-size:0.72rem; color:var(--text-muted); margin-top:5px; min-height:16px;"></div>
-            </div>
-
-            <button class="rp-calc-btn" id="btn-calc" onclick="calculerRoutes()" disabled>
-                Calculer les itinéraires
+        <div id="start-actions-wrapper" style="display:flex; flex-direction:column; gap:12px; margin-bottom: 20px;">
+            <button id="btn-start" class="btn btn-start" style="background: linear-gradient(135deg, #10b981, #059669); font-size: 1.1rem; padding: 18px;">
+                DÉMARRER LE TRAJET
             </button>
-
-            <div class="rp-loading" id="rp-loading">
-                <div style="width:24px;height:24px;border:2px solid rgba(123,94,255,0.3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 10px;"></div>
-                Calcul en cours...
-            </div>
-
-            <!-- Résultats -->
-            <div id="rp-routes-container">
-                <div class="rp-separator">
-                    <hr/><span>Itinéraires disponibles</span><hr/>
-                </div>
-
-                <!-- Route Rapide -->
-                <button class="route-card" id="card-fast" onclick="selectRoute('fast')">
-                    <div class="route-card-header">
-                        <span class="route-card-type fast">Itinéraire rapide</span>
-                        <span class="route-card-co2 fast" id="fast-co2">— CO2</span>
-                    </div>
-                    <div class="route-card-stats">
-                        <div class="route-stat">
-                            <span class="route-stat-val" id="fast-dist">—</span>
-                            <span class="route-stat-lbl">Kilomètres</span>
-                        </div>
-                        <div class="route-stat">
-                            <span class="route-stat-val" id="fast-time">—</span>
-                            <span class="route-stat-lbl">Minutes</span>
-                        </div>
-                    </div>
-                    <div id="fast-note" class="route-card-note"></div>
-                </button>
-
-                <!-- Route Écologique -->
-                <button class="route-card" id="card-eco" onclick="selectRoute('eco')">
-                    <div class="route-card-header">
-                        <span class="route-card-type eco">Itinéraire écologique</span>
-                        <span class="route-card-co2 eco" id="eco-co2">— CO2</span>
-                    </div>
-                    <div class="route-card-stats">
-                        <div class="route-stat">
-                            <span class="route-stat-val" id="eco-dist">—</span>
-                            <span class="route-stat-lbl">Kilomètres</span>
-                        </div>
-                        <div class="route-stat">
-                            <span class="route-stat-val" id="eco-time">—</span>
-                            <span class="route-stat-lbl">Minutes</span>
-                        </div>
-                    </div>
-                    <div id="eco-saving" style="display:none;" class="route-card-saving"></div>
-                    <div id="eco-note" class="route-card-note"></div>
-                </button>
-
-                <button class="rp-confirm-btn" id="btn-confirm-route" onclick="confirmerItineraire()" disabled>
-                    Démarrer avec cet itinéraire
-                </button>
-            </div>
-
-            <button class="rp-cancel-btn" onclick="cancelRoutePlanner()">Annuler</button>
+            <button id="btn-plan" class="btn btn-start" onclick="openRoutePlanner()" style="background:linear-gradient(135deg,#7b5eff,#a855f7); font-size: 0.95rem; opacity: 0.9;">
+                Planifier avec carte & GPS
+            </button>
         </div>
-        <!-- ── Fin planificateur ──────────────────────────────────── -->
 
-        <button id="btn-start" class="btn btn-start" style="display:none;">DÉMARRER LE TRAJET</button>
+        <style>
+            .is-tracking #start-actions-wrapper { display: none !important; }
+            .is-planning #btn-start { display: none !important; }
+        </style>
+
         <button id="btn-stop" class="btn btn-stop">TERMINER LE TRAJET</button>
         <button id="btn-demo" class="btn btn-demo">Lancer la simulation démo</button>
         <div class="demo-progress-bar">
@@ -567,17 +487,19 @@
                     navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 8000 })
                 );
                 rpOriginCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-                label.innerText = `Position obtenue (${rpOriginCoords.lat.toFixed(4)}, ${rpOriginCoords.lon.toFixed(4)})`;
+                label.innerText = `GPS Actif (${rpOriginCoords.lat.toFixed(4)}, ${rpOriginCoords.lon.toFixed(4)})`;
                 dot.style.background = '#22c55e';
                 checkCalcReady();
             } catch(e) {
-                // Fallback : Alger centre
                 rpOriginCoords = { lat: 36.7372, lon: 3.0869 };
                 label.innerText = 'GPS indisponible — position par défaut';
                 dot.style.background = '#ef4444';
                 checkCalcReady();
             } finally { btn.disabled = false; }
         }
+
+        // Lancement auto de la localisation dès le chargement
+        window.addEventListener('load', getGPSOrigin);
 
 
         function checkCalcReady() {
@@ -1186,7 +1108,7 @@
             if (!destPickerMap) {
                 destPickerMap = L.map('dest-map', { zoomControl: true });
                 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '© OpenStreetMap', maxZoom: 19
+                    attribution: '© OpenStreetMap', maxZoom: 19, className: 'map-tiles'
                 }).addTo(destPickerMap);
 
                 destPickerMap.on('click', function(e) {
@@ -1209,7 +1131,7 @@
                 });
             }
 
-            // Centrer sur GPS ou position par défaut
+            // Forcer le redimensionnement Leaflet après affichage du overlay
             setTimeout(() => {
                 destPickerMap.invalidateSize();
                 if (rpOriginCoords) {
@@ -1217,7 +1139,10 @@
                 } else {
                     destPickerMap.setView([36.7372, 3.0869], 11);
                 }
-            }, 100);
+            }, 300); // 300ms au lieu de 100ms
+            
+            // Sécurité supplémentaire si le DOM lag
+            setTimeout(() => { if(destPickerMap) destPickerMap.invalidateSize(); }, 800);
 
             document.getElementById('map-dest-label').innerText = 'Appuyez sur la carte pour définir la destination';
             document.getElementById('btn-confirm-dest').disabled = true;
