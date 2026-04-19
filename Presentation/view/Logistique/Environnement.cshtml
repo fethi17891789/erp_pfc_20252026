@@ -7,6 +7,7 @@
 @section Styles {
 <style>
 /* ── Layout ─────────────────────────────────────────────────────────── */
+/* ── Layout ─────────────────────────────────────────────────────────── */
 .rse-page { padding: 28px 32px; overflow-y: auto; height: 100%; }
 
 /* ── KPI Cards ──────────────────────────────────────────────────────── */
@@ -156,10 +157,7 @@
 .data-table tbody tr:last-child td { border-bottom: none; }
 .data-table tbody tr:hover td     { background: rgba(123,94,255,0.045); }
 
-/* ── Vehicle row ─────────────────────────────────────────────────────── */
-.veh-name { font-weight: 700; font-size: 0.88rem; }
-
-/* ── Badges ──────────────────────────────────────────────────────────── */
+/* ── Badges premium ─────────────────────────────────────────── */
 .badge {
     display: inline-block; font-size: 0.67rem; font-weight: 700;
     padding: 3px 10px; border-radius: 999px; letter-spacing: 0.02em;
@@ -169,7 +167,7 @@
 .badge-orange { background: rgba(234,179,8,0.12);  color: #fde047; }
 .badge-red    { background: rgba(239,68,68,0.12);  color: #f87171; }
 
-/* ── Progress bar ────────────────────────────────────────────────────── */
+/* ── Progress bar (Sleek) ────────────────────────────────────────────── */
 .bar-track {
     height: 5px; background: rgba(255,255,255,0.05);
     border-radius: 999px; overflow: hidden;
@@ -178,14 +176,6 @@
     height: 100%; border-radius: 999px; width: 0;
     transition: width 1.4s cubic-bezier(0.16,1,0.3,1);
 }
-
-/* ── Empty state ─────────────────────────────────────────────────────── */
-.empty-state {
-    text-align: center; padding: 52px 24px; color: var(--text-muted-2);
-}
-.empty-state svg { width: 36px; height: 36px; opacity: 0.2; display: block; margin: 0 auto 14px; }
-.empty-state p   { font-size: 0.88rem; margin: 0 0 5px; }
-.empty-state small { font-size: 0.75rem; }
 
 /* ── Modern List & Rows ──────────────────────────────────────────────── */
 .modern-list {
@@ -225,7 +215,13 @@
     font-size: 18px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
-/* ── Fade-in entrée ──────────────────────────────────────────────────── */
+/* ── Empty state ─────────────────────────────────────────────────────── */
+.empty-state { text-align: center; padding: 52px 24px; color: var(--text-muted-2); position: relative; z-index:1; }
+.empty-state svg { width: 36px; height: 36px; opacity: 0.2; display: block; margin: 0 auto 14px; }
+.empty-state p   { font-size: 0.88rem; margin: 0 0 5px; }
+.empty-state small { font-size: 0.75rem; }
+
+/* ── Animation ───────────────────────────────────────────────────────── */
 @@keyframes rseIn {
     from { opacity: 0; transform: translateY(14px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -346,13 +342,17 @@
         <div class="chart-card">
             <div class="chart-card-title">Émissions mensuelles</div>
             <div class="chart-card-sub">CO2 total émis en kg — 6 derniers mois</div>
-            <canvas id="chart-mensuel" height="155"></canvas>
+            <div style="position: relative; height: 220px; width: 100%;">
+                <canvas id="chart-mensuel"></canvas>
+            </div>
         </div>
 
         <div class="chart-card">
             <div class="chart-card-title">Mix énergétique</div>
             <div class="chart-card-sub">Répartition de la flotte par carburant</div>
-            <canvas id="chart-carburant" height="185"></canvas>
+            <div style="position: relative; height: 220px; width: 100%;">
+                <canvas id="chart-carburant"></canvas>
+            </div>
         </div>
 
     </div>
@@ -526,17 +526,37 @@
     }, 300);
 
     const monthLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.Label)));
-    const monthCO2   = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.CO2TotalKg)));
+    const monthCO2    = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.CO2TotalKg)));
 
-    // ── Bar chart mensuel ─────────────────────────────────────────────
+    // ── Générateur de texture de Carbone / Hachures colorées ────────
+    function createTexturedColor(baseColor) {
+        const pCanvas = document.createElement('canvas');
+        pCanvas.width = 10;
+        pCanvas.height = 10;
+        const pctx = pCanvas.getContext('2d');
+        
+        // Couleur de fond fluo
+        pctx.fillStyle = baseColor;
+        pctx.fillRect(0, 0, 10, 10);
+        
+        // Texture hachurée (style tech / blueprint)
+        pctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        pctx.lineWidth = 2;
+        pctx.beginPath();
+        pctx.moveTo(0, 10);
+        pctx.lineTo(10, 0);
+        pctx.moveTo(-5, 5);
+        pctx.lineTo(5, -5);
+        pctx.moveTo(5, 15);
+        pctx.lineTo(15, 5);
+        pctx.stroke();
+
+        return document.getElementById('chart-mensuel').getContext('2d').createPattern(pCanvas, 'repeat');
+    }
+
+    // ── Bar chart mensuel (Barres arrondies & Animation ressort) ──────
     const ctxBar = document.getElementById('chart-mensuel').getContext('2d');
-    const gradBar = ctxBar.createLinearGradient(0, 0, 0, 220);
-    gradBar.addColorStop(0, 'rgba(123,94,255,0.85)');
-    gradBar.addColorStop(1, 'rgba(123,94,255,0.15)');
-    const gradBarHover = ctxBar.createLinearGradient(0, 0, 0, 220);
-    gradBarHover.addColorStop(0, 'rgba(168,130,255,0.95)');
-    gradBarHover.addColorStop(1, 'rgba(168,130,255,0.25)');
-
+    
     new Chart(ctxBar, {
         type: 'bar',
         data: {
@@ -544,83 +564,113 @@
             datasets: [{
                 label: 'CO2',
                 data: monthCO2,
-                backgroundColor: gradBar,
-                hoverBackgroundColor: gradBarHover,
-                borderRadius: 10,
-                borderSkipped: false,
+                backgroundColor: createTexturedColor('#7b5eff'), // Violet Neon + Texture
+                hoverBackgroundColor: createTexturedColor('#a882ff'),
+                borderRadius: 14,
+                borderSkipped: 'bottom',
+                barThickness: 32,
             }]
         },
         options: {
             responsive: true,
-            animation: { duration: 900, easing: 'easeOutQuart' },
+            maintainAspectRatio: false,
+            animation: { 
+                duration: 1200, 
+                easing: 'easeOutElastic',
+                delay: (context) => context.dataIndex * 80 
+            },
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(8,10,28,0.96)',
-                    borderColor: 'rgba(123,94,255,0.35)',
+                    titleColor: '#fff',
+                    bodyColor: '#4ade80',
+                    borderColor: 'rgba(123, 94, 255, 0.4)',
                     borderWidth: 1,
-                    padding: 14,
-                    cornerRadius: 12,
-                    titleFont: { size: 12, weight: '700' },
-                    bodyFont: { size: 12 },
-                    callbacks: { label: ctx => `  ${ctx.parsed.y} kg CO2` }
+                    padding: 16,
+                    cornerRadius: 16,
+                    titleFont: { size: 13, family: "'Plus Jakarta Sans'" },
+                    bodyFont: { size: 14, weight: 'bold' },
+                    boxPadding: 6,
+                    usePointStyle: true,
+                    callbacks: { label: ctx => ` ${ctx.parsed.y} kg émis` }
                 }
             },
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.04)' },
-                    ticks: { callback: v => v + ' kg', font: { size: 11 }, padding: 8 }
+                    border: { display: false },
+                    grid: { color: 'rgba(255,255,255,0.03)', drawTicks: false },
+                    ticks: { callback: v => v + ' kg', font: { size: 10, weight: '600' }, color: 'rgba(255,255,255,0.4)', padding: 10 }
                 },
                 x: {
+                    border: { display: false },
                     grid: { display: false },
-                    ticks: { font: { size: 11 }, padding: 6 }
+                    ticks: { font: { size: 11, weight: '700' }, color: 'rgba(255,255,255,0.6)', padding: 8 }
                 }
             }
         }
     });
 
-    // ── Donut mix énergétique ─────────────────────────────────────────
+    // ── Donut mix énergétique (Sleek Ring) ─────────────
     const vehData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
         Model.Vehicules
             .GroupBy(v => string.IsNullOrEmpty(v.TypeCarburant) ? "Inconnu" : v.TypeCarburant)
             .Select(g => new { label = g.Key, count = g.Count() })
     ));
 
-    new Chart(document.getElementById('chart-carburant'), {
+    const ctxDonut = document.getElementById('chart-carburant').getContext('2d');
+    
+    // Application de la texture sur toutes nos couleurs néon d'origine !
+    const vibrantPatterns = [
+        createTexturedColor('#22c55e'), // Vert
+        createTexturedColor('#ef4444'), // Rouge
+        createTexturedColor('#eab308'), // Jaune
+        createTexturedColor('#7b5eff')  // Violet
+    ];
+
+    new Chart(ctxDonut, {
         type: 'doughnut',
         data: {
             labels: vehData.map(d => d.label),
             datasets: [{
                 data: vehData.map(d => d.count),
-                backgroundColor: [
-                    'rgba(34,197,94,0.8)',
-                    'rgba(239,68,68,0.8)',
-                    'rgba(234,179,8,0.8)',
-                    'rgba(123,94,255,0.8)',
-                    'rgba(99,102,241,0.8)',
-                    'rgba(168,85,247,0.8)',
-                ],
-                borderColor: 'rgba(8,10,28,0.9)',
-                borderWidth: 3,
-                hoverOffset: 8,
+                backgroundColor: vibrantPatterns,
+                borderWidth: 6,
+                borderColor: '#0a0d1e',
+                hoverBorderColor: '#0a0d1e',
+                hoverOffset: 12,
             }]
         },
         options: {
             responsive: true,
-            cutout: '70%',
-            animation: { duration: 900, easing: 'easeOutQuart' },
+            maintainAspectRatio: false,
+            cutout: '78%',
+            animation: {
+                animateScale: true,
+                animateRotate: true,
+                duration: 1200,
+                easing: 'easeOutQuart'
+            },
             plugins: {
                 legend: {
                     position: 'bottom',
-                    labels: { padding: 16, font: { size: 11 }, boxWidth: 10, boxHeight: 10, usePointStyle: true }
+                    labels: { 
+                        padding: 24, 
+                        font: { size: 12, weight: '600' }, 
+                        color: 'rgba(255,255,255,0.7)',
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
                 },
                 tooltip: {
                     backgroundColor: 'rgba(8,10,28,0.96)',
-                    borderColor: 'rgba(123,94,255,0.35)',
+                    titleColor: '#fff',
+                    borderColor: 'rgba(123,94,255,0.3)',
                     borderWidth: 1,
-                    padding: 12,
+                    padding: 14,
                     cornerRadius: 12,
+                    callbacks: { label: ctx => ` ${ctx.parsed} véhicule(s)` }
                 }
             }
         }
