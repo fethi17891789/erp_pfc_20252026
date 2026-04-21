@@ -961,14 +961,31 @@
 
     function focusVehicule(id, lat, lon) {
         selectedVehiculeId = id;
-        if (lat && lon && lat != 0) {
-            map.setView([lat, lon], 14);
-            if (markers[id]) {
-                closeAllTooltips(id);
-                markers[id].openTooltip();
+
+        // Chercher le tracé actif pour ce véhicule
+        let trajetPolyline = null;
+        for (let tid in activeTrajets) {
+            if (activeTrajets[tid].vehiculeId == id) {
+                trajetPolyline = activeTrajets[tid].polyline;
+                break;
             }
         }
-        
+
+        // Préférer la position temps réel du marqueur aux coordonnées stales du chargement
+        if (markers[id]) {
+            const pos = markers[id].getLatLng();
+            if (trajetPolyline && trajetPolyline.getLatLngs().length > 1) {
+                // Fitter la carte sur l'ensemble du tracé
+                map.fitBounds(trajetPolyline.getBounds(), { padding: [60, 60] });
+            } else {
+                map.setView([pos.lat, pos.lng], 14);
+            }
+            closeAllTooltips(id);
+            markers[id].openTooltip();
+        } else if (lat && lon && lat != 0) {
+            map.setView([lat, lon], 14);
+        }
+
         // Titre dans le panneau de stats
         const card = document.querySelector(`.vehicle-card[data-vehicule-id="${id}"]`);
         if (card) {
@@ -1022,11 +1039,12 @@
         console.log("🚀 Trajet démarré :", vehiculeId, trajetId, "Début:", startTime);
         
         activeTrajets[trajetId] = {
+            vehiculeId: vehiculeId,
             polyline: L.polyline([], {
-                color: '#7b5eff', 
-                weight: 5, 
-                opacity: 0.85, 
-                lineCap: 'round', 
+                color: '#7b5eff',
+                weight: 5,
+                opacity: 0.85,
+                lineCap: 'round',
                 lineJoin: 'round',
                 smoothFactor: 1.5
             }).addTo(map),
@@ -1050,6 +1068,12 @@
         if (card) document.getElementById('live-stat-name').innerText = card.querySelector('h4').innerText;
         document.getElementById('live-stat-speed').innerText = "0 km/h";
         document.getElementById('live-stat-distance').innerText = "0.00 km";
+
+        // Centrer la carte sur le marqueur actuel si disponible
+        if (markers[vehiculeId]) {
+            const pos = markers[vehiculeId].getLatLng();
+            map.setView([pos.lat, pos.lng], 15);
+        }
     });
 
     // Timer Global pour fluidifier l'affichage du temps ( interpolation )
@@ -1091,6 +1115,11 @@
         const label = card ? card.querySelector('h4').innerText : "Véhicule #" + vehiculeId;
 
         addOrUpdateMarker(vehiculeId, lat, lon, label, { speed: speed, duration: duration, distance: distanceKm });
+
+        // Auto-follow : pan doux vers le véhicule sélectionné
+        if (selectedVehiculeId == vehiculeId) {
+            map.panTo([lat, lon], { animate: true, duration: 1 });
+        }
 
         // MAJ CO2 temps réel
         if (selectedVehiculeId == vehiculeId && co2Grammes !== undefined) {
