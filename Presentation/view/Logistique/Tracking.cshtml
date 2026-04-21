@@ -635,6 +635,7 @@
                 tracePoints = [];
                 idleStartTime = null;
                 totalIdleMs = 0;
+                localStorage.removeItem('erp_pending_trajet');
 
                 chronoInterval = setInterval(updateChronomètre, 1000);
                 watchId = navigator.geolocation.watchPosition(onPositionReceived, onPositionError, {
@@ -686,7 +687,12 @@
             .withAutomaticReconnect()
             .build();
 
-        connection.start().catch(err => console.error("SignalR Connection Error:", err));
+        connection.start()
+            .then(() => envoyerTraceEnAttente()) // Envoyer tracé en attente dès la connexion initiale
+            .catch(err => console.error("SignalR Connection Error:", err));
+
+        // Tentative d'envoi automatique à chaque reconnexion
+        connection.onreconnected(() => envoyerTraceEnAttente());
 
         // --- ACTIONS BOUTONS ---
         btnStart.onclick = async function() {
@@ -723,7 +729,8 @@
                 tracePoints = [];
                 idleStartTime = null;
                 totalIdleMs = 0;
-                
+                localStorage.removeItem('erp_pending_trajet');
+
                 chronoInterval = setInterval(updateChronomètre, 1000);
                 watchId = navigator.geolocation.watchPosition(onPositionReceived, onPositionError, { 
                     enableHighAccuracy: true, 
@@ -849,6 +856,7 @@
                 tracePoints = [];
                 idleStartTime = null;
                 totalIdleMs = 0;
+                localStorage.removeItem('erp_pending_trajet');
 
                 container.classList.add('is-tracking', 'is-demo');
                 subtitleText.innerText = `🎬 SIMULATION #${activeTrajetId} en cours...`;
@@ -1034,6 +1042,8 @@
             // Save Trace (Historique)
             if (tracePoints.length === 0 || haversineDistance(tracePoints[tracePoints.length-1].lat, tracePoints[tracePoints.length-1].lon, lat, lon) > 0.015) {
                 tracePoints.push({ lat, lon, timestamp: ts });
+                // Sauvegarde locale toutes les 10 positions (protection perte réseau)
+                if (tracePoints.length % 10 === 0) sauvegarderTracePending();
             }
         }
 
@@ -1049,24 +1059,34 @@
             if (chronoInterval) clearInterval(chronoInterval);
 
             try {
+                const tid = parseInt(activeTrajetId) || 0;
+                const vid = parseInt(activeVehiculeId) || 0;
                 let traceJson = JSON.stringify(tracePoints);
                 const idleMin = getIdleMinutes();
-                if (connection.state === signalR.HubConnectionState.Connected) {
-                    const tid = parseInt(activeTrajetId) || 0;
-                    const vid = parseInt(activeVehiculeId) || 0;
-                    try {
-                        await connection.invoke("EndTrajet", vid, tid, "Terminé", totalDistanceKm, traceJson, idleMin, plannedItineraireType || "");
-                    } catch(e) {
-                        await connection.invoke("EndTrajet", vid, tid, "Terminé (Léger)", totalDistanceKm, "[]", idleMin, plannedItineraireType || "");
-                    }
+
+                // Sauvegarder le tracé complet en local AVANT d'envoyer (filet de sécurité)
+                sauvegarderTracePending();
+
+                if (connection.state !== signalR.HubConnectionState.Connected) {
+                    // Pas de connexion : tracé sauvegardé localement, sera envoyé à la reconnexion
+                    container.classList.remove('is-tracking');
+                    subtitleText.innerText = "Tracé sauvegardé — sera envoyé à la reconnexion.";
+                    statusText.innerText = "Hors ligne";
+                    return;
                 }
-                
+
+                await connection.invoke("EndTrajet", vid, tid, "Terminé", totalDistanceKm, traceJson, idleMin, plannedItineraireType || "");
+
+                // Succès : supprimer le cache local
+                localStorage.removeItem('erp_pending_trajet');
+
                 container.classList.remove('is-tracking');
-                btnStop.style.display = ''; // Laisser le CSS gérer la visibilité
+                btnStop.style.display = '';
                 subtitleText.innerText = "Trajet terminé et véhicule libéré.";
                 statusText.innerText = "Disponible";
             } catch(e) {
-                alert("Erreur lors de la clôture : " + e.message);
+                // L'envoi a échoué mais le tracé est déjà dans localStorage, pas de perte
+                subtitleText.innerText = "Erreur d'envoi — tracé conservé localement.";
                 btnStop.disabled = false;
                 btnStop.innerText = "RÉESSAYER";
             }
@@ -1102,6 +1122,43 @@
             const dLon = (lon2-lon1) * Math.PI/180;
             const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        // --- RÉCUPÉRATION TRACÉ GPS ---
+        const PENDING_TRAJET_KEY = 'erp_pending_trajet';
+
+        function sauvegarderTracePending() {
+            if (!activeTrajetId || !activeVehiculeId) return;
+            try {
+                localStorage.setItem(PENDING_TRAJET_KEY, JSON.stringify({
+                    vid: parseInt(activeVehiculeId),
+                    tid: parseInt(activeTrajetId),
+                    tracePoints: tracePoints,
+                    totalDistanceKm: totalDistanceKm,
+                    plannedItineraireType: plannedItineraireType || "",
+                    timestamp: Date.now()
+                }));
+            } catch(e) { /* localStorage peut être plein */ }
+        }
+
+        async function envoyerTraceEnAttente() {
+            const raw = localStorage.getItem(PENDING_TRAJET_KEY);
+            if (!raw) return;
+            try {
+                const pending = JSON.parse(raw);
+                // Ignorer si plus de 12h
+                if (Date.now() - pending.timestamp > 12 * 3600 * 1000) {
+                    localStorage.removeItem(PENDING_TRAJET_KEY);
+                    return;
+                }
+                if (connection.state !== signalR.HubConnectionState.Connected) return;
+                const traceJson = JSON.stringify(pending.tracePoints || []);
+                await connection.invoke("EndTrajet", pending.vid, pending.tid, "Terminé (récupéré)", pending.totalDistanceKm || 0, traceJson, 0, pending.plannedItineraireType || "");
+                localStorage.removeItem(PENDING_TRAJET_KEY);
+                console.log(`[RECOVERY] Trajet ${pending.tid} envoyé avec succès depuis le cache local.`);
+            } catch(e) {
+                console.warn('[RECOVERY] Envoi du trajet en attente échoué :', e.message);
+            }
         }
 
         // ── Carte de sélection destination ───────────────────────────

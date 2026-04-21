@@ -154,6 +154,18 @@ namespace Metier.Logistique
         #region Trajets
         public async Task<Trajet> StartTrajetAsync(int vehiculeId, int capteurId, string origine = "")
         {
+            // Vérifier si un trajet est déjà en cours pour CE véhicule (anti double-clic)
+            var trajetExistant = await _context.LogistiqueTrajets
+                .Where(t => t.VehiculeId == vehiculeId && t.Statut == "En Cours")
+                .OrderByDescending(t => t.DateDebut)
+                .FirstOrDefaultAsync();
+
+            if (trajetExistant != null)
+            {
+                Console.WriteLine($"[INFO] StartTrajetAsync - Trajet déjà actif ({trajetExistant.Id}) pour véhicule {vehiculeId}, retour de l'existant.");
+                return trajetExistant;
+            }
+
             var trajet = new Trajet
             {
                 VehiculeId = vehiculeId,
@@ -164,7 +176,7 @@ namespace Metier.Logistique
             };
 
             _context.LogistiqueTrajets.Add(trajet);
-            
+
             // Mettre à jour le statut du véhicule
             var v = await _context.LogistiqueVehicules.FindAsync(vehiculeId);
             if (v != null) v.Statut = "En Trajet";
@@ -389,6 +401,19 @@ namespace Metier.Logistique
                 Console.WriteLine($"[RSE IA] Fallback formule ADEME (erreur Gemini : {ex.Message})");
             }
             return valeurFormule;
+        }
+
+        /// <summary>
+        /// Met à jour uniquement l'émission CO2/km d'un véhicule (utilisé après affinage IA).
+        /// </summary>
+        public async Task UpdateCO2VehiculeAsync(int id, double co2)
+        {
+            var v = await _context.LogistiqueVehicules.FindAsync(id);
+            if (v != null)
+            {
+                v.EmissionCO2ParKm = co2;
+                await _context.SaveChangesAsync();
+            }
         }
 
         /// <summary>

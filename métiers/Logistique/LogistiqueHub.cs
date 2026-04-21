@@ -10,10 +10,10 @@ namespace Metier.Logistique
     {
         private readonly LogistiqueService _logistiqueService;
         
-        // Mapping statique pour savoir quel véhicule est lié à quelle connexion SignalR
-        // Cela permet de libérer le véhicule si le chauffeur ferme l'appli (OnDisconnected)
-        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, int> _connectionMap 
-            = new System.Collections.Concurrent.ConcurrentDictionary<string, int>();
+        // Mapping statique : connexionId → (vehiculeId, trajetId)
+        // Permet de clôturer le bon trajet si le chauffeur ferme l'appli (OnDisconnected)
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (int vehiculeId, int trajetId)> _connectionMap
+            = new System.Collections.Concurrent.ConcurrentDictionary<string, (int vehiculeId, int trajetId)>();
 
         public LogistiqueHub(LogistiqueService logistiqueService)
         {
@@ -31,11 +31,12 @@ namespace Metier.Logistique
 
         public async Task<int> StartTrajet(int vehiculeId, string deviceId, string origine = "")
         {
-            // Enregistrer ce véhicule pour cette connexion (pour OnDisconnected)
-            _connectionMap[Context.ConnectionId] = vehiculeId;
-            
             var capteur = await _logistiqueService.GetOrCreateCapteurByUidAsync(deviceId ?? "web-tracker");
             var trajet = await _logistiqueService.StartTrajetAsync(vehiculeId, capteur.Id, origine);
+
+            // Enregistrer (vehiculeId, trajetId) pour cette connexion (pour OnDisconnected)
+            _connectionMap[Context.ConnectionId] = (vehiculeId, trajet.Id);
+
             await Clients.Others.SendAsync("TrajetStarted", vehiculeId, trajet.Id, origine, trajet.DateDebut);
             return trajet.Id;
         }
@@ -62,7 +63,7 @@ namespace Metier.Logistique
 
         public async Task EndTrajet(int vehiculeId, int trajetId, string destination, double distanceKm, string traceJson, double dureeArretMinutes = 0, string itineraireType = null)
         {
-            _connectionMap.TryRemove(Context.ConnectionId, out _);
+            _connectionMap.TryRemove(Context.ConnectionId, out _); // Trajet clôturé normalement
 
             // Calcul CO2 final
             double co2Grammes = 0;
@@ -95,16 +96,16 @@ namespace Metier.Logistique
 
         public override async Task OnDisconnectedAsync(System.Exception exception)
         {
-            if (_connectionMap.TryRemove(Context.ConnectionId, out int vehiculeId))
+            if (_connectionMap.TryRemove(Context.ConnectionId, out var info))
             {
                 // Le chauffeur a perdu sa connexion ou fermé son navigateur
-                // On libère le véhicule en base de données automatiquement
-                await _logistiqueService.ForceResetVehiculeAsync(vehiculeId);
-                
-                // Prévenir tout le monde (dont l'admin) pour que le badge passe en gris instantanément
-                await Clients.All.SendAsync("TrajetEnded", vehiculeId, 0, "[]", 0);
-                
-                System.Console.WriteLine($"[SIGNALR DISCONNECT] Véhicule {vehiculeId} libéré automatiquement.");
+                // On libère le véhicule et clôture le trajet en base
+                await _logistiqueService.ForceResetVehiculeAsync(info.vehiculeId);
+
+                // Diffuser avec le vrai trajetId (pas 0) pour que les dashboards mettent à jour correctement
+                await Clients.All.SendAsync("TrajetEnded", info.vehiculeId, info.trajetId, "[]", 0);
+
+                System.Console.WriteLine($"[SIGNALR DISCONNECT] Véhicule {info.vehiculeId} / Trajet {info.trajetId} libérés automatiquement.");
             }
             await base.OnDisconnectedAsync(exception);
         }

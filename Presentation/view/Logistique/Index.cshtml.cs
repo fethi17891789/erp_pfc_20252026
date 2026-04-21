@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.DependencyInjection;
 using Metier.Logistique;
 using Donnees.Logistique;
 using System.Collections.Generic;
@@ -10,10 +11,12 @@ namespace erp_pfc_20252026.Pages.Logistique
     public class IndexModel : PageModel
     {
         private readonly LogistiqueService _logistiqueService;
+        private readonly IServiceScopeFactory _scopeFactory;
 
-        public IndexModel(LogistiqueService logistiqueService)
+        public IndexModel(LogistiqueService logistiqueService, IServiceScopeFactory scopeFactory)
         {
             _logistiqueService = logistiqueService;
+            _scopeFactory = scopeFactory;
         }
 
         public List<Vehicule> Vehicules { get; set; } = new List<Vehicule>();
@@ -48,16 +51,19 @@ namespace erp_pfc_20252026.Pages.Logistique
                 await _logistiqueService.CreateVehiculeAsync(v);
 
                 // Affiner avec Gemini en arrière-plan (non bloquant)
+                // Utilise IServiceScopeFactory pour éviter d'utiliser un DbContext déjà disposé
                 if (!string.IsNullOrWhiteSpace(marque) && !string.IsNullOrWhiteSpace(modele))
                 {
+                    int vehiculeId = v.Id;
                     _ = Task.Run(async () =>
                     {
                         try
                         {
-                            double co2Affine = await _logistiqueService.EstimerCO2ParKmAvecIAAsync(
+                            using var scope = _scopeFactory.CreateScope();
+                            var svc = scope.ServiceProvider.GetRequiredService<LogistiqueService>();
+                            double co2Affine = await svc.EstimerCO2ParKmAvecIAAsync(
                                 marque, modele, annee, carburant, type);
-                            v.EmissionCO2ParKm = co2Affine;
-                            await _logistiqueService.CreateVehiculeAsync(v); // Update via save context
+                            await svc.UpdateCO2VehiculeAsync(vehiculeId, co2Affine);
                         }
                         catch { /* non bloquant */ }
                     });
@@ -82,11 +88,11 @@ namespace erp_pfc_20252026.Pages.Logistique
                     {
                         try
                         {
-                            double co2Affine = await _logistiqueService.EstimerCO2ParKmAvecIAAsync(
+                            using var scope = _scopeFactory.CreateScope();
+                            var svc = scope.ServiceProvider.GetRequiredService<LogistiqueService>();
+                            double co2Affine = await svc.EstimerCO2ParKmAvecIAAsync(
                                 marque, modele, annee, carburant, type);
-                            updated.EmissionCO2ParKm = co2Affine;
-                            await _logistiqueService.UpdateVehiculeAsync(
-                                id, nom, matricule, type, marque, modele, annee, carburant);
+                            await svc.UpdateCO2VehiculeAsync(id, co2Affine);
                         }
                         catch { /* non bloquant */ }
                     });
