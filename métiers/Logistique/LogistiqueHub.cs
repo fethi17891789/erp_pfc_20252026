@@ -82,9 +82,9 @@ namespace Metier.Logistique
             await Clients.Others.SendAsync("TrajetEnded", vehiculeId, trajetId, traceJson, distanceKm, co2Grammes);
         }
 
-        public async Task<List<Trajet>> GetTrajetHistory()
+        public async Task<List<TrajetAvecBlockchainDto>> GetTrajetHistory()
         {
-            return await _logistiqueService.GetTrajetsRecentsAsync(10);
+            return await _logistiqueService.GetTrajetsRecentsAvecBlockchainAsync(10);
         }
 
         public async Task ForceResetVehicule(int vehiculeId)

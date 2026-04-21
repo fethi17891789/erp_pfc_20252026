@@ -457,13 +457,14 @@
                                 <th>Arrivée</th>
                                 <th>Distance</th>
                                 <th>CO2</th>
+                                <th>Blockchain</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody id="history-tbody">
                             <!-- Rempli en JS -->
                             <tr>
-                                <td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Chargement de l'historique...</td>
+                                <td colspan="8" style="text-align:center; padding:20px; color:var(--text-muted);">Chargement de l'historique...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1167,7 +1168,7 @@
             tbody.innerHTML = "";
 
             if (!history || history.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Aucun historique disponible.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:20px;">Aucun historique disponible.</td></tr>';
                 return;
             }
 
@@ -1175,10 +1176,40 @@
                 const row = document.createElement('tr');
                 row.className = "history-row";
                 row.onclick = () => showHistoryTrace(t.traceJson);
-                
+
                 const dateStart = new Date(t.dateDebut).toLocaleString('fr-FR');
                 const co2Kg = (t.co2EmisGrammes || 0) / 1000;
                 const co2Color = co2Kg < 3 ? '#22c55e' : co2Kg < 8 ? '#eab308' : '#ef4444';
+
+                // Badge blockchain
+                let blockchainBadge = '';
+                const statut = t.statutBlockchain || 'EnAttente';
+                if (statut === 'Ancre') {
+                    blockchainBadge = `<a href="${t.lienEtherscan}" target="_blank"
+                        title="Vérifier sur Sepolia Etherscan"
+                        onclick="event.stopPropagation()"
+                        style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+                        background:rgba(123,94,255,0.15);border:1px solid rgba(123,94,255,0.4);
+                        color:#9C8CFF;font-size:0.72rem;font-weight:600;text-decoration:none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                        Certifié Sepolia</a>`;
+                } else if (statut === 'Local') {
+                    blockchainBadge = `<span title="Hash SHA-256 : ${t.hashContenu || ''}"
+                        style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+                        background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);
+                        color:var(--text-muted);font-size:0.72rem;font-weight:600;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        Hash local</span>`;
+                } else if (statut === 'ErreurSepolia') {
+                    blockchainBadge = `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;
+                        border-radius:999px;background:rgba(255,100,100,0.1);border:1px solid rgba(255,100,100,0.3);
+                        color:#ff8080;font-size:0.72rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        Erreur réseau</span>`;
+                } else {
+                    blockchainBadge = `<span style="font-size:0.72rem;color:var(--text-muted-2);">En attente...</span>`;
+                }
+
                 row.innerHTML = `
                     <td>${dateStart}</td>
                     <td><span style="background:rgba(123,94,255,0.2); color:var(--accent-light); padding:2px 8px; border-radius:4px; font-size:0.75rem;">ID #${t.vehiculeId}</span></td>
@@ -1186,6 +1217,7 @@
                     <td>${t.destination || 'N/A'}</td>
                     <td><strong>${t.distanceParcourueKm.toFixed(2)} km</strong></td>
                     <td><span style="color:${co2Color}; font-weight:700; font-size:0.8rem;">${co2Kg > 0 ? co2Kg.toFixed(2) + ' kg' : '—'}</span></td>
+                    <td>${blockchainBadge}</td>
                     <td style="color:var(--accent-light); font-weight:bold; font-size:0.75rem;">VOIR TRACÉ ➔</td>
                 `;
                 tbody.appendChild(row);

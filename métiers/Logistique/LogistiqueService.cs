@@ -245,6 +245,36 @@ namespace Metier.Logistique
                 .ToListAsync();
         }
 
+        public async Task<List<TrajetAvecBlockchainDto>> GetTrajetsRecentsAvecBlockchainAsync(int limit = 10)
+        {
+            var trajets = await _context.LogistiqueTrajets
+                .OrderByDescending(t => t.DateDebut)
+                .Take(limit)
+                .ToListAsync();
+
+            var result = new List<TrajetAvecBlockchainDto>();
+            foreach (var t in trajets)
+            {
+                var refTrajet = $"TRAJET-{t.Id}-{t.DateDebut:yyyyMMddHHmmss}";
+                var ancrage = await _blockchain.GetAncrageParRefAsync(refTrajet);
+                result.Add(new TrajetAvecBlockchainDto
+                {
+                    Id                  = t.Id,
+                    VehiculeId          = t.VehiculeId,
+                    DateDebut           = t.DateDebut,
+                    Origine             = t.Origine,
+                    Destination         = t.Destination,
+                    DistanceParcourueKm = t.DistanceParcourueKm,
+                    Co2EmisGrammes      = t.Co2EmisGrammes,
+                    TraceJson           = t.TraceJson,
+                    StatutBlockchain    = ancrage?.Statut ?? "EnAttente",
+                    LienEtherscan       = ancrage?.LienEtherscan,
+                    HashContenu         = ancrage?.HashContenu
+                });
+            }
+            return result;
+        }
+
         private async Task<string> ProcessMapMatchingAsync(string rawTraceJson)
         {
             try
@@ -538,5 +568,20 @@ namespace Metier.Logistique
         public string Label { get; set; } = "";
         public double CO2TotalKg { get; set; }
         public double DistanceKm { get; set; }
+    }
+
+    public class TrajetAvecBlockchainDto
+    {
+        public int Id { get; set; }
+        public int VehiculeId { get; set; }
+        public DateTime DateDebut { get; set; }
+        public string? Origine { get; set; }
+        public string? Destination { get; set; }
+        public double DistanceParcourueKm { get; set; }
+        public double Co2EmisGrammes { get; set; }
+        public string? TraceJson { get; set; }
+        public string StatutBlockchain { get; set; } = "EnAttente";
+        public string? LienEtherscan { get; set; }
+        public string? HashContenu { get; set; }
     }
 }
