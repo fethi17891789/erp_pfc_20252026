@@ -66,5 +66,35 @@ namespace erp_pfc_20252026.Pages.Logistique
             return RedirectToPage();
         }
 
+        public async Task<IActionResult> OnPostUpdateVehiculeAsync(
+            int id, string nom, string matricule, string type,
+            string? marque, string? modele, int? annee, string? carburant)
+        {
+            if (id > 0 && !string.IsNullOrEmpty(nom))
+            {
+                var updated = await _logistiqueService.UpdateVehiculeAsync(
+                    id, nom, matricule, type, marque, modele, annee, carburant);
+
+                // Affiner CO2 avec Gemini en arrière-plan (non bloquant)
+                if (updated != null && !string.IsNullOrWhiteSpace(marque) && !string.IsNullOrWhiteSpace(modele))
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            double co2Affine = await _logistiqueService.EstimerCO2ParKmAvecIAAsync(
+                                marque, modele, annee, carburant, type);
+                            updated.EmissionCO2ParKm = co2Affine;
+                            await _logistiqueService.UpdateVehiculeAsync(
+                                id, nom, matricule, type, marque, modele, annee, carburant);
+                        }
+                        catch { /* non bloquant */ }
+                    });
+                }
+            }
+            return RedirectToPage();
+        }
+
+
     }
 }

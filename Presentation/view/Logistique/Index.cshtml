@@ -235,7 +235,7 @@
                     </div>
 
                     <!-- Bouton Ajouter (Déplacé ici) -->
-                    <button class="module-action" style="width:100%; justify-content:center; height:40px; margin-bottom:5px;" onclick="document.getElementById('add-vehicule-modal').style.display='flex'">
+                    <button class="module-action" style="width:100%; justify-content:center; height:40px; margin-bottom:5px;" onclick="openAddVehicule()">
                         <svg style="width:16px; height:16px; margin-right:8px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                             <line x1="12" y1="5" x2="12" y2="19"></line>
                             <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -249,7 +249,12 @@
                             foreach (var v in Model.Vehicules)
                             {
                                 var isOnline = v.Statut == "En Trajet";
-                                <div class="vehicle-card @(isOnline ? "active" : "")" data-vehicule-id="@v.Id" onclick="focusVehicule(@v.Id, @(v.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"), @(v.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"))">
+                                <div class="vehicle-card @(isOnline ? "active" : "")" data-vehicule-id="@v.Id"
+                                     data-nom="@v.Nom" data-matricule="@v.Matricule"
+                                     data-marque="@v.Marque" data-modele="@v.Modele"
+                                     data-annee="@v.Annee" data-carburant="@v.TypeCarburant"
+                                     data-type="@v.TypeTransport"
+                                     onclick="focusVehicule(@v.Id, @(v.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"), @(v.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "0"))">
                                     <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
                                         <div>
                                             <h4 style="margin:0; font-size:0.95rem; font-weight:700;">@v.Nom</h4>
@@ -261,21 +266,37 @@
                                         </div>
                                     </div>
                                     <div style="font-size:0.75rem; color:var(--text-muted); display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                                        <span>🚛 @v.TypeTransport</span>
+                                        <span style="display:inline-flex; align-items:center; gap:4px;">
+                                            <svg style="width:12px;height:12px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                                            @v.TypeTransport
+                                        </span>
                                         @if(!string.IsNullOrEmpty(v.TypeCarburant)) {
                                             var co2Color = v.EmissionCO2ParKm <= 50 ? "#22c55e" : v.EmissionCO2ParKm <= 130 ? "#eab308" : "#ef4444";
-                                            <span style="color:@co2Color; font-size:0.65rem; background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:999px;">@v.TypeCarburant @(v.EmissionCO2ParKm.HasValue ? $"· {v.EmissionCO2ParKm:F0} g/km" : "")</span>
+                                            <span style="color:@co2Color; font-size:0.65rem; background:rgba(255,255,255,0.05); padding:1px 6px; border-radius:999px; display:inline-flex; align-items:center; gap:3px;">
+                                                <svg style="width:10px;height:10px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 6v6m0 2v2"/></svg>
+                                                @v.TypeCarburant @(v.EmissionCO2ParKm.HasValue ? $"· {v.EmissionCO2ParKm:F0} g/km" : "")
+                                            </span>
                                         }
                                         @if(v.Latitude.HasValue) {
-                                            <span style="color:var(--accent-light);">📍 @v.Latitude.Value.ToString("F4"), @v.Longitude.Value.ToString("F4")</span>
+                                            <span style="color:var(--accent-light); display:inline-flex; align-items:center; gap:3px;">
+                                                <svg style="width:11px;height:11px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="3"/></svg>
+                                                @v.Latitude.Value.ToString("F4"), @v.Longitude.Value.ToString("F4")
+                                            </span>
                                         }
                                         <div style="margin-left:auto; display:flex; gap:5px;">
-                                            <button type="button" class="btn-secondary" style="padding:4px 8px; font-size:0.65rem; border-color:rgba(255,100,100,0.3);" 
+                                            <button type="button" title="Modifier" style="padding:5px 7px; font-size:0.65rem; background:rgba(123,94,255,0.12); border:1px solid rgba(123,94,255,0.25); border-radius:8px; color:var(--accent-light); cursor:pointer; display:flex; align-items:center; gap:4px;"
+                                                    onclick="event.stopPropagation(); openEditVehicule(this.closest('.vehicle-card'))">
+                                                <svg style="width:11px;height:11px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                Modifier
+                                            </button>
+                                            <button type="button" title="Reset" style="padding:5px 7px; font-size:0.65rem; background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); border-radius:8px; color:#f87171; cursor:pointer; display:flex; align-items:center; gap:4px;"
                                                     onclick="event.stopPropagation(); forceResetVehicule(@v.Id)">
+                                                <svg style="width:11px;height:11px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
                                                 Reset
                                             </button>
-                                            <button type="button" class="btn-primary" style="padding:4px 8px; font-size:0.65rem;" 
+                                            <button type="button" title="QR Code" style="padding:5px 7px; font-size:0.65rem; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:8px; color:white; cursor:pointer; display:flex; align-items:center; gap:4px;"
                                                     onclick="event.stopPropagation(); showQrCode('@v.Id', '@Html.Raw(v.Nom.Replace("'", "\\'"))')">
+                                                <svg style="width:11px;height:11px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/></svg>
                                                 QR
                                             </button>
                                         </div>
@@ -320,7 +341,10 @@
                         <!-- Jauge CO2 -->
                         <div id="co2-panel" style="background:rgba(255,255,255,0.04); border-radius:10px; padding:10px; margin-bottom:8px;">
                             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                                <span style="font-size:0.68rem; color:var(--text-muted);">🌿 CO2 Émis</span>
+                                <span style="font-size:0.68rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:4px;">
+                                    <svg style="width:12px;height:12px;color:#22c55e;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 0 20c-4 0-7.4-2.4-9-6"/><path d="M12 8v4l3 3"/><path d="M2 12C2 7 6 3 11 2"/></svg>
+                                    CO2 Émis
+                                </span>
                                 <span id="live-co2-value" style="font-size:0.8rem; font-weight:700; color:#22c55e;">0 g</span>
                             </div>
                             <div style="height:6px; background:rgba(255,255,255,0.08); border-radius:999px; overflow:hidden;">
@@ -335,14 +359,21 @@
 
                         <!-- Recommandation RSE -->
                         <div id="rse-reco-panel" style="display:none; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:10px;">
-                            <div style="font-size:0.7rem; color:#f87171; font-weight:600; margin-bottom:4px;">⚠️ Seuil CO2 dépassé</div>
+                            <div style="font-size:0.7rem; color:#f87171; font-weight:600; margin-bottom:4px; display:flex; align-items:center; gap:5px;">
+                                <svg style="width:13px;height:13px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                Seuil CO2 dépassé
+                            </div>
                             <div id="rse-reco-text" style="font-size:0.68rem; color:var(--text-muted); line-height:1.4;"></div>
                         </div>
                     </div>
 
                     <div class="map-controls">
-                        <a href="/Logistique/Environnement" class="header-btn" title="Dashboard RSE" style="padding:10px; border-radius:12px; text-decoration:none; display:flex; align-items:center; justify-content:center;">🌿</a>
-                        <button class="header-btn" title="Couches Carte" style="padding:10px; border-radius:12px;" onclick="resetMapLayers()">🔁</button>
+                        <a href="/Logistique/Environnement" class="header-btn" title="Dashboard RSE" style="padding:10px; border-radius:12px; text-decoration:none; display:flex; align-items:center; justify-content:center;">
+                            <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                        </a>
+                        <button class="header-btn" title="Effacer les tracés" style="padding:10px; border-radius:12px;" onclick="resetMapLayers()">
+                            <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/></svg>
+                        </button>
                     </div>
 
                 </div>
@@ -379,22 +410,36 @@
         </section>
 
 
-<!-- MODAL : AJOUTER VÉHICULE (Design MRP) -->
+<!-- MODAL : AJOUTER / MODIFIER VÉHICULE -->
 <div id="add-vehicule-modal" class="logout-overlay" style="display:none; z-index:9999;">
-    <div class="logout-modal" style="max-width: 500px;">
-        <h3>Ajouter un nouveau véhicule</h3>
-        <p>Renseignez les informations pour intégrer le véhicule à la flotte.</p>
+    <div class="logout-modal" style="max-width: 520px;">
+        <!-- En-tête dynamique -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+            <div id="modal-icon-add" style="width:40px;height:40px;border-radius:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg style="width:20px;height:20px;color:#22c55e;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <div id="modal-icon-edit" style="width:40px;height:40px;border-radius:12px;background:rgba(123,94,255,0.12);border:1px solid rgba(123,94,255,0.25);display:none;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg style="width:18px;height:18px;color:var(--accent-light);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </div>
+            <div>
+                <h3 id="modal-title" style="margin:0;">Ajouter un nouveau véhicule</h3>
+                <p id="modal-subtitle" style="margin:0; font-size:0.82rem; color:var(--text-muted);">Renseignez les informations pour intégrer le véhicule à la flotte.</p>
+            </div>
+        </div>
 
-        <form method="post" asp-page-handler="AddVehicule" class="logout-modal-actions" style="flex-direction:column; gap:14px; align-items:stretch;">
+        <!-- Formulaire unique (action change dynamiquement) -->
+        <form id="vehicule-form" method="post" asp-page-handler="AddVehicule" class="logout-modal-actions" style="flex-direction:column; gap:14px; align-items:stretch; margin-top:20px;">
+            <input type="hidden" id="edit-vehicule-id" name="id" value="" />
+
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div class="form-group">
                     <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Nom du véhicule *</label>
-                    <input name="nom" type="text" placeholder="Ex: Camion Livraison A" required
+                    <input id="f-nom" name="nom" type="text" placeholder="Ex: Camion Livraison A" required
                            style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
                 </div>
                 <div class="form-group">
                     <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Plaque *</label>
-                    <input name="matricule" type="text" placeholder="Ex: 12345-113-16" required
+                    <input id="f-matricule" name="matricule" type="text" placeholder="Ex: 12345-113-16" required
                            style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
                 </div>
             </div>
@@ -402,12 +447,12 @@
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div class="form-group">
                     <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Marque</label>
-                    <input name="marque" type="text" placeholder="Ex: Renault, Mercedes..."
+                    <input id="f-marque" name="marque" type="text" placeholder="Ex: Renault, Mercedes..."
                            style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
                 </div>
                 <div class="form-group">
                     <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Modèle</label>
-                    <input name="modele" type="text" placeholder="Ex: Master, Sprinter..."
+                    <input id="f-modele" name="modele" type="text" placeholder="Ex: Master, Sprinter..."
                            style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
                 </div>
             </div>
@@ -415,12 +460,12 @@
             <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
                 <div class="form-group">
                     <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Année</label>
-                    <input name="annee" type="number" min="1980" max="2030" placeholder="Ex: 2022"
+                    <input id="f-annee" name="annee" type="number" min="1980" max="2030" placeholder="Ex: 2022"
                            style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; font-size:0.85rem;" />
                 </div>
                 <div class="form-group">
                     <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Carburant</label>
-                    <select name="carburant" style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; cursor:pointer; font-size:0.85rem;">
+                    <select id="f-carburant" name="carburant" style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; cursor:pointer; font-size:0.85rem;">
                         <option value="">-- Choisir --</option>
                         <option value="Essence">Essence</option>
                         <option value="Diesel">Diesel</option>
@@ -432,7 +477,7 @@
                 </div>
                 <div class="form-group">
                     <label style="font-size:0.8rem; color:var(--text-muted); margin-bottom:4px; display:block;">Type *</label>
-                    <select name="type" style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; cursor:pointer; font-size:0.85rem;">
+                    <select id="f-type" name="type" style="width:100%; height:40px; padding:0 14px; border-radius:12px; border:1px solid rgba(255,255,255,0.08); background:rgba(10,14,40,0.6); color:white; cursor:pointer; font-size:0.85rem;">
                         <option value="Camion">Camion</option>
                         <option value="Fourgonnette">Fourgonnette</option>
                         <option value="Moto">Moto</option>
@@ -443,16 +488,16 @@
 
             <div style="background:rgba(123,94,255,0.08); border:1px solid rgba(123,94,255,0.2); border-radius:10px; padding:10px 14px; display:flex; gap:10px; align-items:center;">
                 <svg style="width:16px; height:16px; color:var(--accent-light); flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span style="font-size:0.75rem; color:var(--text-muted);">L'empreinte carbone (g CO2/km) sera estimée automatiquement par IA lors de la création.</span>
+                <span id="modal-ia-note" style="font-size:0.75rem; color:var(--text-muted);">L'empreinte carbone (g CO2/km) sera estimée automatiquement par IA lors de la création.</span>
             </div>
 
             <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:4px;">
                 <button type="button" class="btn-secondary"
-                        onclick="document.getElementById('add-vehicule-modal').style.display='none'"
+                        onclick="closeVehiculeModal()"
                         style="padding: 10px 24px; border-radius: 999px; cursor: pointer; font-weight: 600;">
                     Annuler
                 </button>
-                <button type="submit" class="btn-primary"
+                <button id="modal-submit-btn" type="submit" class="btn-primary"
                         style="padding: 10px 24px; border-radius: 999px; cursor: pointer; font-weight: 600; border: none;">
                     Enregistrer le véhicule
                 </button>
@@ -497,6 +542,75 @@
 <script src="~/lib/jspdf/jspdf.umd.min.js" asp-append-version="true"></script>
 
 <script>
+    // ── Gestion modale véhicule (Ajout / Modification) ────────────────
+    function openAddVehicule() {
+        const form = document.getElementById('vehicule-form');
+        form.setAttribute('action', form.getAttribute('action').replace('UpdateVehicule', 'AddVehicule'));
+        form.setAttribute('asp-page-handler', 'AddVehicule');
+        // Reset champs
+        document.getElementById('edit-vehicule-id').value = '';
+        document.getElementById('f-nom').value = '';
+        document.getElementById('f-matricule').value = '';
+        document.getElementById('f-marque').value = '';
+        document.getElementById('f-modele').value = '';
+        document.getElementById('f-annee').value = '';
+        document.getElementById('f-carburant').value = '';
+        document.getElementById('f-type').value = 'Camion';
+        // UI mode Ajout
+        document.getElementById('modal-icon-add').style.display = 'flex';
+        document.getElementById('modal-icon-edit').style.display = 'none';
+        document.getElementById('modal-title').innerText = 'Ajouter un nouveau véhicule';
+        document.getElementById('modal-subtitle').innerText = 'Renseignez les informations pour intégrer le véhicule à la flotte.';
+        document.getElementById('modal-submit-btn').innerText = 'Enregistrer le véhicule';
+        document.getElementById('modal-ia-note').innerText = "L'empreinte carbone (g CO2/km) sera estimée automatiquement par IA lors de la création.";
+        document.getElementById('add-vehicule-modal').style.display = 'flex';
+    }
+
+    function openEditVehicule(card) {
+        const id       = card.dataset.vehiculeId;
+        const nom      = card.dataset.nom      || '';
+        const matricule= card.dataset.matricule|| '';
+        const marque   = card.dataset.marque   || '';
+        const modele   = card.dataset.modele   || '';
+        const annee    = card.dataset.annee    || '';
+        const carburant= card.dataset.carburant|| '';
+        const type     = card.dataset.type     || 'Camion';
+
+        // Remplir les champs
+        document.getElementById('edit-vehicule-id').value  = id;
+        document.getElementById('f-nom').value             = nom;
+        document.getElementById('f-matricule').value       = matricule;
+        document.getElementById('f-marque').value          = marque;
+        document.getElementById('f-modele').value          = modele;
+        document.getElementById('f-annee').value           = annee;
+        document.getElementById('f-carburant').value       = carburant;
+        document.getElementById('f-type').value            = type;
+
+        // Changer l'action du formulaire vers UpdateVehicule
+        const form = document.getElementById('vehicule-form');
+        // On remplace l'attribut action directement via la valeur action du formulaire (Razor l'a déjà compilé)
+        // On met à jour juste le champ caché "id" et on change le handler avec un attribut data
+        form.dataset.mode = 'edit';
+
+        // UI mode Modification
+        document.getElementById('modal-icon-add').style.display = 'none';
+        document.getElementById('modal-icon-edit').style.display = 'flex';
+        document.getElementById('modal-title').innerText = `Modifier — ${nom}`;
+        document.getElementById('modal-subtitle').innerText = `Plaque : ${matricule}  ·  ID : #${id}`;
+        document.getElementById('modal-submit-btn').innerText = 'Enregistrer les modifications';
+        document.getElementById('modal-ia-note').innerText = "L'empreinte CO2 sera recalculée automatiquement après la modification.";
+        document.getElementById('add-vehicule-modal').style.display = 'flex';
+    }
+
+    function closeVehiculeModal() {
+        document.getElementById('add-vehicule-modal').style.display = 'none';
+        // Remettre le formulaire en mode Ajout pour la prochaine ouverture via le bouton "+"
+        document.getElementById('vehicule-form').dataset.mode = 'add';
+    }
+
+    // Bouton Ajouter (dans la barre latérale) → mode Ajout 
+    document.querySelector('[onclick*="add-vehicule-modal"]')?.setAttribute('onclick', 'openAddVehicule()');
+
     function showQrCode(vehiculeId, vehiculeName) {
         document.getElementById('qr-vehicule-name').innerText = "QR Code : " + vehiculeName;
         

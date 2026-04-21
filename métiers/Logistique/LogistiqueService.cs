@@ -95,6 +95,27 @@ namespace Metier.Logistique
             return v;
         }
 
+        public async Task<Vehicule?> UpdateVehiculeAsync(int id, string nom, string matricule, string type,
+            string? marque, string? modele, int? annee, string? carburant)
+        {
+            var v = await _context.LogistiqueVehicules.FindAsync(id);
+            if (v == null) return null;
+
+            v.Nom           = nom;
+            v.Matricule     = matricule;
+            v.TypeTransport = type;
+            v.Marque        = marque;
+            v.Modele        = modele;
+            v.Annee         = annee;
+            v.TypeCarburant = carburant;
+            // Recalcul CO2 immédiat (formule ADEME)
+            v.EmissionCO2ParKm = EstimerCO2ParKmFormule(carburant, type, annee);
+
+            await _context.SaveChangesAsync();
+            return v;
+        }
+
+
         public async Task UpdatePositionVehiculeAsync(int vehiculeId, double lat, double lon)
         {
             var v = await _context.LogistiqueVehicules.FindAsync(vehiculeId);
