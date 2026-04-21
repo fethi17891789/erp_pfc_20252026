@@ -690,7 +690,7 @@
 
         // --- ACTIONS BOUTONS ---
         btnStart.onclick = async function() {
-            activeVehiculeId = hiddenVehiculeId ? hiddenVehiculeId.value : vehiculeSelect.value;
+            activeVehiculeId = hiddenVehiculeId?.value || vehiculeSelect?.value;
             if (!activeVehiculeId) {
                 alert("Veuillez sélectionner un véhicule.");
                 return;
@@ -983,9 +983,17 @@
 
         // --- LOGIQUE CORE ---
         function onPositionReceived(position) {
+            // ── Filtre précision GPS : ignorer les positions trop imprécises ──
+            const accuracy = position.coords.accuracy; // en mètres
+            if (accuracy > 30) {
+                statusText.innerText = `⚠️ Signal faible (±${Math.round(accuracy)}m)`;
+                return; // Position trop imprécise → on ignore complètement
+            }
+
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
             const ts = position.timestamp;
+            const MIN_MOVE_KM = 0.008; // 8 mètres minimum pour éviter le bruit GPS
             
             const now = Date.now();
             let speedKmh = 0;
@@ -994,7 +1002,7 @@
             } else if (lastPosition) {
                 const d = haversineDistance(lastPosition.lat, lastPosition.lon, lat, lon);
                 const t = (now - lastPosition.sysTimestamp) / 1000;
-                if (t > 0 && d > 0.001) { // 1 mètre minimum pour la vitesse
+                if (t > 0 && d > MIN_MOVE_KM) {
                     speedKmh = (d / (t / 3600));
                 }
             }
@@ -1002,14 +1010,14 @@
             if (speedKmh > 130) speedKmh = 0;
             const speedDisplay = speedKmh.toFixed(0);
             uiLiveSpeed.innerText = speedDisplay;
-            statusText.innerText = "Signal GPS Optimal";
+            statusText.innerText = `Signal GPS Optimal (±${Math.round(accuracy)}m)`;
 
             if (lastPosition) {
                 const d = haversineDistance(lastPosition.lat, lastPosition.lon, lat, lon);
-                if (d > 0.001) { // 1 mètre minimum pour la distance
+                if (d > MIN_MOVE_KM) { // 8 mètres minimum → filtre le bruit GPS stationnaire
                     totalDistanceKm += d;
                     uiLiveDistance.innerText = totalDistanceKm.toFixed(2);
-                    lastPosition = { lat, lon, timestamp: ts, sysTimestamp: now }; // On ne met à jour la référence QUE si on a bougé
+                    lastPosition = { lat, lon, timestamp: ts, sysTimestamp: now };
                 }
             } else {
                 lastPosition = { lat, lon, timestamp: ts, sysTimestamp: now };
