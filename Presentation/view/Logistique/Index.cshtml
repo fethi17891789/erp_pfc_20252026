@@ -110,13 +110,55 @@
         backdrop-filter: blur(10px);
         border: 1px solid rgba(123, 94, 255, 0.4);
         border-radius: 16px;
-        padding: 15px;
+        padding: 0;
         color: white;
-        min-width: 200px;
+        min-width: 220px;
+        min-height: 80px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         display: none; /* Caché par défaut */
         animation: slideIn 0.3s ease-out;
+        overflow: hidden;
     }
+
+    /* Drag handle du panneau KPI */
+    #stats-drag-handle {
+        cursor: grab;
+        user-select: none;
+        padding: 10px 12px 8px;
+        background: rgba(123, 94, 255, 0.12);
+        border-bottom: 1px solid rgba(123, 94, 255, 0.2);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 16px 16px 0 0;
+    }
+    #stats-drag-handle.dragging { cursor: grabbing; }
+
+    /* Contenu interne du panneau */
+    #stats-panel-body { padding: 12px; }
+
+    /* Poignée resize (coin bas-droit) */
+    #stats-resize-handle {
+        position: absolute;
+        bottom: 3px;
+        right: 3px;
+        width: 16px;
+        height: 16px;
+        cursor: se-resize;
+        opacity: 0.35;
+        transition: opacity 0.2s;
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+    }
+    #stats-resize-handle:hover { opacity: 0.9; }
+
+    /* Plein écran */
+    #map-wrapper:fullscreen { border-radius: 0 !important; }
+    #map-wrapper:-webkit-full-screen { border-radius: 0 !important; }
+    #map-wrapper:fullscreen .live-stats-panel { z-index: 9999; }
+    #btn-fullscreen svg { transition: transform 0.2s; }
+    #btn-fullscreen:hover svg { transform: scale(1.15); }
 
     .history-section {
         margin-top: 25px;
@@ -314,15 +356,21 @@
                 </div>
 
                 <!-- COLONNE DROITE : CARTE -->
-                <div style="position: relative; border-radius: 24px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+                <div id="map-wrapper" style="position: relative; border-radius: 24px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
                     <div id="map" style="height: 100%; width: 100%;"></div>
                     
                     <!-- Panneau de Stats Live (Uniquement sur sélection) -->
-                    <div id="live-stats-panel" class="live-stats-panel" style="min-width:240px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                            <h5 id="live-stat-name" style="margin:0; font-size:1rem; color:var(--accent-light);">Véhicule</h5>
-                            <button onclick="closeLiveStats()" style="background:none; border:none; color:white; cursor:pointer; opacity:0.5;">✕</button>
+                    <div id="live-stats-panel" class="live-stats-panel">
+                        <!-- Drag handle -->
+                        <div id="stats-drag-handle">
+                            <div style="display:flex; align-items:center; gap:7px;">
+                                <svg style="width:13px;height:13px;color:rgba(255,255,255,0.35);flex-shrink:0;" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+                                <h5 id="live-stat-name" style="margin:0; font-size:0.88rem; font-weight:700; color:var(--accent-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:160px;">Véhicule</h5>
+                            </div>
+                            <button onclick="closeLiveStats()" style="background:none; border:none; color:white; cursor:pointer; opacity:0.45; padding:2px 4px; font-size:1rem; line-height:1; flex-shrink:0;">✕</button>
                         </div>
+                        <!-- Corps du panneau -->
+                        <div id="stats-panel-body">
                         <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; margin-bottom:10px;">
                             <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; text-align:center;">
                                 <div style="font-size:0.65rem; color:var(--text-muted);">Vitesse</div>
@@ -365,9 +413,23 @@
                             </div>
                             <div id="rse-reco-text" style="font-size:0.68rem; color:var(--text-muted); line-height:1.4;"></div>
                         </div>
+                        </div><!-- fin stats-panel-body -->
+                        <!-- Poignée resize -->
+                        <div id="stats-resize-handle" title="Redimensionner">
+                            <svg viewBox="0 0 10 10" fill="none" style="width:10px;height:10px;">
+                                <line x1="2" y1="9" x2="9" y2="2" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                                <line x1="6" y1="9" x2="9" y2="6" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
                     </div>
 
                     <div class="map-controls">
+                        <button id="btn-fullscreen" class="header-btn" title="Plein écran" style="padding:10px; border-radius:12px;" onclick="toggleMapFullscreen()">
+                            <svg id="fullscreen-icon" style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                                <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                            </svg>
+                        </button>
                         <a href="/Logistique/Environnement" class="header-btn" title="Dashboard RSE" style="padding:10px; border-radius:12px; text-decoration:none; display:flex; align-items:center; justify-content:center;">
                             <svg style="width:18px;height:18px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
                         </a>
@@ -534,6 +596,21 @@
     </div>
 </div>
 
+<!-- MODAL : Confirmation reset véhicule -->
+<div id="reset-confirm-modal" class="logout-overlay" style="display:none; z-index:10001;">
+    <div class="logout-modal" style="max-width:380px; text-align:center;">
+        <div style="width:44px;height:44px;border-radius:12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+            <svg style="width:20px;height:20px;color:#ef4444;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3 style="margin:0 0 8px;">Remettre à zéro ?</h3>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 24px;">Cette action force la remise à zéro du véhicule en base de données. Le trajet en cours sera annulé.</p>
+        <div class="logout-modal-actions">
+            <button type="button" class="btn-secondary" onclick="document.getElementById('reset-confirm-modal').style.display='none'" style="padding:10px 24px; border-radius:999px; cursor:pointer; font-weight:600;">Annuler</button>
+            <button type="button" onclick="_doForceReset()" style="padding:10px 24px; border-radius:999px; cursor:pointer; font-weight:600; border:none; background:#ef4444; color:white;">Remettre à zéro</button>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <!-- Scripts -->
 <script src="~/lib/leaflet/leaflet.min.js" asp-append-version="true"></script>
@@ -542,11 +619,26 @@
 <script src="~/lib/jspdf/jspdf.umd.min.js" asp-append-version="true"></script>
 
 <script>
+    // ── Toast feedback ────────────────────────────────────────────────
+    function showToast(msg, type = 'info') {
+        const colors = { error: '#ef4444', success: '#22c55e', info: 'var(--accent-light)' };
+        const icons = { error: '✕', success: '✓', info: 'ℹ' };
+        const el = document.createElement('div');
+        el.style.cssText = 'position:fixed;bottom:28px;right:24px;background:rgba(5,7,24,0.96);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px 18px;color:white;font-size:0.84rem;font-weight:600;z-index:99999;display:flex;align-items:center;gap:10px;backdrop-filter:blur(14px);box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:slideInToast 0.3s ease forwards;max-width:340px;';
+        el.innerHTML = `<span style="color:${colors[type]||colors.info};font-size:1rem;">${icons[type]||icons.info}</span><span>${msg}</span>`;
+        if (!document.getElementById('toast-keyframes')) {
+            const s = document.createElement('style'); s.id = 'toast-keyframes';
+            s.textContent = '@@keyframes slideInToast{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}';
+            document.head.appendChild(s);
+        }
+        document.body.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateY(16px)'; el.style.transition = 'opacity 0.3s,transform 0.3s'; setTimeout(() => el.remove(), 350); }, 3000);
+    }
+
     // ── Gestion modale véhicule (Ajout / Modification) ────────────────
     function openAddVehicule() {
         const form = document.getElementById('vehicule-form');
-        form.setAttribute('action', form.getAttribute('action').replace('UpdateVehicule', 'AddVehicule'));
-        form.setAttribute('asp-page-handler', 'AddVehicule');
+        form.action = form.action.replace(/handler=[^&]+/, 'handler=AddVehicule');
         // Reset champs
         document.getElementById('edit-vehicule-id').value = '';
         document.getElementById('f-nom').value = '';
@@ -586,11 +678,8 @@
         document.getElementById('f-carburant').value       = carburant;
         document.getElementById('f-type').value            = type;
 
-        // Changer l'action du formulaire vers UpdateVehicule
         const form = document.getElementById('vehicule-form');
-        // On remplace l'attribut action directement via la valeur action du formulaire (Razor l'a déjà compilé)
-        // On met à jour juste le champ caché "id" et on change le handler avec un attribut data
-        form.dataset.mode = 'edit';
+        form.action = form.action.replace(/handler=[^&]+/, 'handler=UpdateVehicule');
 
         // UI mode Modification
         document.getElementById('modal-icon-add').style.display = 'none';
@@ -604,8 +693,9 @@
 
     function closeVehiculeModal() {
         document.getElementById('add-vehicule-modal').style.display = 'none';
-        // Remettre le formulaire en mode Ajout pour la prochaine ouverture via le bouton "+"
-        document.getElementById('vehicule-form').dataset.mode = 'add';
+        // Remettre le formulaire en mode Ajout pour la prochaine ouverture
+        const form = document.getElementById('vehicule-form');
+        form.action = form.action.replace(/handler=[^&]+/, 'handler=AddVehicule');
     }
 
     // Bouton Ajouter (dans la barre latérale) → mode Ajout 
@@ -651,7 +741,7 @@
         }
 
         if(!imgData) {
-            alert("Erreur: Le QR code n'a pas encore été généré.");
+            showToast("Le QR code n'a pas encore été généré.", 'error');
             return;
         }
 
@@ -707,6 +797,84 @@
         attribution: '© OpenStreetMap contributors',
         className: 'map-tiles'
     }).addTo(map);
+
+    // ── Plein écran ──────────────────────────────────────────────────────
+    function toggleMapFullscreen() {
+        const wrapper = document.getElementById('map-wrapper');
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            (wrapper.requestFullscreen || wrapper.webkitRequestFullscreen).call(wrapper);
+        } else {
+            (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        }
+    }
+
+    const ICON_EXPAND = `<polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>`;
+    const ICON_COMPRESS = `<polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>`;
+
+    function onFullscreenChange() {
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        document.getElementById('fullscreen-icon').innerHTML = isFs ? ICON_COMPRESS : ICON_EXPAND;
+        document.getElementById('btn-fullscreen').title = isFs ? 'Quitter le plein écran' : 'Plein écran';
+        setTimeout(() => map.invalidateSize(), 100);
+    }
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
+    // ── Panneau KPI : drag + resize ─────────────────────────────────────
+    (function () {
+        const panel      = document.getElementById('live-stats-panel');
+        const handle     = document.getElementById('stats-drag-handle');
+        const resizeBtn  = document.getElementById('stats-resize-handle');
+        const wrapper    = document.getElementById('map-wrapper');
+
+        let mode = null; // 'drag' | 'resize'
+        let startX, startY, startLeft, startTop, startW, startH;
+
+        function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+        function onStart(e, m) {
+            if (m === 'drag' && e.target.tagName === 'BUTTON') return;
+            mode = m;
+            const pt = e.touches ? e.touches[0] : e;
+            startX = pt.clientX; startY = pt.clientY;
+            startLeft = panel.offsetLeft; startTop = panel.offsetTop;
+            startW = panel.offsetWidth;   startH = panel.offsetHeight;
+            if (m === 'drag') handle.classList.add('dragging');
+            e.preventDefault();
+        }
+
+        function onMove(e) {
+            if (!mode) return;
+            const pt = e.touches ? e.touches[0] : e;
+            const dx = pt.clientX - startX;
+            const dy = pt.clientY - startY;
+            if (mode === 'drag') {
+                const maxL = wrapper.offsetWidth  - panel.offsetWidth;
+                const maxT = wrapper.offsetHeight - panel.offsetHeight;
+                panel.style.left = clamp(startLeft + dx, 0, maxL) + 'px';
+                panel.style.top  = clamp(startTop  + dy, 0, maxT) + 'px';
+            } else {
+                panel.style.width  = clamp(startW + dx, 220, wrapper.offsetWidth  - panel.offsetLeft - 8) + 'px';
+                panel.style.height = clamp(startH + dy, 100, wrapper.offsetHeight - panel.offsetTop  - 8) + 'px';
+                document.getElementById('stats-panel-body').style.overflowY = 'auto';
+                document.getElementById('stats-panel-body').style.height = (panel.offsetHeight - handle.offsetHeight) + 'px';
+            }
+        }
+
+        function onEnd() {
+            mode = null;
+            handle.classList.remove('dragging');
+        }
+
+        handle.addEventListener('mousedown',  e => onStart(e, 'drag'));
+        resizeBtn.addEventListener('mousedown', e => onStart(e, 'resize'));
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup',   onEnd);
+
+        handle.addEventListener('touchstart',  e => onStart(e, 'drag'),   { passive: false });
+        document.addEventListener('touchmove', onMove,  { passive: false });
+        document.addEventListener('touchend',  onEnd);
+    })();
 
     var markers = {};
 
@@ -1000,7 +1168,7 @@
 
     function showHistoryTrace(traceJson) {
         if (!traceJson) {
-            alert("Aucun tracé enregistré pour ce trajet.");
+            showToast("Aucun tracé enregistré pour ce trajet.", 'info');
             return;
         }
         resetMapLayers();
@@ -1078,16 +1246,24 @@
         }
     }
 
-    async function forceResetVehicule(id) {
-        if(!confirm("Voulez-vous forcer la remise à zéro de ce véhicule (Base de données) ?")) return;
+    let _pendingResetId = null;
+
+    function forceResetVehicule(id) {
+        _pendingResetId = id;
+        document.getElementById('reset-confirm-modal').style.display = 'flex';
+    }
+
+    async function _doForceReset() {
+        document.getElementById('reset-confirm-modal').style.display = 'none';
+        if (!_pendingResetId) return;
+        const id = _pendingResetId;
+        _pendingResetId = null;
         try {
             await connection.invoke("ForceResetVehicule", id);
-            // Pas besoin de MAJ locale ici, le signal "TrajetEnded" envoyé par 
-            // le serveur s'en chargera pour tout le monde (dont nous).
-            console.log("Ordre de Reset envoyé au serveur.");
-        } catch(e) { 
-            console.error(e); 
-            alert("Erreur lors du reset : " + e);
+            showToast("Véhicule remis à zéro.", 'success');
+        } catch(e) {
+            console.error(e);
+            showToast("Erreur lors du reset : " + e, 'error');
         }
     }
 

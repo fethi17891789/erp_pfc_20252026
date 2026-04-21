@@ -374,6 +374,70 @@
             .is-planning #btn-start { display: none !important; }
         </style>
 
+        <!-- PLANIFICATEUR D'ITINÉRAIRE -->
+        <div class="route-planner" id="route-planner-section">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+                <span style="font-size:0.72rem; color:var(--accent-light); text-transform:uppercase; letter-spacing:0.1em; font-weight:700;">Planifier l'itinéraire</span>
+            </div>
+
+            <span class="rp-label">Départ</span>
+            <button id="btn-get-gps" class="rp-gps-btn" onclick="getGPSOrigin()">
+                <span id="gps-dot" class="rp-gps-dot"></span>
+                <span id="origin-label">Utiliser ma position GPS</span>
+            </button>
+
+            <div style="height:12px;"></div>
+
+            <span class="rp-label">Destination</span>
+            <input id="rp-dest-input" type="hidden" value="" />
+            <button onclick="openMapPicker()" style="width:100%; padding:12px 14px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.1); border-radius:12px; color:white; font-size:0.9rem; text-align:left; cursor:pointer; font-family:inherit; display:flex; align-items:center; gap:10px; transition:border-color 0.2s;">
+                <span id="dest-dot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0;transition:background 0.3s;box-shadow:0 0 6px rgba(239,68,68,0.5);"></span>
+                <span id="dest-label" style="color:var(--text-muted);">Appuyer pour choisir sur la carte</span>
+            </button>
+            <p id="dest-status" style="font-size:0.75rem; margin:6px 0 0; min-height:16px; color:var(--text-muted);"></p>
+
+            <button id="btn-calc" class="rp-calc-btn" onclick="calculerRoutes()" disabled>
+                Calculer les itinéraires
+            </button>
+
+            <div id="rp-loading" class="rp-loading">
+                <div style="width:24px;height:24px;border:3px solid rgba(123,94,255,0.3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;margin-bottom:8px;"></div>
+                <p style="margin:4px 0 0;">Calcul en cours...</p>
+            </div>
+
+            <div id="rp-routes-container" style="display:none;">
+                <div class="rp-separator"><hr/><span>Choisissez un itinéraire</span><hr/></div>
+                <button id="card-fast" class="route-card" onclick="selectRoute('fast')">
+                    <div class="route-card-header">
+                        <span class="route-card-type fast">Rapide</span>
+                        <span id="fast-co2" class="route-card-co2 fast"></span>
+                    </div>
+                    <div class="route-card-stats">
+                        <div class="route-stat"><span id="fast-dist" class="route-stat-val">--</span><span class="route-stat-lbl">km</span></div>
+                        <div class="route-stat"><span id="fast-time" class="route-stat-val">--</span><span class="route-stat-lbl">min</span></div>
+                    </div>
+                    <p id="fast-note" class="route-card-note"></p>
+                </button>
+                <button id="card-eco" class="route-card" onclick="selectRoute('eco')">
+                    <div class="route-card-header">
+                        <span class="route-card-type eco">Écologique</span>
+                        <span id="eco-co2" class="route-card-co2 eco"></span>
+                    </div>
+                    <div class="route-card-stats">
+                        <div class="route-stat"><span id="eco-dist" class="route-stat-val">--</span><span class="route-stat-lbl">km</span></div>
+                        <div class="route-stat"><span id="eco-time" class="route-stat-val">--</span><span class="route-stat-lbl">min</span></div>
+                    </div>
+                    <span id="eco-saving" class="route-card-saving" style="display:none;"></span>
+                    <p id="eco-note" class="route-card-note"></p>
+                </button>
+            </div>
+
+            <button id="btn-confirm-route" class="rp-confirm-btn" onclick="confirmerItineraire()" disabled>
+                Confirmer et démarrer
+            </button>
+            <button class="rp-cancel-btn" onclick="cancelRoutePlanner()">Annuler la planification</button>
+        </div>
+
         <button id="btn-stop" class="btn btn-stop">TERMINER LE TRAJET</button>
         <button id="btn-demo" class="btn btn-demo">Lancer la simulation démo</button>
         <div class="demo-progress-bar">
@@ -433,6 +497,22 @@
             })
         ));
 
+        // ── Toast notification (page autonome) ──────────────────────
+        function showToast(msg, type = 'info') {
+            const t = document.getElementById('tracking-toast');
+            if (!t) return;
+            t.innerText = msg;
+            const colors = { error: 'rgba(239,68,68,0.45)', success: 'rgba(34,197,94,0.45)', info: 'rgba(123,94,255,0.35)' };
+            t.style.borderColor = colors[type] || colors.info;
+            t.style.opacity = '1';
+            t.style.transform = 'translateX(-50%) translateY(0)';
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => {
+                t.style.opacity = '0';
+                t.style.transform = 'translateX(-50%) translateY(20px)';
+            }, 3000);
+        }
+
         // ── État planificateur ───────────────────────────────────────
         let planningMode = false;
         let rpOriginCoords = null;   // { lat, lon }
@@ -450,7 +530,7 @@
         function openRoutePlanner() {
             const vid = document.getElementById('hidden-vehicule-id')?.value
                      || document.getElementById('vehicule-select')?.value;
-            if (!vid) { alert('Sélectionnez d\'abord un véhicule.'); return; }
+            if (!vid) { showToast('Sélectionnez d\'abord un véhicule.', 'info'); return; }
             planningMode = true;
             container.classList.add('is-planning');
             document.getElementById('btn-plan').style.display = 'none';
@@ -642,7 +722,7 @@
                     enableHighAccuracy: true, maximumAge: 3000, timeout: 10000
                 });
             } catch(e) {
-                alert('Erreur démarrage : ' + e.message);
+                showToast('Erreur démarrage : ' + e.message, 'error');
                 container.classList.remove('is-tracking');
                 document.getElementById('btn-plan').style.display = 'block';
             }
@@ -698,12 +778,12 @@
         btnStart.onclick = async function() {
             activeVehiculeId = hiddenVehiculeId?.value || vehiculeSelect?.value;
             if (!activeVehiculeId) {
-                alert("Veuillez sélectionner un véhicule.");
+                showToast("Veuillez sélectionner un véhicule.", 'info');
                 return;
             }
-            
+
             if(!("geolocation" in navigator)) {
-                alert("GPS non supporté.");
+                showToast("GPS non supporté par ce navigateur.", 'error');
                 return;
             }
 
@@ -739,7 +819,7 @@
                 });
 
             } catch(e) {
-                alert("Erreur démarrage: " + e.message);
+                showToast("Erreur démarrage : " + e.message, 'error');
                 btnStart.disabled = false;
                 btnStart.innerText = "DÉMARRER LE TRAJET";
             }
@@ -809,7 +889,7 @@
                 if (vehiculeSelect && vehiculeSelect.options.length > 1) {
                     activeVehiculeId = vehiculeSelect.options[1].value;
                 } else {
-                    alert("Veuillez sélectionner un véhicule pour la simulation.");
+                    showToast("Veuillez sélectionner un véhicule pour la simulation.", 'info');
                     return;
                 }
             }
@@ -962,7 +1042,7 @@
                 demoInterval = setInterval(runDemoStep, DEMO_STEP_MS);
 
             } catch(e) {
-                alert('Erreur simulation : ' + e.message);
+                showToast('Erreur simulation : ' + e.message, 'error');
                 btnDemo.disabled = false;
                 btnDemo.innerHTML = '🎬 LANCER LA SIMULATION DÉMO';
             }
@@ -1248,5 +1328,8 @@
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.min.js"></script>
+
+<!-- Toast notification autonome -->
+<div id="tracking-toast" style="position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(8,12,32,0.95);border:1px solid rgba(123,94,255,0.35);border-radius:14px;padding:12px 22px;color:white;font-size:0.85rem;font-weight:600;z-index:99999;opacity:0;transition:opacity 0.3s,transform 0.3s;pointer-events:none;max-width:90vw;text-align:center;backdrop-filter:blur(12px);"></div>
 </body>
 </html>
