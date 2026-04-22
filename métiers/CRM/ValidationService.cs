@@ -207,6 +207,34 @@ namespace Metier.CRM
             }
         }
 
+        public async Task<bool> ValidateWebsiteAsync(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return false;
+            url = url.Trim();
+            if (!url.StartsWith("http")) url = "https://" + url;
+
+            try {
+                using var handler = new HttpClientHandler {
+                    AllowAutoRedirect = true,
+                    CheckCertificateRevocationList = false,
+                    ServerCertificateCustomValidationCallback = (_, _, _, _) => true
+                };
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(10) };
+                client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+                // HEAD d'abord (plus léger), fallback GET si le serveur refuse HEAD
+                try {
+                    var headResp = await client.SendAsync(new HttpRequestMessage(HttpMethod.Head, url));
+                    return (int)headResp.StatusCode < 500;
+                } catch {
+                    var getResp = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+                    return (int)getResp.StatusCode < 500;
+                }
+            } catch {
+                return false;
+            }
+        }
+
         public async Task<bool> ValidateEmailAsync(string email)
         {
             if (string.IsNullOrWhiteSpace(email) || !email.Contains("@"))

@@ -618,16 +618,18 @@
                         <div style="position:relative;">
                             <input asp-for="CurrentContact.Website" id="input-website"
                                    class="form-input" placeholder="ex: tesla.com"
-                                   onblur="enrichWebsite()" />
+                                   onblur="enrichWebsite()" style="padding-right:38px;" />
                             <span id="spinner-website" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--accent);">
                                 <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin 1s linear infinite;">
                                     <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
                                 </svg>
                             </span>
+                            <span id="icon-website" class="validation-icon"></span>
                         </div>
-                        <div id="msg-website" style="font-size:0.75rem;color:#22c55e;margin-top:5px;display:none;">
+                        <div id="msg-website-ok" style="font-size:0.75rem;color:#22c55e;margin-top:5px;display:none;">
                             ✓ Données récupérées depuis le site
                         </div>
+                        <div id="msg-website-err" class="validation-msg error">Site web inaccessible ou inexistant.</div>
                     </div>
                     <div class="form-group" style="margin:0;">
                         <label for="CurrentContact_Comment" class="form-label">Notes internes</label>
@@ -668,16 +670,33 @@
                         </div>
                         <div class="form-group" style="margin:0;">
                             <label asp-for="CurrentContact.Phone" class="form-label">Téléphone</label>
-                            <div style="position:relative;">
-                                <input asp-for="CurrentContact.Phone" id="input-phone"
-                                       class="form-input" placeholder="+33 6 00 00 00 00"
-                                       onblur="validatePhone()" style="padding-right:38px;" />
-                                <span id="spinner-phone" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--accent);">
-                                    <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin 1s linear infinite;">
-                                        <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
-                                    </svg>
-                                </span>
-                                <span id="icon-phone" class="validation-icon"></span>
+                            <div style="display:flex;gap:8px;align-items:stretch;">
+                                <select id="select-country" name="PhoneCountryCode"
+                                        onchange="validatePhone()"
+                                        style="background:var(--bg-alt);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:var(--text);padding:0 10px;font-size:0.82rem;cursor:pointer;min-width:100px;height:42px;">
+                                    <option value="FR">🇫🇷 +33</option>
+                                    <option value="DZ">🇩🇿 +213</option>
+                                    <option value="MA">🇲🇦 +212</option>
+                                    <option value="TN">🇹🇳 +216</option>
+                                    <option value="US">🇺🇸 +1</option>
+                                    <option value="GB">🇬🇧 +44</option>
+                                    <option value="BE">🇧🇪 +32</option>
+                                    <option value="CH">🇨🇭 +41</option>
+                                    <option value="DE">🇩🇪 +49</option>
+                                    <option value="ES">🇪🇸 +34</option>
+                                    <option value="IT">🇮🇹 +39</option>
+                                </select>
+                                <div style="position:relative;flex:1;">
+                                    <input asp-for="CurrentContact.Phone" id="input-phone"
+                                           class="form-input" placeholder="6 00 00 00 00"
+                                           onblur="validatePhone()" style="padding-right:38px;" />
+                                    <span id="spinner-phone" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--accent);">
+                                        <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin 1s linear infinite;">
+                                            <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+                                        </svg>
+                                    </span>
+                                    <span id="icon-phone" class="validation-icon"></span>
+                                </div>
                             </div>
                             <div id="msg-phone" class="validation-msg error">Format de numéro invalide.</div>
                         </div>
@@ -1035,18 +1054,20 @@ async function validateEmail() {
 }
 
 async function validatePhone() {
-    var input   = document.getElementById('input-phone');
-    var spinner = document.getElementById('spinner-phone');
-    var icon    = document.getElementById('icon-phone');
-    var msg     = document.getElementById('msg-phone');
-    var phone   = input.value;
+    var input       = document.getElementById('input-phone');
+    var select      = document.getElementById('select-country');
+    var spinner     = document.getElementById('spinner-phone');
+    var icon        = document.getElementById('icon-phone');
+    var msg         = document.getElementById('msg-phone');
+    var phone       = input.value;
+    var countryCode = select ? select.value : 'FR';
     input.classList.remove('input-valid', 'input-invalid');
     icon.style.display = 'none'; icon.className = 'validation-icon';
     msg.style.display  = 'none';
     if (!phone) return;
     spinner.style.display = 'inline-block';
     try {
-        var resp = await fetch('?handler=ValidatePhone&phone=' + encodeURIComponent(phone));
+        var resp = await fetch('?handler=ValidatePhone&phone=' + encodeURIComponent(phone) + '&countryCode=' + encodeURIComponent(countryCode));
         var data = await resp.json();
         spinner.style.display = 'none';
         icon.style.display    = 'inline-block';
@@ -1065,32 +1086,52 @@ async function validatePhone() {
 async function enrichWebsite() {
     var input   = document.getElementById('input-website');
     var spinner = document.getElementById('spinner-website');
-    var msg     = document.getElementById('msg-website');
+    var icon    = document.getElementById('icon-website');
+    var msgOk   = document.getElementById('msg-website-ok');
+    var msgErr  = document.getElementById('msg-website-err');
     var fn      = document.getElementById('CurrentContact_FullName');
     var comment = document.getElementById('CurrentContact_Comment');
     var website = input.value;
-    msg.style.display = 'none';
+    msgOk.style.display = 'none'; msgErr.style.display = 'none';
+    icon.style.display  = 'none'; icon.className = 'validation-icon';
+    input.classList.remove('input-valid', 'input-invalid');
     if (!website) return;
     spinner.style.display = 'inline-block';
     try {
         var resp = await fetch('?handler=EnrichFromWebsite&website=' + encodeURIComponent(website));
         var data = await resp.json();
         spinner.style.display = 'none';
+        icon.style.display    = 'inline-block';
         var updated = false;
         if (fn      && data.fullName && (!fn.value      || fn.value.length      < 3)) { fn.value      = data.fullName; fn.classList.add('input-valid');      updated = true; }
         if (comment && data.comment  && (!comment.value || comment.value.length < 5)) { comment.value = data.comment;  comment.classList.add('input-valid'); updated = true; }
         if (updated) {
-            msg.style.display = 'block';
-            input.classList.add('input-valid');
+            input.classList.add('input-valid'); icon.classList.add('success'); icon.innerHTML = svgCheck;
+            msgOk.style.display = 'block';
             showLogoPreview(website);
             setTimeout(function () {
                 fn?.classList.remove('input-valid');
                 comment?.classList.remove('input-valid');
                 input.classList.remove('input-valid');
-                msg.style.display = 'none';
+                msgOk.style.display = 'none';
             }, 4000);
+        } else {
+            // Le site répond mais sans données exploitables — on valide quand même l'accessibilité
+            var pingResp = await fetch('?handler=ValidateWebsite&website=' + encodeURIComponent(website));
+            var pingData = await pingResp.json();
+            if (pingData.isValid) {
+                input.classList.add('input-valid'); icon.classList.add('success'); icon.innerHTML = svgCheck;
+            } else {
+                input.classList.add('input-invalid'); icon.classList.add('error'); icon.innerHTML = svgCross;
+                msgErr.style.display = 'block';
+            }
         }
-    } catch { spinner.style.display = 'none'; }
+    } catch {
+        spinner.style.display = 'none';
+        icon.style.display    = 'inline-block';
+        input.classList.add('input-invalid'); icon.classList.add('error'); icon.innerHTML = svgCross;
+        msgErr.style.display = 'block';
+    }
 }
 
 /* ══════════════════════════════════════════════════════════════

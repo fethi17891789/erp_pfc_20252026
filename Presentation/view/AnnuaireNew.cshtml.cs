@@ -28,6 +28,9 @@ namespace erp_pfc_20252026.Pages
         [BindProperty]
         public string SelectedRoles { get; set; } = string.Empty;
 
+        [BindProperty]
+        public string PhoneCountryCode { get; set; } = "FR";
+
         public string SuccessMessage { get; set; } = string.Empty;
         public string ErrorMessage { get; set; } = string.Empty;
 
@@ -71,10 +74,19 @@ namespace erp_pfc_20252026.Pages
 
             if (!string.IsNullOrWhiteSpace(CurrentContact.Phone))
             {
-                bool isPhoneValid = _validationService.ValidatePhone(CurrentContact.Phone, "FR");
+                bool isPhoneValid = _validationService.ValidatePhone(CurrentContact.Phone, PhoneCountryCode ?? "FR");
                 if (!isPhoneValid)
                 {
                     ModelState.AddModelError("CurrentContact.Phone", "Le numéro de téléphone est invalide.");
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(CurrentContact.Website))
+            {
+                bool isWebsiteValid = await _validationService.ValidateWebsiteAsync(CurrentContact.Website);
+                if (!isWebsiteValid)
+                {
+                    ModelState.AddModelError("CurrentContact.Website", "Le site web est inaccessible ou inexistant.");
                 }
             }
 
@@ -188,9 +200,15 @@ namespace erp_pfc_20252026.Pages
             return new JsonResult(new { isValid });
         }
 
-        public JsonResult OnGetValidatePhone(string phone)
+        public JsonResult OnGetValidatePhone(string phone, string countryCode = "FR")
         {
-            var isValid = _validationService.ValidatePhone(phone);
+            var isValid = _validationService.ValidatePhone(phone, countryCode);
+            return new JsonResult(new { isValid });
+        }
+
+        public async Task<JsonResult> OnGetValidateWebsite(string website)
+        {
+            var isValid = await _validationService.ValidateWebsiteAsync(website);
             return new JsonResult(new { isValid });
         }
 
