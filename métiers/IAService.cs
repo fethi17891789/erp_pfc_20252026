@@ -280,7 +280,9 @@ namespace Metier
                 countVehicules = await _dbContext.LogistiqueVehicules.CountAsync();
                 var topProduits = await _dbContext.Produits.OrderByDescending(p => p.Id).Take(5).Select(p => p.Nom).ToListAsync();
                 nomsProduits = string.Join(", ", topProduits);
-            } catch { }
+            } catch (Exception exRag) {
+                Console.WriteLine($"[IA STREAM] Erreur chargement contexte ERP (stats): {exRag.Message}");
+            }
 
             string systemPromptText = string.IsNullOrWhiteSpace(config.SystemPrompt) 
                 ? "Tu es GEMINI, le brillant assistant virtuel de l'ERP SKYRA." 
@@ -302,6 +304,15 @@ GUIDE DE CONFIGURATION ERP (DOCUMENTATION INTERNE) :
                 .ToListAsync();
             history.Reverse();
 
+            // Trouver l'ID de l'utilisateur IA (GEMINI) pour distinguer ses messages dans l'historique
+            int iaUserId = -1;
+            try {
+                var iaUser = await _dbContext.ErpUsers.FirstOrDefaultAsync(u => u.Login == "GEMINI" || u.Login == "skyra-ia");
+                if (iaUser != null) iaUserId = iaUser.Id;
+            } catch (Exception exIaUser) {
+                Console.WriteLine($"[IA STREAM] Erreur chargement utilisateur IA: {exIaUser.Message}");
+            }
+
             var contentsList = new List<object>();
             string lastRoleAdded = "";
 
@@ -309,7 +320,7 @@ GUIDE DE CONFIGURATION ERP (DOCUMENTATION INTERNE) :
             {
                 var txt = msg.Content?.Trim() ?? "";
                 if (string.IsNullOrWhiteSpace(txt) || txt == userMessage || txt == "\u200B") continue;
-                string role = (msg.SenderId == 0) ? "model" : "user";
+                string role = (iaUserId != -1 && msg.SenderId == iaUserId) ? "model" : "user";
                 if (role == lastRoleAdded) continue;
                 contentsList.Add(new { role = role, parts = new[] { new { text = txt } } });
                 lastRoleAdded = role;

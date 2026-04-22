@@ -62,11 +62,11 @@ builder.Services.AddScoped<Metier.MRP.OrdreAchatService>();
 builder.Services.AddScoped<Metier.Logistique.LogistiqueService>();
 
 // IA — timeout étendu à 3 min pour supporter les flux Gemini longs (enrichissement CRM multi-étapes)
+// AddHttpClient enregistre déjà IAService comme Transient avec le HttpClient configuré — pas de AddScoped supplémentaire
 builder.Services.AddHttpClient<Metier.IAService>(client =>
 {
     client.Timeout = TimeSpan.FromMinutes(3);
 });
-builder.Services.AddScoped<Metier.IAService>();
 
 // CRM
 builder.Services.AddScoped<Metier.CRM.ValidationService>();
