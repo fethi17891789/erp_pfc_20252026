@@ -140,4 +140,37 @@
         var miniToast = document.getElementById("iphone-mini-toast");
         if (miniToast) miniToast.onclick = null;
     };
+
+    // --- Toast générique succès/erreur/info utilisable partout ---
+    window.showErpToast = function (message, type) {
+        var t = document.createElement('div');
+        var colors = {
+            success: { bg: 'linear-gradient(135deg,#7B5EFF,#5b3fd4)', shadow: 'rgba(123,94,255,0.35)' },
+            error:   { bg: 'linear-gradient(135deg,#e85d5d,#b33b3b)', shadow: 'rgba(232,93,93,0.35)' },
+            info:    { bg: 'linear-gradient(135deg,#38bdf8,#0ea5e9)',  shadow: 'rgba(56,189,248,0.35)' }
+        };
+        var c = colors[type] || colors.info;
+        t.style.cssText = [
+            'position:fixed', 'bottom:32px', 'left:50%',
+            'transform:translateX(-50%) translateY(20px)',
+            'padding:12px 24px', 'border-radius:12px',
+            'font-size:0.9rem', 'font-weight:600', 'color:#fff',
+            'opacity:0', 'pointer-events:none', 'z-index:99999',
+            'transition:opacity .3s ease,transform .3s ease',
+            'white-space:nowrap', 'font-family:inherit',
+            'background:' + c.bg,
+            'box-shadow:0 8px 24px ' + c.shadow
+        ].join(';');
+        t.textContent = message;
+        document.body.appendChild(t);
+        requestAnimationFrame(function () {
+            t.style.opacity = '1';
+            t.style.transform = 'translateX(-50%) translateY(0)';
+        });
+        setTimeout(function () {
+            t.style.opacity = '0';
+            t.style.transform = 'translateX(-50%) translateY(20px)';
+            setTimeout(function () { t.remove(); }, 350);
+        }, type === 'error' ? 4000 : 2800);
+    };
 })();

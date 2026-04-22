@@ -615,7 +615,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (userId === currentUserId) {
 
-            alert("Tu ne peux pas discuter avec toi-même.");
+            window.showErpToast("Tu ne peux pas discuter avec toi-même.", 'error');
 
             return;
 
@@ -771,7 +771,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (!currentConversationId || !currentTargetUserId) {
 
-            alert("Sélectionne d'abord un destinataire dans la liste à gauche.");
+            window.showErpToast("Sélectionne d'abord un destinataire dans la liste à gauche.", 'info');
 
             return;
 
@@ -914,7 +914,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             if (!currentConversationId || !currentTargetUserId) {
 
-                alert("Sélectionne d'abord un destinataire.");
+                window.showErpToast("Sélectionne d'abord un destinataire.", 'info');
 
                 return;
 
@@ -1024,11 +1024,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
 async function toggleRecording() {
 
-    if (!currentConversationId || !currentTargetUserId) return;
+    if (!currentConversationId || !currentTargetUserId) {
+        window.showErpToast("Sélectionne d'abord un destinataire.", 'info');
+        return;
+    }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 
-        alert("Votre navigateur ne supporte pas l'enregistrement audio.");
+        window.showErpToast("Votre navigateur ne supporte pas l'enregistrement audio.", 'error');
 
         return;
 
@@ -1076,7 +1079,7 @@ async function toggleRecording() {
 
         } catch (err) {
 
-            alert("Impossible d'accéder au micro.");
+            window.showErpToast("Impossible d'accéder au micro.", 'error');
 
         }
 
@@ -2168,7 +2171,7 @@ async function setupMedia(video) {
 
         console.error("No media permission:", err);
 
-        alert("Impossible d'accéder à la caméra ou au microphone.");
+        window.showErpToast("Impossible d'accéder à la caméra ou au microphone.", 'error');
 
         return false;
 
@@ -2368,7 +2371,7 @@ if (typeof connection !== 'undefined') {
 
     connection.on("CallRejected", (responderId) => {
 
-        alert("L'utilisateur est occupé, a refusé l'appel ou est déconnecté.");
+        window.showErpToast("L'utilisateur est occupé, a refusé l'appel ou est déconnecté.", 'error');
 
         closeCallUI();
 

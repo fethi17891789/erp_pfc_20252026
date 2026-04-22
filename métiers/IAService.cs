@@ -134,12 +134,14 @@ namespace Metier
 
                 object payload;
                 if (enableSearch) {
+                    // IMPORTANT : response_mime_type="application/json" est incompatible avec googleSearch.
+                    // On laisse Gemini répondre en texte libre mais on lui demande du JSON dans le prompt.
+                    // Le nettoyage markdown existant gère le reste.
                     payload = new {
                         system_instruction = new { parts = new[] { new { text = systemPrompt } } },
                         contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
                         tools = new[] { new { googleSearch = new object() } },
-                        generationConfig = new { 
-                            response_mime_type = "application/json",
+                        generationConfig = new {
                             temperature = 0.0
                         }
                     };
@@ -147,7 +149,7 @@ namespace Metier
                     payload = new {
                         system_instruction = new { parts = new[] { new { text = systemPrompt } } },
                         contents = new[] { new { role = "user", parts = new[] { new { text = userPrompt } } } },
-                        generationConfig = new { 
+                        generationConfig = new {
                             response_mime_type = "application/json",
                             temperature = 0.0
                         }

@@ -462,7 +462,7 @@
                             else
                             {
                                 <tr>
-                                    <td colspan="4" style="text-align:center; padding:20px; font-size:0.85rem; color:var(--text-muted);">
+                                    <td colspan="5" style="text-align:center; padding:20px; font-size:0.85rem; color:var(--text-muted);">
                                         Aucun fichier d'ordre (OF/OA) enregistre pour le moment.
                                     </td>
                                 </tr>
@@ -1339,18 +1339,18 @@
 
         const userIdStr = selectedUserId.value;
         if (!userIdStr) {
-            alert("Veuillez selectionner un utilisateur dans la liste.");
+            showMrpToast("Veuillez selectionner un utilisateur dans la liste.", 'error');
             return;
         }
 
         const destUserId = parseInt(userIdStr, 10);
         if (!destUserId || isNaN(destUserId)) {
-            alert("Utilisateur selectionne invalide.");
+            showMrpToast("Utilisateur selectionne invalide.", 'error');
             return;
         }
 
         if (!currentOAProduct.codeArticle) {
-            alert("Produit OA invalide.");
+            showMrpToast("Produit OA invalide.", 'error');
             return;
         }
 
@@ -1358,7 +1358,7 @@
         const quantite = currentOAProduct.quantite || 0;
 
         if (!quantite || quantite <= 0) {
-            alert("Quantite OA invalide.");
+            showMrpToast("Quantite OA invalide.", 'error');
             return;
         }
 
@@ -1388,21 +1388,21 @@
 
             if (!resp.ok) {
                 console.error('Erreur HTTP SendOAProposal:', resp.status);
-                alert("Erreur HTTP lors de l'envoi de la proposition OA.");
+                showMrpToast("Erreur HTTP lors de l'envoi de la proposition OA.", 'error');
                 return;
             }
 
             const res = await resp.json();
             if (!res.ok) {
-                alert("Erreur lors de l'envoi de la proposition OA : " + (res.message || ''));
+                showMrpToast("Erreur lors de l'envoi de la proposition OA : " + (res.message || ''), 'error');
                 return;
             }
 
-            alert("Proposition d'OA envoyee avec succes.");
+            showMrpToast("Proposition d'OA envoyee avec succes.", 'success');
             closeOAPopup();
         } catch (err) {
             console.error('Erreur SendOAProposal:', err);
-            alert("Erreur technique lors de l'envoi de la proposition OA.");
+            showMrpToast("Erreur technique lors de l'envoi de la proposition OA.", 'error');
         }
     }
 
@@ -1449,10 +1449,10 @@
             if (result.ok) {
                 ajouterLigneOFTableau(result);
             } else {
-                alert('Erreur : ' + result.message);
+                showMrpToast('Erreur : ' + result.message, 'error');
             }
         } catch (e) {
-            alert('Erreur réseau : ' + e.message);
+            showMrpToast('Erreur réseau : ' + e.message, 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;

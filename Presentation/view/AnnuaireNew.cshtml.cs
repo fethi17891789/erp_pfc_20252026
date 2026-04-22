@@ -247,7 +247,9 @@ RÉPONDS UNIQUEMENT EN JSON VALIDE :
   ""Comment"": ""Résumé de ce qui a été réellement trouvé...""
 }}";
 
-                var (finalJson, modelName) = await _iaService.AskAiJsonAsync("Tu es un expert en OSINT très strict. Règle d'or : refuser l'invention. Une donnée manquante vaut mieux qu'une donnée fausse.", synthesisPrompt, enableSearch: true);
+                // Étape 3 : les données terrain sont déjà disponibles — pas besoin de Google Search.
+                // On utilise le mode JSON pur pour une réponse structurée fiable et rapide.
+                var (finalJson, modelName) = await _iaService.AskAiJsonAsync("Tu es un expert en OSINT très strict. Règle d'or : refuser l'invention. Une donnée manquante vaut mieux qu'une donnée fausse.", synthesisPrompt, enableSearch: false);
                 
                 var finalObj = System.Text.Json.Nodes.JsonNode.Parse(finalJson)?.AsObject();
                 if (finalObj != null) {

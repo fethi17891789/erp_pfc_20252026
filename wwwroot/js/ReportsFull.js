@@ -38,7 +38,7 @@
         ctaBtn.addEventListener('click', function (e) {
             e.preventDefault();
             // TODO: Navigation vers la liste des formulaires
-            alert('Fonctionnalité "Mes formulaires" en développement 🚀');
+            window.showErpToast('Fonctionnalité "Mes formulaires" en développement.', 'info');
         });
     }
 });

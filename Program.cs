@@ -61,8 +61,11 @@ builder.Services.AddScoped<Metier.MRP.OrdreFabricationService>();
 builder.Services.AddScoped<Metier.MRP.OrdreAchatService>();
 builder.Services.AddScoped<Metier.Logistique.LogistiqueService>();
 
-// IA
-builder.Services.AddHttpClient<Metier.IAService>();
+// IA — timeout étendu à 3 min pour supporter les flux Gemini longs (enrichissement CRM multi-étapes)
+builder.Services.AddHttpClient<Metier.IAService>(client =>
+{
+    client.Timeout = TimeSpan.FromMinutes(3);
+});
 builder.Services.AddScoped<Metier.IAService>();
 
 // CRM
