@@ -671,21 +671,211 @@
                         <div class="form-group" style="margin:0;">
                             <label asp-for="CurrentContact.Phone" class="form-label">Téléphone</label>
                             <div style="display:flex;gap:8px;align-items:stretch;">
-                                <select id="select-country" name="PhoneCountryCode"
-                                        onchange="validatePhone()"
-                                        style="background:var(--bg-alt);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:var(--text);padding:0 10px;font-size:0.82rem;cursor:pointer;min-width:100px;height:42px;">
-                                    <option value="FR">🇫🇷 +33</option>
-                                    <option value="DZ">🇩🇿 +213</option>
-                                    <option value="MA">🇲🇦 +212</option>
-                                    <option value="TN">🇹🇳 +216</option>
-                                    <option value="US">🇺🇸 +1</option>
-                                    <option value="GB">🇬🇧 +44</option>
-                                    <option value="BE">🇧🇪 +32</option>
-                                    <option value="CH">🇨🇭 +41</option>
-                                    <option value="DE">🇩🇪 +49</option>
-                                    <option value="ES">🇪🇸 +34</option>
-                                    <option value="IT">🇮🇹 +39</option>
-                                </select>
+                                <div style="display:flex;align-items:center;gap:8px;background:var(--bg-alt);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:0 10px;height:42px;min-width:140px;">
+                                    <img id="flag-img" src="https://flagcdn.com/16x12/fr.png" alt="" style="width:16px;height:12px;border-radius:2px;flex-shrink:0;">
+                                    <select id="select-country" name="PhoneCountryCode"
+                                            onchange="onCountryChange()"
+                                            style="background:transparent;border:none;color:var(--text);font-size:0.82rem;cursor:pointer;outline:none;width:100%;">
+                                        <optgroup label="-- Frequents --">
+                                            <option value="FR">France (+33)</option>
+                                            <option value="DZ">Algerie (+213)</option>
+                                            <option value="MA">Maroc (+212)</option>
+                                            <option value="TN">Tunisie (+216)</option>
+                                        </optgroup>
+                                        <optgroup label="-- Tous les pays --">
+                                            <option value="AF">Afghanistan (+93)</option>
+                                            <option value="ZA">Afrique du Sud (+27)</option>
+                                            <option value="AL">Albanie (+355)</option>
+                                            <option value="DZ">Algerie (+213)</option>
+                                            <option value="DE">Allemagne (+49)</option>
+                                            <option value="AD">Andorre (+376)</option>
+                                            <option value="AO">Angola (+244)</option>
+                                            <option value="AG">Antigua-et-Barbuda (+1)</option>
+                                            <option value="SA">Arabie Saoudite (+966)</option>
+                                            <option value="AR">Argentine (+54)</option>
+                                            <option value="AM">Armenie (+374)</option>
+                                            <option value="AU">Australie (+61)</option>
+                                            <option value="AT">Autriche (+43)</option>
+                                            <option value="AZ">Azerbaidjan (+994)</option>
+                                            <option value="BS">Bahamas (+1)</option>
+                                            <option value="BH">Bahrein (+973)</option>
+                                            <option value="BD">Bangladesh (+880)</option>
+                                            <option value="BB">Barbade (+1)</option>
+                                            <option value="BE">Belgique (+32)</option>
+                                            <option value="BZ">Belize (+501)</option>
+                                            <option value="BJ">Benin (+229)</option>
+                                            <option value="BT">Bhoutan (+975)</option>
+                                            <option value="BY">Bielorussie (+375)</option>
+                                            <option value="MM">Birmanie (+95)</option>
+                                            <option value="GQ">Guinee Equatoriale (+240)</option>
+                                            <option value="BO">Bolivie (+591)</option>
+                                            <option value="BA">Bosnie-Herzegovine (+387)</option>
+                                            <option value="BW">Botswana (+267)</option>
+                                            <option value="BR">Bresil (+55)</option>
+                                            <option value="BN">Brunei (+673)</option>
+                                            <option value="BG">Bulgarie (+359)</option>
+                                            <option value="BF">Burkina Faso (+226)</option>
+                                            <option value="BI">Burundi (+257)</option>
+                                            <option value="CV">Cap-Vert (+238)</option>
+                                            <option value="KH">Cambodge (+855)</option>
+                                            <option value="CM">Cameroun (+237)</option>
+                                            <option value="CA">Canada (+1)</option>
+                                            <option value="CL">Chili (+56)</option>
+                                            <option value="CN">Chine (+86)</option>
+                                            <option value="CY">Chypre (+357)</option>
+                                            <option value="CO">Colombie (+57)</option>
+                                            <option value="KM">Comores (+269)</option>
+                                            <option value="CG">Congo (+242)</option>
+                                            <option value="CD">Congo (RDC) (+243)</option>
+                                            <option value="KR">Coree du Sud (+82)</option>
+                                            <option value="KP">Coree du Nord (+850)</option>
+                                            <option value="CR">Costa Rica (+506)</option>
+                                            <option value="HR">Croatie (+385)</option>
+                                            <option value="CU">Cuba (+53)</option>
+                                            <option value="DK">Danemark (+45)</option>
+                                            <option value="DJ">Djibouti (+253)</option>
+                                            <option value="DM">Dominique (+1)</option>
+                                            <option value="EG">Egypte (+20)</option>
+                                            <option value="AE">Emirats Arabes Unis (+971)</option>
+                                            <option value="EC">Equateur (+593)</option>
+                                            <option value="ER">Erythree (+291)</option>
+                                            <option value="ES">Espagne (+34)</option>
+                                            <option value="EE">Estonie (+372)</option>
+                                            <option value="SZ">Eswatini (+268)</option>
+                                            <option value="ET">Ethiopie (+251)</option>
+                                            <option value="FJ">Fidji (+679)</option>
+                                            <option value="FI">Finlande (+358)</option>
+                                            <option value="FR">France (+33)</option>
+                                            <option value="GA">Gabon (+241)</option>
+                                            <option value="GM">Gambie (+220)</option>
+                                            <option value="GE">Georgie (+995)</option>
+                                            <option value="GH">Ghana (+233)</option>
+                                            <option value="GR">Grece (+30)</option>
+                                            <option value="GD">Grenade (+1)</option>
+                                            <option value="GT">Guatemala (+502)</option>
+                                            <option value="GN">Guinee (+224)</option>
+                                            <option value="GW">Guinee-Bissau (+245)</option>
+                                            <option value="GY">Guyana (+592)</option>
+                                            <option value="HT">Haiti (+509)</option>
+                                            <option value="HN">Honduras (+504)</option>
+                                            <option value="HU">Hongrie (+36)</option>
+                                            <option value="IN">Inde (+91)</option>
+                                            <option value="ID">Indonesie (+62)</option>
+                                            <option value="IQ">Irak (+964)</option>
+                                            <option value="IR">Iran (+98)</option>
+                                            <option value="IE">Irlande (+353)</option>
+                                            <option value="IS">Islande (+354)</option>
+                                            <option value="IL">Israel (+972)</option>
+                                            <option value="IT">Italie (+39)</option>
+                                            <option value="JM">Jamaique (+1)</option>
+                                            <option value="JP">Japon (+81)</option>
+                                            <option value="JO">Jordanie (+962)</option>
+                                            <option value="KZ">Kazakhstan (+7)</option>
+                                            <option value="KE">Kenya (+254)</option>
+                                            <option value="KG">Kirghizistan (+996)</option>
+                                            <option value="KI">Kiribati (+686)</option>
+                                            <option value="KW">Koweit (+965)</option>
+                                            <option value="LA">Laos (+856)</option>
+                                            <option value="LS">Lesotho (+266)</option>
+                                            <option value="LV">Lettonie (+371)</option>
+                                            <option value="LB">Liban (+961)</option>
+                                            <option value="LR">Liberia (+231)</option>
+                                            <option value="LY">Libye (+218)</option>
+                                            <option value="LI">Liechtenstein (+423)</option>
+                                            <option value="LT">Lituanie (+370)</option>
+                                            <option value="LU">Luxembourg (+352)</option>
+                                            <option value="MG">Madagascar (+261)</option>
+                                            <option value="MY">Malaisie (+60)</option>
+                                            <option value="MW">Malawi (+265)</option>
+                                            <option value="MV">Maldives (+960)</option>
+                                            <option value="ML">Mali (+223)</option>
+                                            <option value="MT">Malte (+356)</option>
+                                            <option value="MA">Maroc (+212)</option>
+                                            <option value="MH">Marshall (+692)</option>
+                                            <option value="MR">Mauritanie (+222)</option>
+                                            <option value="MU">Maurice (+230)</option>
+                                            <option value="MX">Mexique (+52)</option>
+                                            <option value="FM">Micronesie (+691)</option>
+                                            <option value="MD">Moldavie (+373)</option>
+                                            <option value="MC">Monaco (+377)</option>
+                                            <option value="MN">Mongolie (+976)</option>
+                                            <option value="ME">Montenegro (+382)</option>
+                                            <option value="MZ">Mozambique (+258)</option>
+                                            <option value="NA">Namibie (+264)</option>
+                                            <option value="NR">Nauru (+674)</option>
+                                            <option value="NP">Nepal (+977)</option>
+                                            <option value="NI">Nicaragua (+505)</option>
+                                            <option value="NE">Niger (+227)</option>
+                                            <option value="NG">Nigeria (+234)</option>
+                                            <option value="NO">Norvege (+47)</option>
+                                            <option value="NZ">Nouvelle-Zelande (+64)</option>
+                                            <option value="OM">Oman (+968)</option>
+                                            <option value="UG">Ouganda (+256)</option>
+                                            <option value="UZ">Ouzbekistan (+998)</option>
+                                            <option value="PK">Pakistan (+92)</option>
+                                            <option value="PW">Palaos (+680)</option>
+                                            <option value="PA">Panama (+507)</option>
+                                            <option value="PG">Papouasie-Nouvelle-Guinee (+675)</option>
+                                            <option value="PY">Paraguay (+595)</option>
+                                            <option value="NL">Pays-Bas (+31)</option>
+                                            <option value="PE">Perou (+51)</option>
+                                            <option value="PH">Philippines (+63)</option>
+                                            <option value="PL">Pologne (+48)</option>
+                                            <option value="PT">Portugal (+351)</option>
+                                            <option value="QA">Qatar (+974)</option>
+                                            <option value="CF">Republique Centrafricaine (+236)</option>
+                                            <option value="DO">Republique Dominicaine (+1)</option>
+                                            <option value="CZ">Republique Tcheque (+420)</option>
+                                            <option value="RO">Roumanie (+40)</option>
+                                            <option value="GB">Royaume-Uni (+44)</option>
+                                            <option value="RU">Russie (+7)</option>
+                                            <option value="RW">Rwanda (+250)</option>
+                                            <option value="KN">Saint-Kitts-et-Nevis (+1)</option>
+                                            <option value="LC">Sainte-Lucie (+1)</option>
+                                            <option value="VC">Saint-Vincent (+1)</option>
+                                            <option value="SB">Salomon (+677)</option>
+                                            <option value="WS">Samoa (+685)</option>
+                                            <option value="SM">Saint-Marin (+378)</option>
+                                            <option value="ST">Sao Tome-et-Principe (+239)</option>
+                                            <option value="SN">Senegal (+221)</option>
+                                            <option value="RS">Serbie (+381)</option>
+                                            <option value="SC">Seychelles (+248)</option>
+                                            <option value="SL">Sierra Leone (+232)</option>
+                                            <option value="SG">Singapour (+65)</option>
+                                            <option value="SK">Slovaquie (+421)</option>
+                                            <option value="SI">Slovenie (+386)</option>
+                                            <option value="SO">Somalie (+252)</option>
+                                            <option value="SS">Soudan du Sud (+211)</option>
+                                            <option value="SD">Soudan (+249)</option>
+                                            <option value="LK">Sri Lanka (+94)</option>
+                                            <option value="SR">Suriname (+597)</option>
+                                            <option value="SE">Suede (+46)</option>
+                                            <option value="CH">Suisse (+41)</option>
+                                            <option value="SY">Syrie (+963)</option>
+                                            <option value="TJ">Tadjikistan (+992)</option>
+                                            <option value="TW">Taiwan (+886)</option>
+                                            <option value="TZ">Tanzanie (+255)</option>
+                                            <option value="TD">Tchad (+235)</option>
+                                            <option value="TH">Thailande (+66)</option>
+                                            <option value="TL">Timor-Oriental (+670)</option>
+                                            <option value="TG">Togo (+228)</option>
+                                            <option value="TO">Tonga (+676)</option>
+                                            <option value="TT">Trinite-et-Tobago (+1)</option>
+                                            <option value="TN">Tunisie (+216)</option>
+                                            <option value="TM">Turkmenistan (+993)</option>
+                                            <option value="TR">Turquie (+90)</option>
+                                            <option value="TV">Tuvalu (+688)</option>
+                                            <option value="UA">Ukraine (+380)</option>
+                                            <option value="UY">Uruguay (+598)</option>
+                                            <option value="VU">Vanuatu (+678)</option>
+                                            <option value="VE">Venezuela (+58)</option>
+                                            <option value="VN">Vietnam (+84)</option>
+                                            <option value="YE">Yemen (+967)</option>
+                                            <option value="ZM">Zambie (+260)</option>
+                                            <option value="ZW">Zimbabwe (+263)</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
                                 <div style="position:relative;flex:1;">
                                     <input asp-for="CurrentContact.Phone" id="input-phone"
                                            class="form-input" placeholder="6 00 00 00 00"
@@ -1051,6 +1241,15 @@ async function validateEmail() {
             msg.style.display = 'block';
         }
     } catch { spinner.style.display = 'none'; }
+}
+
+function onCountryChange() {
+    var select  = document.getElementById('select-country');
+    var flagImg = document.getElementById('flag-img');
+    if (select && flagImg) {
+        flagImg.src = 'https://flagcdn.com/16x12/' + select.value.toLowerCase() + '.png';
+    }
+    validatePhone();
 }
 
 async function validatePhone() {
