@@ -1082,6 +1082,7 @@ async function enrichWebsite() {
         if (updated) {
             msg.style.display = 'block';
             input.classList.add('input-valid');
+            showLogoPreview(website);
             setTimeout(function () {
                 fn?.classList.remove('input-valid');
                 comment?.classList.remove('input-valid');
@@ -1122,7 +1123,7 @@ async function callAiAssistant() {
             if (data.FullName)  fillField('CurrentContact_FullName', data.FullName);
             if (data.Email)     fillField('input-email',             data.Email);
             if (data.Phone)     fillField('input-phone',             data.Phone);
-            if (data.Website)   fillField('input-website',           data.Website);
+            if (data.Website)  { fillField('input-website', data.Website); showLogoPreview(data.Website); }
             if (data.Comment)   fillField('CurrentContact_Comment',  data.Comment);
             promptEl.value       = '';
             promptEl.placeholder = '✨ Fiche générée avec succès !';
@@ -1143,6 +1144,74 @@ function fillField(id, value) {
     el.classList.add('input-valid');
     setTimeout(function () { el.classList.remove('input-valid'); }, 3000);
     if (id === 'CurrentContact_FullName') syncBannerName(value);
+}
+
+function showLogoPreview(websiteUrl) {
+    if (!websiteUrl) return;
+    try {
+        var url = websiteUrl.startsWith('http') ? websiteUrl : 'https://' + websiteUrl;
+        var domain = new URL(url).hostname.replace('www.', '');
+        if (!domain) return;
+        var logoUrl = 'https://logo.clearbit.com/' + domain;
+
+        var box = document.getElementById('avatar-preview-box');
+        if (!box) return;
+
+        var img = document.createElement('img');
+        img.src = logoUrl;
+        img.alt = domain;
+        img.style.cssText = 'width:100%;height:100%;object-fit:contain;border-radius:14px;background:#fff;padding:6px;';
+        img.onerror = function () {
+            // Fallback 1 : Google Favicon Service (couverture quasi-universelle)
+            var googleUrl = 'https://www.google.com/s2/favicons?domain=' + domain + '&sz=128';
+            var fallbackImg = document.createElement('img');
+            fallbackImg.src = googleUrl;
+            fallbackImg.alt = domain;
+            fallbackImg.style.cssText = 'width:64px;height:64px;object-fit:contain;border-radius:10px;';
+            fallbackImg.onerror = function () {
+                // Fallback 2 : placeholder initiales
+                box.innerHTML = '<svg id="avatar-placeholder-icon" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="rgba(123,94,255,0.5)" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>';
+                box.style.border = '';
+            };
+            fallbackImg.onload = function () {
+                box.innerHTML = '';
+                box.style.cssText = (box.style.cssText || '') + 'display:flex;align-items:center;justify-content:center;';
+                box.style.border = '2px solid rgba(123,94,255,0.4)';
+                box.appendChild(fallbackImg);
+                var badge = document.createElement('div');
+                badge.textContent = 'IA';
+                badge.style.cssText = 'position:absolute;bottom:4px;right:4px;background:linear-gradient(135deg,#7B5EFF,#5b3fd4);color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:999px;letter-spacing:0.05em;';
+                box.style.position = 'relative';
+                box.appendChild(badge);
+                var bannerAvatar = document.getElementById('banner-avatar');
+                if (bannerAvatar) {
+                    var existing = bannerAvatar.querySelector('img');
+                    if (!existing) { var bi = document.createElement('img'); bi.src = googleUrl; bi.alt = domain; bannerAvatar.appendChild(bi); }
+                    else { existing.src = googleUrl; }
+                }
+            };
+            box.innerHTML = '';
+            box.appendChild(fallbackImg);
+        };
+        img.onload = function () {
+            box.style.border = '2px solid rgba(123,94,255,0.4)';
+            // Badge "IA" sur la preview
+            var badge = document.createElement('div');
+            badge.textContent = 'IA';
+            badge.style.cssText = 'position:absolute;bottom:4px;right:4px;background:linear-gradient(135deg,#7B5EFF,#5b3fd4);color:#fff;font-size:0.6rem;font-weight:700;padding:1px 5px;border-radius:999px;letter-spacing:0.05em;';
+            box.style.position = 'relative';
+            box.appendChild(badge);
+            // Mise à jour de la bannière profil (mode édition)
+            var bannerAvatar = document.getElementById('banner-avatar');
+            if (bannerAvatar) {
+                var existing = bannerAvatar.querySelector('img');
+                if (!existing) { var bi = document.createElement('img'); bi.src = logoUrl; bi.alt = domain; bannerAvatar.appendChild(bi); }
+                else { existing.src = logoUrl; }
+            }
+        };
+        box.innerHTML = '';
+        box.appendChild(img);
+    } catch (e) { /* URL invalide, on ignore */ }
 }
 
 @if (isEdit)

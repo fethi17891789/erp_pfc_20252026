@@ -376,6 +376,17 @@ function getClearbitUrl(c) {
     return c.domain ? `https://logo.clearbit.com/${c.domain}` : null;
 }
 
+function getGoogleFaviconUrl(c) {
+    return c.domain ? `https://www.google.com/s2/favicons?domain=${c.domain}&sz=128` : null;
+}
+
+function logoImgHtml(clearbitUrl, googleUrl, initials, style) {
+    if (!clearbitUrl) return null;
+    return `<img src="${clearbitUrl}"
+        onerror="this.src='${googleUrl}'; this.onerror=function(){this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';};"
+        ${style} />`;
+}
+
 function openContactImageModal(url) {
     if (!url) return;
     document.getElementById('contact-image-modal-img').src = url;
@@ -456,11 +467,12 @@ function renderGrid() {
     container.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
     container.innerHTML = filteredContacts.map(c => {
         const logoUrl = getClearbitUrl(c);
+        const googleUrl = getGoogleFaviconUrl(c);
         const logo = logoUrl
             ? `<div style="width:80px;height:100px;border-radius:14px;overflow:hidden;border:1px solid rgba(148,163,184,0.5);background:white;flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;"
                     onclick="openContactImageModal('${logoUrl}'); event.stopPropagation();">
                   <img src="${logoUrl}"
-                       onerror="this.parentElement.innerHTML='<span style=\\'font-size:1.5rem;font-weight:bold;color:#94a3b8;\\'>${c.initials}</span>';"
+                       onerror="this.src='${googleUrl}'; this.onerror=function(){this.parentElement.innerHTML='<span style=\\'font-size:1.5rem;font-weight:bold;color:#94a3b8;\\'>${c.initials}</span>';};"
                        alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;padding:6px;"/>
                </div>`
             : `<div style="width:80px;height:100px;border-radius:14px;overflow:hidden;border:1px solid rgba(148,163,184,0.5);background:#020617;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:white;font-size:1.5rem;font-weight:bold;">${c.initials}</div>`;
@@ -559,8 +571,9 @@ function renderList() {
 
     tbody.innerHTML = sorted.map(c => {
         const logoUrl = getClearbitUrl(c);
+        const googleUrl2 = getGoogleFaviconUrl(c);
         const avatar = logoUrl
-            ? `<img src="${logoUrl}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+            ? `<img src="${logoUrl}" onerror="this.src='${googleUrl2}'; this.onerror=function(){this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='flex';};"
                     style="width:32px;height:32px;border-radius:8px;object-fit:contain;border:1px solid rgba(255,255,255,0.1);background:#fff;padding:2px;"/>
                <div class="ann-avatar-mini" style="display:none;background:rgba(123,94,255,0.15);color:#9C8CFF;">${c.initials}</div>`
             : `<div class="ann-avatar-mini" style="background:rgba(123,94,255,0.15);color:#9C8CFF;">${c.initials}</div>`;
