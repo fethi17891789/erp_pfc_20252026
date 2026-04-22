@@ -271,31 +271,142 @@ namespace Metier
 
             if (modelName == "gemini-1.5-flash") modelName = "gemini-1.5-flash-latest";
 
-            // --- RAG / CONTEXTE ---
-            int countProduits = 0, countUsers = 0, countVehicules = 0;
-            string nomsProduits = "";
+            // --- RAG / CONTEXTE DYNAMIQUE (données réelles depuis la BDD) ---
+            int countProduits = 0, countUsers = 0, countVehicules = 0, countContacts = 0, countMRP = 0;
+            var lignesProduits = new StringBuilder();
+            var lignesVehicules = new StringBuilder();
+            var lignesContacts = new StringBuilder();
+            var lignesMRP = new StringBuilder();
+
             try {
                 countProduits = await _dbContext.Produits.CountAsync();
                 countUsers = await _dbContext.ErpUsers.CountAsync();
                 countVehicules = await _dbContext.LogistiqueVehicules.CountAsync();
-                var topProduits = await _dbContext.Produits.OrderByDescending(p => p.Id).Take(5).Select(p => p.Nom).ToListAsync();
-                nomsProduits = string.Join(", ", topProduits);
+                countContacts = await _dbContext.Contacts.CountAsync();
+                countMRP = await _dbContext.MRPPlans.CountAsync();
+
+                // Produits avec tous les champs utiles
+                var produits = await _dbContext.Produits
+                    .OrderBy(p => p.Nom).Take(40)
+                    .Select(p => new { p.Nom, p.Reference, p.TypeTechnique, p.Type, p.QuantiteDisponible, p.PrixVente, p.CoutTotal })
+                    .ToListAsync();
+                foreach (var p in produits) {
+                    var typeTech = p.TypeTechnique switch {
+                        Donnees.TypeTechniqueProduit.MatierePremiere => "Matière première",
+                        Donnees.TypeTechniqueProduit.SemiFini       => "Semi-fini",
+                        Donnees.TypeTechniqueProduit.Fini            => "Produit fini",
+                        Donnees.TypeTechniqueProduit.SemiFiniEtFini  => "Semi-fini+Fini",
+                        _ => "?"
+                    };
+                    lignesProduits.AppendLine($"  - {p.Nom} (Réf: {p.Reference}) | Type: {typeTech} / {p.Type} | Qté dispo: {p.QuantiteDisponible} | Prix vente: {p.PrixVente}€ | Coût: {p.CoutTotal}€");
+                }
+
+                // Véhicules avec détails carburant/statut
+                var vehicules = await _dbContext.LogistiqueVehicules
+                    .OrderBy(v => v.Nom)
+                    .Select(v => new { v.Nom, v.Matricule, v.TypeTransport, v.TypeCarburant, v.Statut, v.Marque, v.Modele, v.Annee })
+                    .ToListAsync();
+                foreach (var v in vehicules) {
+                    lignesVehicules.AppendLine($"  - {v.Nom} ({v.Marque} {v.Modele} {v.Annee}) | Matricule: {v.Matricule} | Transport: {v.TypeTransport} | Carburant: {v.TypeCarburant ?? "N/A"} | Statut: {v.Statut}");
+                }
+
+                // Contacts (clients, fournisseurs, partenaires...)
+                var contacts = await _dbContext.Contacts
+                    .OrderBy(c => c.FullName).Take(30)
+                    .Select(c => new { c.FullName, c.Roles, c.Email })
+                    .ToListAsync();
+                foreach (var c in contacts) {
+                    var roles = new List<string>();
+                    if (c.Roles.HasFlag(Donnees.ContactRole.Client))      roles.Add("Client");
+                    if (c.Roles.HasFlag(Donnees.ContactRole.Fournisseur)) roles.Add("Fournisseur");
+                    if (c.Roles.HasFlag(Donnees.ContactRole.Employe))     roles.Add("Employé");
+                    if (c.Roles.HasFlag(Donnees.ContactRole.Partenaire))  roles.Add("Partenaire");
+                    if (c.Roles.HasFlag(Donnees.ContactRole.Investisseur))roles.Add("Investisseur");
+                    lignesContacts.AppendLine($"  - {c.FullName} | Rôles: {(roles.Any() ? string.Join(", ", roles) : "Aucun")} | Email: {c.Email ?? "N/A"}");
+                }
+
+                // Plans MRP récents
+                var mrpPlans = await _dbContext.MRPPlans
+                    .OrderByDescending(m => m.DateCreation).Take(5)
+                    .Select(m => new { m.Reference, m.Statut, m.TypePlan, m.DateDebutHorizon, m.DateFinHorizon })
+                    .ToListAsync();
+                foreach (var m in mrpPlans) {
+                    lignesMRP.AppendLine($"  - {m.Reference} | Statut: {m.Statut} | Type: {m.TypePlan ?? "N/A"} | Horizon: {m.DateDebutHorizon:dd/MM/yyyy} → {m.DateFinHorizon:dd/MM/yyyy}");
+                }
             } catch (Exception exRag) {
-                Console.WriteLine($"[IA STREAM] Erreur chargement contexte ERP (stats): {exRag.Message}");
+                Console.WriteLine($"[IA STREAM] Erreur chargement contexte ERP: {exRag.Message}");
             }
 
-            string systemPromptText = string.IsNullOrWhiteSpace(config.SystemPrompt) 
-                ? "Tu es GEMINI, le brillant assistant virtuel de l'ERP SKYRA." 
+            string systemPromptText = string.IsNullOrWhiteSpace(config.SystemPrompt)
+                ? "Tu es GEMINI, le brillant assistant virtuel de l'ERP SKYRA."
                 : config.SystemPrompt;
 
-            string docContext = @"
-GUIDE DE CONFIGURATION ERP (DOCUMENTATION INTERNE) :
-- Modules ACTIFS : 'Accueil' (/Home), 'Messagerie' (/Messagerie), 'Production/MRP' (/Fabrication), 'Logistique' (/Logistique/Index).
-- Modules EN COURS DE DÉVELOPPEMENT (indisponibles) : Ventes, Achats, Stock, RH, Comptabilité.
-- CRÉATION DE COMPTE : Il n'y a pas de module RH. Pour ajouter un nouvel employé, il faut se rendre sur la page '/CreateProfile'.
-- STATISTIQUES : Employés: " + countUsers + @", Produits: " + countProduits + @", Véhicules: " + countVehicules;
+            // --- GUIDE MÉTIER STATIQUE (logique de fonctionnement de l'ERP) ---
+            const string guideMetier = @"
+=== GUIDE INTERNE : FONCTIONNEMENT DE L'ERP SKYRA ===
 
-            string contextualInstruction = systemPromptText + "\n\n" + docContext;
+[PRODUITS & QUANTITÉS]
+- Il n'existe PAS de module stock dédié. La quantité disponible d'un article se lit directement sur sa FICHE PRODUIT (champ QuantiteDisponible).
+- Chaque produit a un TYPE TECHNIQUE qui détermine son rôle dans la chaîne de production :
+  * Matière première : achetée à l'extérieur, utilisée comme composant dans les nomenclatures (BOM)
+  * Semi-fini : fabriqué en interne, peut servir de composant à un autre produit
+  * Produit fini : produit final destiné à la vente
+  * Semi-fini+Fini : remplit les deux rôles
+- Chaque produit a aussi un TYPE COMMERCIAL : 'Bien' (article physique) ou 'Service'.
+- Pour identifier les matières premières, filtrer les produits avec TypeTechnique = Matière première.
+- Le coût d'un produit se décompose en : CoutAchat (pour les MP), CoutBom (somme des composants), CoutAutresCharges, et CoutTotal.
+
+[NOMENCLATURE (BOM)]
+- Une BOM liste les composants (et leurs quantités) nécessaires pour fabriquer un produit.
+- Accessible via Fabrication > Nomenclatures (/BOM).
+- La création/édition se fait via /BOMCreate.
+
+[MRP (Planification des besoins matières)]
+- Le MRP calcule automatiquement les besoins en composants selon les ordres planifiés.
+- Un plan MRP a un STATUT : Brouillon (édition), Sauvegardée (validé), Annulée.
+- Le MRP génère des Ordres de Fabrication (OF) et des Ordres d'Achat (OA).
+- Détail d'un plan : /MRPDetail. Configuration : /MRPConfig.
+
+[LOGISTIQUE & VÉHICULES]
+- Chaque véhicule a : un TYPE DE TRANSPORT (Camion, Fourgonnette...), un TYPE DE CARBURANT (Essence, Diesel, Hybride, Électrique, GNV), et un STATUT (Disponible, En Trajet, Maintenance).
+- Suivi GPS temps réel : /Logistique/Tracking.
+
+[CRM & CONTACTS]
+- Un contact peut avoir PLUSIEURS RÔLES simultanément : Client, Fournisseur, Employé, Partenaire, Investisseur.
+- Pour trouver les fournisseurs : contacts avec le rôle Fournisseur.
+- Les Contacts CRM sont distincts des ErpUsers (comptes de connexion à l'ERP).
+
+[UTILISATEURS / EMPLOYÉS]
+- Les ErpUsers sont les comptes de connexion à l'ERP (profils employés).
+- Pas de module RH dédié. Pour créer un employé : /CreateProfile.
+
+[MODULES ACTIFS]
+- Accueil (/Home) · Messagerie (/Messagerie) · Fabrication (/Fabrication) · Logistique (/Logistique/Index) · CRM (/AnnuaireList)
+
+[MODULES NON DISPONIBLES (en développement)]
+- Ventes, Achats, Stock dédié, RH, Comptabilité
+";
+
+            // --- SNAPSHOT DYNAMIQUE (données réelles au moment de la question) ---
+            string snapshotDonnees = $@"
+=== DONNÉES ACTUELLES DE L'ERP (snapshot en temps réel) ===
+
+RÉSUMÉ : {countUsers} employé(s), {countProduits} produit(s), {countVehicules} véhicule(s), {countContacts} contact(s) CRM, {countMRP} plan(s) MRP.
+
+LISTE DES PRODUITS ({countProduits}) :
+{(lignesProduits.Length > 0 ? lignesProduits.ToString().TrimEnd() : "  (aucun produit enregistré)")}
+
+LISTE DES VÉHICULES ({countVehicules}) :
+{(lignesVehicules.Length > 0 ? lignesVehicules.ToString().TrimEnd() : "  (aucun véhicule enregistré)")}
+
+CONTACTS CRM ({countContacts}) :
+{(lignesContacts.Length > 0 ? lignesContacts.ToString().TrimEnd() : "  (aucun contact enregistré)")}
+
+PLANS MRP RÉCENTS ({countMRP} au total, 5 derniers affichés) :
+{(lignesMRP.Length > 0 ? lignesMRP.ToString().TrimEnd() : "  (aucun plan MRP)")}
+";
+
+            string contextualInstruction = systemPromptText + "\n\n" + guideMetier + "\n\n" + snapshotDonnees;
 
             var history = await _dbContext.Messages
                 .Where(m => m.ConversationId == conversationId)
