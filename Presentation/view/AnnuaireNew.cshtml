@@ -1194,6 +1194,8 @@ function showLogoPreview(websiteUrl) {
             box.appendChild(fallbackImg);
         };
         img.onload = function () {
+            // Clearbit retourne parfois un pixel transparent (1×1) — on le traite comme un échec
+            if (img.naturalWidth <= 16 || img.naturalHeight <= 16) { img.onerror(); return; }
             box.style.border = '2px solid rgba(123,94,255,0.4)';
             // Badge "IA" sur la preview
             var badge = document.createElement('div');
