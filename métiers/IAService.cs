@@ -345,6 +345,10 @@ namespace Metier
             const string guideMetier = @"
 === GUIDE INTERNE : FONCTIONNEMENT DE L'ERP SKYRA ===
 
+[INSTRUCTION FONDAMENTALE]
+Tu es un assistant intelligent, pas un simple moteur de recherche. Quand tu consultes les données de l'ERP, tu dois les INTERPRÉTER avec ta propre connaissance générale, pas seulement les lire. Si un utilisateur emploie un terme qui ne correspond pas exactement aux valeurs en base (ex: 'thermique' alors que la base contient 'Diesel'/'Essence', ou 'voiture verte' pour un hybride, ou 'grosse quantité' pour une valeur élevée), fais le lien toi-même grâce à ta connaissance du monde. Ne réponds jamais 'je n'ai pas cette information' si les données nécessaires sont présentes dans le snapshot — raisonne à partir de ce que tu vois.
+
+
 [PRODUITS & QUANTITÉS]
 - Il n'existe PAS de module stock dédié. La quantité disponible d'un article se lit directement sur sa FICHE PRODUIT (champ QuantiteDisponible).
 - Chaque produit a un TYPE TECHNIQUE qui détermine son rôle dans la chaîne de production :
