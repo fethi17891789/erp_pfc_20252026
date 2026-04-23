@@ -209,7 +209,17 @@ namespace Metier
                              if (fbResp.IsSuccessStatusCode) {
                                   var fbBody = await fbResp.Content.ReadAsStringAsync();
                                   using var fbDoc = JsonDocument.Parse(fbBody);
-                                  var fbText = fbDoc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
+                                  string? fbText = null;
+                                  if (fbDoc.RootElement.TryGetProperty("candidates", out var fbCands) && fbCands.GetArrayLength() > 0)
+                                  {
+                                      var fbFirst = fbCands[0];
+                                      if (fbFirst.TryGetProperty("content", out var fbCont) &&
+                                          fbCont.TryGetProperty("parts", out var fbParts) && fbParts.GetArrayLength() > 0 &&
+                                          fbParts[0].TryGetProperty("text", out var fbTextEl))
+                                      {
+                                          fbText = fbTextEl.GetString();
+                                      }
+                                  }
                                   return (fbText ?? "{}", targetModel + " (No-Search)");
                              }
                         }

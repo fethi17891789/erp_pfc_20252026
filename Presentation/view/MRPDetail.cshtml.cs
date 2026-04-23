@@ -315,7 +315,7 @@ namespace erp_pfc_20252026.Pages
             if (plan == null)
                 return new JsonResult(Array.Empty<MrpTableauDto>());
 
-            var ligne = plan.Lignes.FirstOrDefault(l => l.Produit.Reference == codeArticle);
+            var ligne = plan.Lignes.FirstOrDefault(l => l.Produit != null && l.Produit.Reference == codeArticle);
             if (ligne == null)
                 return new JsonResult(Array.Empty<MrpTableauDto>());
 
@@ -429,7 +429,7 @@ namespace erp_pfc_20252026.Pages
             foreach (var grp in dtosParArticle)
             {
                 var codeArticle = grp.Key;
-                var ligne = plan.Lignes.FirstOrDefault(l => l.Produit.Reference == codeArticle);
+                var ligne = plan.Lignes.FirstOrDefault(l => l.Produit != null && l.Produit.Reference == codeArticle);
                 if (ligne == null)
                     continue;
 
@@ -464,7 +464,7 @@ namespace erp_pfc_20252026.Pages
             foreach (var grp in dtosParArticle)
             {
                 var codeArticleGrp = grp.Key;
-                var ligne = plan.Lignes.FirstOrDefault(l => l.Produit.Reference == codeArticleGrp);
+                var ligne = plan.Lignes.FirstOrDefault(l => l.Produit != null && l.Produit.Reference == codeArticleGrp);
                 if (ligne == null) continue;
 
                 var sommeDebutOrdre = grp.Sum(d => d.DebutOrdre);
@@ -487,7 +487,7 @@ namespace erp_pfc_20252026.Pages
             var prixMisAJour = dtosParArticle
                 .Select(g =>
                 {
-                    var ligne = plan.Lignes.FirstOrDefault(l => l.Produit.Reference == g.Key);
+                    var ligne = plan.Lignes.FirstOrDefault(l => l.Produit != null && l.Produit.Reference == g.Key);
                     return new { codeArticle = g.Key, prixTotal = ligne?.PrixTotal ?? 0m };
                 })
                 .ToList();
