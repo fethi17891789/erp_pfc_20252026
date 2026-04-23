@@ -426,8 +426,20 @@ using (var scope3 = app.Services.CreateScope())
                     ""ReadAt"" TIMESTAMP WITHOUT TIME ZONE NOT NULL,
                     CONSTRAINT ""FK_ReadStates_Messages_MessageId""
                         FOREIGN KEY (""MessageId"") REFERENCES ""Messages""(""Id"")
-                        ON DELETE CASCADE
-                );";
+                        ON DELETE CASCADE,
+                    CONSTRAINT ""UQ_ReadStates_Message_User""
+                        UNIQUE (""MessageId"", ""UserId"")
+                );
+                -- Ajout de la contrainte sur les tables existantes si elle n'existe pas encore
+                DO $$ BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM pg_constraint
+                        WHERE conname = 'UQ_ReadStates_Message_User'
+                    ) THEN
+                        ALTER TABLE ""MessageReadStates""
+                        ADD CONSTRAINT ""UQ_ReadStates_Message_User"" UNIQUE (""MessageId"", ""UserId"");
+                    END IF;
+                END $$;";
 
             using (var cmd = new NpgsqlCommand(createMessagingTablesSql, conn))
             {

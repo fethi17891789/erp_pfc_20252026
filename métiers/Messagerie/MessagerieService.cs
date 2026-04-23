@@ -561,11 +561,9 @@ namespace Metier.Messagerie
                 INSERT INTO ""MessageReadStates"" (""MessageId"", ""UserId"", ""ReadAt"")
                 SELECT m.""Id"", @uid, NOW()
                 FROM ""Messages"" m
-                LEFT JOIN ""MessageReadStates"" r
-                    ON r.""MessageId"" = m.""Id"" AND r.""UserId"" = @uid
                 WHERE m.""ConversationId"" = @convId
                   AND m.""SenderId"" <> @uid
-                  AND r.""Id"" IS NULL;";
+                ON CONFLICT (""MessageId"", ""UserId"") DO NOTHING;";
 
             await using var cmd = new NpgsqlCommand(insertSql, conn);
             cmd.Parameters.AddWithValue("uid", readerUserId);
