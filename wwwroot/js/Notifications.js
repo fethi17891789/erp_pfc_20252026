@@ -5,6 +5,33 @@
 (function () {
     var unreadCount = 0;
 
+    // --- Temps relatif ---
+    function timeAgo(ts) {
+        var diff = Math.floor((Date.now() - ts) / 1000); // secondes écoulées
+        if (diff < 10)  return "À l'instant";
+        if (diff < 60)  return "Il y a " + diff + " s";
+        var mins = Math.floor(diff / 60);
+        if (mins < 60)  return "Il y a " + mins + " min";
+        var hrs = Math.floor(mins / 60);
+        if (hrs < 24)   return "Il y a " + hrs + "h";
+        var days = Math.floor(hrs / 24);
+        return "Il y a " + days + "j";
+    }
+
+    // Rafraîchit tous les labels de temps visibles dans le tiroir
+    function refreshAllTimes() {
+        var list = document.getElementById("notif-list");
+        if (!list) return;
+        list.querySelectorAll(".notif-item[data-ts]").forEach(function (item) {
+            var ts = parseInt(item.dataset.ts, 10);
+            var timeEl = item.querySelector(".notif-item-time");
+            if (timeEl) timeEl.textContent = timeAgo(ts);
+        });
+    }
+
+    // Rafraîchissement toutes les 30s
+    setInterval(refreshAllTimes, 30000);
+
     // --- Toggle du tiroir ---
     window.toggleNotifDrawer = function () {
         var drawer = document.getElementById("notif-drawer");
@@ -58,10 +85,11 @@
         var senderId = data.SenderId || data.senderId;
         var initial = senderName.charAt(0).toUpperCase();
 
+        var now = Date.now();
         miniToast.innerHTML =
             '<div class="toast-avatar">' + initial + '</div>' +
             '<div class="toast-content">' +
-            '  <div class="toast-title"><span>' + senderName + '</span><span class="toast-time">Maintenant</span></div>' +
+            '  <div class="toast-title"><span>' + senderName + '</span><span class="toast-time">' + timeAgo(now) + '</span></div>' +
             '  <div class="toast-msg">' + content + '</div>' +
             '</div>';
 
@@ -107,14 +135,16 @@
         var senderId = data.SenderId || data.senderId;
         var initial = senderName.charAt(0).toUpperCase();
 
+        var ts = Date.now();
         var item = document.createElement("div");
         item.className = "notif-item";
+        item.dataset.ts = ts;
         item.innerHTML =
             '<div class="notif-item-avatar">' + initial + '</div>' +
             '<div class="notif-item-body">' +
             '  <div class="notif-item-title">' + senderName + '</div>' +
             '  <div class="notif-item-text">' + content + '</div>' +
-            '  <div class="notif-item-time">À l\'instant</div>' +
+            '  <div class="notif-item-time">' + timeAgo(ts) + '</div>' +
             '</div>';
 
         item.onclick = function () {
