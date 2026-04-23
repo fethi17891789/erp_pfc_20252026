@@ -192,10 +192,12 @@ namespace Metier.Messagerie
                             var recipientId = (uid1 == saved.SenderId) ? uid2 : uid1;
                             await Clients.Group($"user-{recipientId}").SendAsync("ReceiveNotification", new
                             {
-                                SenderId = saved.SenderId,
-                                SenderName = saved.SenderName,
-                                Content = saved.Content,
-                                ConversationId = saved.ConversationId
+                                SenderId     = saved.SenderId,
+                                SenderName   = saved.SenderName,
+                                Content      = saved.Content,
+                                ConversationId = saved.ConversationId,
+                                MessageType  = saved.MessageType,
+                                AttachmentUrl = saved.AttachmentUrl
                             });
                         }
                     }
@@ -261,9 +263,32 @@ namespace Metier.Messagerie
                 }
                 else
                 {
-                    // Pour les messages déjà créés côté Razor (image, file, audio, etc.)
+                    // Pour les messages déjà créés côté Razor (image, file, etc.)
                     await Clients.Group($"conv-{message.ConversationId}")
                                  .SendAsync("ReceiveMessage", message);
+
+                    // Notifier le destinataire (même logique que pour le texte)
+                    var fileConv = await _dbContext.Conversations.FindAsync(message.ConversationId);
+                    if (fileConv != null && fileConv.Type == "direct" && fileConv.Titre != null && fileConv.Titre.StartsWith("direct-"))
+                    {
+                        var idParts = fileConv.Titre.Replace("direct-", "").Split('-');
+                        if (idParts.Length == 2 && int.TryParse(idParts[0], out int uid1) && int.TryParse(idParts[1], out int uid2))
+                        {
+                            var recipientId = (uid1 == message.SenderId) ? uid2 : uid1;
+                            var displayContent = message.MessageType == "image" ? "🖼 Image"
+                                               : message.MessageType == "file"  ? "📎 " + (message.Content ?? "Fichier")
+                                               : message.Content ?? "";
+                            await Clients.Group($"user-{recipientId}").SendAsync("ReceiveNotification", new
+                            {
+                                SenderId       = message.SenderId,
+                                SenderName     = message.SenderName,
+                                Content        = displayContent,
+                                ConversationId = message.ConversationId,
+                                MessageType    = message.MessageType,
+                                AttachmentUrl  = message.AttachmentUrl
+                            });
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -296,6 +321,26 @@ namespace Metier.Messagerie
             {
                 await Clients.Group($"conv-{message.ConversationId}")
                              .SendAsync("ReceiveMessage", message);
+
+                // Notifier le destinataire (hors conversation ouverte)
+                var conv = await _dbContext.Conversations.FindAsync(message.ConversationId);
+                if (conv != null && conv.Type == "direct" && conv.Titre != null && conv.Titre.StartsWith("direct-"))
+                {
+                    var idParts = conv.Titre.Replace("direct-", "").Split('-');
+                    if (idParts.Length == 2 && int.TryParse(idParts[0], out int uid1) && int.TryParse(idParts[1], out int uid2))
+                    {
+                        var recipientId = (uid1 == message.SenderId) ? uid2 : uid1;
+                        await Clients.Group($"user-{recipientId}").SendAsync("ReceiveNotification", new
+                        {
+                            SenderId      = message.SenderId,
+                            SenderName    = message.SenderName,
+                            Content       = "🎤 Message vocal",
+                            ConversationId = message.ConversationId,
+                            MessageType   = "audio",
+                            AttachmentUrl = message.AttachmentUrl
+                        });
+                    }
+                }
             }
             catch (Exception ex)
             {
