@@ -32,10 +32,25 @@
     // Rafraîchissement toutes les 30s
     setInterval(refreshAllTimes, 30000);
 
+    // --- Fermeture animée du tiroir ---
+    function closeDrawer(drawer) {
+        if (!drawer || !drawer.classList.contains("open")) return;
+        drawer.classList.remove("open");
+        drawer.classList.add("closing");
+        setTimeout(function () {
+            drawer.classList.remove("closing");
+        }, 260); // légèrement > durée animation (0.25s)
+    }
+
     // --- Toggle du tiroir ---
     window.toggleNotifDrawer = function () {
         var drawer = document.getElementById("notif-drawer");
-        if (drawer) drawer.classList.toggle("open");
+        if (!drawer) return;
+        if (drawer.classList.contains("open")) {
+            closeDrawer(drawer);
+        } else {
+            drawer.classList.add("open");
+        }
     };
 
     // --- Tout effacer ---
@@ -44,8 +59,7 @@
         updateBadge();
         var list = document.getElementById("notif-list");
         if (list) list.innerHTML = '<div class="notif-empty">Aucune notification</div>';
-        var drawer = document.getElementById("notif-drawer");
-        if (drawer) drawer.classList.remove("open");
+        closeDrawer(document.getElementById("notif-drawer"));
     };
 
     // --- Fermer le tiroir si clic ailleurs ---
@@ -54,7 +68,7 @@
         var drawer = document.getElementById("notif-drawer");
         if (drawer && drawer.classList.contains("open")) {
             if (!drawer.contains(e.target) && btn && !btn.contains(e.target)) {
-                drawer.classList.remove("open");
+                closeDrawer(drawer);
             }
         }
     });
