@@ -20,9 +20,13 @@
         </script>
         <!-- BARRE LATERALE GAUCHE -->
         <aside class="erp-sidebar">
+            @{
+                var currentUserLogin = HttpContextAccessor.HttpContext?.Session.GetString("CurrentUserLogin") ?? "SKYRA";
+                var currentUserInitial = currentUserLogin.Length > 0 ? currentUserLogin[0].ToString().ToUpper() : "S";
+            }
             <div class="erp-logo">
-                <span class="erp-logo-mark">E</span>
-                <span class="erp-logo-text">ERP Suite</span>
+                <span class="erp-logo-mark">@currentUserInitial</span>
+                <span class="erp-logo-text">@currentUserLogin</span>
             </div>
 
             <nav class="erp-nav">

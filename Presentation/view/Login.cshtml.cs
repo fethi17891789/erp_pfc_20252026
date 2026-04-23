@@ -46,8 +46,9 @@ namespace erp_pfc_20252026.Pages
                 return Page();
             }
 
-            // Connexion r�ussie : on garde l'ID utilisateur en session
+            // Connexion réussie : on garde l'ID et le login en session
             HttpContext.Session.SetInt32("CurrentUserId", user.Id);
+            HttpContext.Session.SetString("CurrentUserLogin", user.Login);
 
             // Redirection vers la page d'accueil ERP
             return RedirectToPage("/Home");
