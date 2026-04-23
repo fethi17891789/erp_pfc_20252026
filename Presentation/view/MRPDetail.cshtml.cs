@@ -476,7 +476,7 @@ namespace erp_pfc_20252026.Pages
                 {
                     var coutUnitaire = prod.TypeTechnique == TypeTechniqueProduit.MatierePremiere
                         ? prod.CoutAchat
-                        : prod.CoutTotal;
+                        : prod.CoutBom;
                     ligne.PrixTotal = sommeDebutOrdre * coutUnitaire;
                 }
             }

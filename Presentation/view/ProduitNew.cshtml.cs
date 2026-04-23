@@ -74,7 +74,7 @@ namespace erp_pfc_20252026.Pages
 
         public async Task<IActionResult> OnPostAsync()
         {
-            Console.WriteLine("[DEBUG] ProduitNew.OnPostAsync appelé");
+            Console.WriteLine("[DEBUG] ProduitNew.OnPostAsync appelï¿½");
 
             var idValue = Request.Form["Id"].ToString();
             int.TryParse(idValue, out var id);
@@ -123,7 +123,7 @@ namespace erp_pfc_20252026.Pages
             // Prix de vente
             var parsedSalePrice = ParseDecimalFromForm(salePriceValue);
 
-            // MP ou Semi-fini -> prix de vente forcé à 0
+            // MP ou Semi-fini -> prix de vente forcï¿½ ï¿½ 0
             if (NouveauProduit.TypeTechnique == TypeTechniqueProduit.SemiFini
                 || NouveauProduit.TypeTechnique == TypeTechniqueProduit.MatierePremiere)
             {
@@ -134,8 +134,8 @@ namespace erp_pfc_20252026.Pages
                 NouveauProduit.PrixVente = parsedSalePrice;
             }
 
-            // Coût d'achat de base :
-            // si le champ est "none" (SF / Fini / SF+Fini), on force à 0.
+            // Coï¿½t d'achat de base :
+            // si le champ est "none" (SF / Fini / SF+Fini), on force ï¿½ 0.
             decimal parsedCost = 0m;
             if (!string.IsNullOrWhiteSpace(costValueRaw) &&
                 !string.Equals(costValueRaw.Trim(), "none", StringComparison.OrdinalIgnoreCase))
@@ -143,10 +143,10 @@ namespace erp_pfc_20252026.Pages
                 parsedCost = ParseDecimalFromForm(costValueRaw);
             }
 
-            // Coûts selon le type technique
+            // Coï¿½ts selon le type technique
             if (NouveauProduit.TypeTechnique == TypeTechniqueProduit.MatierePremiere)
             {
-                // Matière première : on garde le coût d'achat saisi
+                // Matiï¿½re premiï¿½re : on garde le coï¿½t d'achat saisi
                 NouveauProduit.Cout = parsedCost;
                 NouveauProduit.CoutAchat = parsedCost;
                 // CoutBom vient du formulaire (souvent 0 pour MP)
@@ -154,19 +154,19 @@ namespace erp_pfc_20252026.Pages
             }
             else
             {
-                // Semi-fini, Fini ou les deux : CoutAchat et CoutBom forcés à 0
+                // Semi-fini, Fini ou les deux : seul CoutAchat est forcÃ© Ã  0
+                // CoutBom est gÃ©rÃ© exclusivement par BOMCreate â€” ne pas l'Ã©craser ici
                 NouveauProduit.Cout = 0m;
                 NouveauProduit.CoutAchat = 0m;
-                NouveauProduit.CoutBom = 0m;
             }
 
             NouveauProduit.QuantiteDisponible = ParseDecimalFromForm(availableQtyValue);
 
-            // Autres charges (toujours 0 via le champ caché)
+            // Autres charges (toujours 0 via le champ cachï¿½)
             NouveauProduit.CoutAutresCharges = ParseDecimalFromForm(coutAutresRaw);
 
-            // CoutTotal vient UNIQUEMENT du formulaire, pas de recalcul
-            NouveauProduit.CoutTotal = ParseDecimalFromForm(coutTotalRaw);
+            // CoutTotal = CoutBom + CoutAutresCharges (champ calculÃ©, jamais pris du formulaire)
+            NouveauProduit.CoutTotal = NouveauProduit.CoutBom + NouveauProduit.CoutAutresCharges;
 
             NouveauProduit.DisponibleVente = !string.IsNullOrEmpty(isSaleableValue) &&
                                              (isSaleableValue == "on" || isSaleableValue == "true");
@@ -199,7 +199,7 @@ namespace erp_pfc_20252026.Pages
 
                         if (refExiste)
                         {
-                            ErrorMessage = "Cette référence existe déjà pour un autre produit.";
+                            ErrorMessage = "Cette rï¿½fï¿½rence existe dï¿½jï¿½ pour un autre produit.";
                             return Page();
                         }
                     }
@@ -218,18 +218,20 @@ namespace erp_pfc_20252026.Pages
                     existing.TypeTechnique = NouveauProduit.TypeTechnique;
                     existing.CoutAchat = NouveauProduit.CoutAchat;
                     existing.CoutAutresCharges = NouveauProduit.CoutAutresCharges;
-                    existing.CoutBom = NouveauProduit.CoutBom;
-                    existing.CoutTotal = NouveauProduit.CoutTotal;
+                    // CoutBom des non-MP est gÃ©rÃ© par BOMCreate â€” on prÃ©serve la valeur calculÃ©e
+                    if (NouveauProduit.TypeTechnique == TypeTechniqueProduit.MatierePremiere)
+                        existing.CoutBom = NouveauProduit.CoutBom;
+                    existing.CoutTotal = existing.CoutBom + NouveauProduit.CoutAutresCharges;
 
                     if (ProductImage != null && ProductImage.Length > 0)
                     {
                         var fileName = await SaveProductImageAsync(ProductImage);
                         existing.Image = fileName;
-                        Console.WriteLine($"[DEBUG] ProduitNew.OnPost - nouvelle image enregistrée {fileName}");
+                        Console.WriteLine($"[DEBUG] ProduitNew.OnPost - nouvelle image enregistrï¿½e {fileName}");
                     }
 
                     await _context.SaveChangesAsync();
-                    SuccessMessage = $"Produit {existing.Nom} mis à jour avec succès (ID {existing.Id}).";
+                    SuccessMessage = $"Produit {existing.Nom} mis ï¿½ jour avec succï¿½s (ID {existing.Id}).";
                     NouveauProduit = existing;
                     return Page();
                 }
@@ -244,7 +246,7 @@ namespace erp_pfc_20252026.Pages
 
                         if (refExiste)
                         {
-                            ErrorMessage = "Cette référence existe déjà.";
+                            ErrorMessage = "Cette rï¿½fï¿½rence existe dï¿½jï¿½.";
                             return Page();
                         }
                     }
@@ -253,13 +255,13 @@ namespace erp_pfc_20252026.Pages
                     {
                         var fileName = await SaveProductImageAsync(ProductImage);
                         NouveauProduit.Image = fileName;
-                        Console.WriteLine($"[DEBUG] ProduitNew.OnPost - image enregistrée {fileName}");
+                        Console.WriteLine($"[DEBUG] ProduitNew.OnPost - image enregistrï¿½e {fileName}");
                     }
 
                     _context.Produits.Add(NouveauProduit);
                     await _context.SaveChangesAsync();
 
-                    Console.WriteLine($"[DEBUG] ProduitNew.OnPost - produit créé ID={NouveauProduit.Id}, ReturnToBom={ReturnToBom}, BomTarget={BomTarget}, BomRowIndex={BomRowIndex}");
+                    Console.WriteLine($"[DEBUG] ProduitNew.OnPost - produit crï¿½ï¿½ ID={NouveauProduit.Id}, ReturnToBom={ReturnToBom}, BomTarget={BomTarget}, BomRowIndex={BomRowIndex}");
 
                     if (ReturnToBom)
                     {
@@ -273,7 +275,7 @@ namespace erp_pfc_20252026.Pages
                         return RedirectToPage("BOMCreate", new { fromProductId = NouveauProduit.Id });
                     }
 
-                    SuccessMessage = $"Produit {NouveauProduit.Nom} créé avec succès (ID {NouveauProduit.Id}).";
+                    SuccessMessage = $"Produit {NouveauProduit.Nom} crï¿½ï¿½ avec succï¿½s (ID {NouveauProduit.Id}).";
                     return Page();
                 }
             }
@@ -294,7 +296,7 @@ namespace erp_pfc_20252026.Pages
             if (decimal.TryParse(normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var value))
                 return value;
 
-            Console.WriteLine($"[DEBUG] ParseDecimalFromForm - échec de parse pour valeur '{raw}', normalisée '{normalized}', valeur forcée à 0.");
+            Console.WriteLine($"[DEBUG] ParseDecimalFromForm - ï¿½chec de parse pour valeur '{raw}', normalisï¿½e '{normalized}', valeur forcï¿½e ï¿½ 0.");
             return 0m;
         }
 

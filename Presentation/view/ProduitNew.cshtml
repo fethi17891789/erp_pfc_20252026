@@ -272,15 +272,15 @@
                         </div>
                     </div>
 
-                    <!-- LIGNE 2 ter : coût total (EDITABLE) + flags -->
+                    <!-- LIGNE 2 ter : coût total (LECTURE SEULE = CoutBom + CoutAutresCharges) + flags -->
                     <div class="form-row form-row-3">
                         <div class="form-group">
-                            <label class="form-label">Coût total</label>
+                            <label class="form-label">Coût total <small style="color:var(--text-muted);font-weight:400;">(calculé automatiquement)</small></label>
                             <div class="input-group">
                                 <input id="CoutTotal" name="CoutTotal" type="number" step="0.01" min="0"
-                                       class="form-input form-input-number"
+                                       class="form-input form-input-number cost-input-disabled"
                                        value="@(Model.NouveauProduit.CoutTotal)"
-                                       placeholder="0,00" />
+                                       placeholder="0,00" readonly />
                                 <span class="input-suffix">DA</span>
                             </div>
                         </div>
