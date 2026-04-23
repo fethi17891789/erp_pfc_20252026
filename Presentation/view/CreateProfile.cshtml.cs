@@ -2,6 +2,7 @@
 using System.IO;
 using System.Threading.Tasks;
 using Donnees;
+using Isopoh.Cryptography.Argon2;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -114,9 +115,9 @@ namespace erp_pfc_20252026.Pages
             {
                 Email = Email,
                 Login = Login,
-                Password = Password, // TODO: passer à un hash plus tard
+                Password = Argon2.Hash(Password),
                 LogoFileName = logoFileName,
-                Poste = SelectedPoste // Nouveau : enregistrement du poste
+                Poste = SelectedPoste
             };
 
             _db.ErpUsers.Add(user);

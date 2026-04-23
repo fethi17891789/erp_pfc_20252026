@@ -1,6 +1,7 @@
 // Fichier : Pages/Login.cshtml.cs
 using System.Threading.Tasks;
 using Donnees;
+using Isopoh.Cryptography.Argon2;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -39,13 +40,13 @@ namespace erp_pfc_20252026.Pages
 
             var user = await _db.ErpUsers.FirstOrDefaultAsync(u => u.Email == Email);
 
-            if (user == null || user.Password != Password)
+            if (user == null || !Argon2.Verify(user.Password, Password))
             {
                 ResultMessage = "Identifiants incorrects.";
                 return Page();
             }
 
-            // Connexion réussie : on garde l'ID utilisateur en session
+            // Connexion rï¿½ussie : on garde l'ID utilisateur en session
             HttpContext.Session.SetInt32("CurrentUserId", user.Id);
 
             // Redirection vers la page d'accueil ERP

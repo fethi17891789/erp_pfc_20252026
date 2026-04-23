@@ -1,5 +1,6 @@
 // Fichier : Program.cs
 using Donnees;
+using Isopoh.Cryptography.Argon2;
 using Metier;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -941,8 +942,46 @@ using (var scope10 = app.Services.CreateScope())
 }
 // --------------------------------------------------------------------
 
-// ---------- 11. RESET STATUTS DE PRÉSENCE AU DÉMARRAGE ----------
+// ---------- 11. MIGRATION MOTS DE PASSE EN CLAIR → ARGON2 ----------
+// Détecte les mots de passe encore en clair (courts) et les hache au démarrage.
+// Les hash Argon2 commencent toujours par "$argon2" — les mots de passe en clair ne peuvent pas.
+using (var scopeArgon = app.Services.CreateScope())
+{
+    try
+    {
+        var db = scopeArgon.ServiceProvider.GetRequiredService<ErpDbContext>();
+        var users = db.ErpUsers.ToList();
+        int migrated = 0;
+
+        foreach (var u in users)
+        {
+            if (!u.Password.StartsWith("$argon2"))
+            {
+                u.Password = Argon2.Hash(u.Password);
+                migrated++;
+            }
+        }
+
+        if (migrated > 0)
+        {
+            db.SaveChanges();
+            Console.WriteLine($"[Argon2] {migrated} mot(s) de passe migré(s) vers Argon2.");
+        }
+        else
+        {
+            Console.WriteLine("[Argon2] Tous les mots de passe sont déjà hachés.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur migration Argon2 : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
+// ---------- 12. RESET STATUTS DE PRÉSENCE AU DÉMARRAGE ----------
 // Le dictionnaire _userConnections (en mémoire) est remis à zéro à chaque redémarrage.
+// Sans ce reset, tous les utilisateurs restent marqués IsOnline=true en base indéfiniment.
 // Sans ce reset, tous les utilisateurs restent marqués IsOnline=true en base indéfiniment.
 using (var scopeReset = app.Services.CreateScope())
 {
