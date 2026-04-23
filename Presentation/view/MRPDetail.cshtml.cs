@@ -21,17 +21,20 @@ namespace erp_pfc_20252026.Pages
     {
         private readonly ErpDbContext _db;
         private readonly OrdreFabricationService _ofService;
+        private readonly OrdreAchatService _oaService;
         private readonly MessagerieService _messagerieService;
         private readonly IHubContext<ChatHub> _chatHub;
 
         public MRPDetailModel(
             ErpDbContext db,
             OrdreFabricationService ofService,
+            OrdreAchatService oaService,
             MessagerieService messagerieService,
             IHubContext<ChatHub> chatHub)
         {
             _db = db;
             _ofService = ofService;
+            _oaService = oaService;
             _messagerieService = messagerieService;
             _chatHub = chatHub;
         }
@@ -140,6 +143,13 @@ namespace erp_pfc_20252026.Pages
         public int NbPropositionsOA => Lignes.Count(l => l.EstOrdreAchat && l.QuantiteALancer > 0);
 
         public List<MRPFichier> FichiersOF { get; set; } = new List<MRPFichier>();
+
+        /// <summary>Articles pour lesquels un OA PDF a déjà été généré sur ce plan.</summary>
+        public HashSet<string> CodesArticlesOAGeneres =>
+            FichiersOF
+                .Where(f => f.ReferenceOF.StartsWith("OA-", StringComparison.Ordinal))
+                .Select(f => f.CodeArticle)
+                .ToHashSet();
 
         /// <summary>Ancrages blockchain indexés par ReferenceOF pour affichage badge.</summary>
         public Dictionary<string, BlockchainAncrage> AnchragesBlockchain { get; set; } = new();
@@ -461,6 +471,8 @@ namespace erp_pfc_20252026.Pages
 
             // Calcul depuis les DTOs reçus (valeurs nouvelles) et non depuis la BDD
             // qui contient encore les anciennes entrées avant SaveChangesAsync
+            var articlesQteNulle = new List<string>();
+
             foreach (var grp in dtosParArticle)
             {
                 var codeArticleGrp = grp.Key;
@@ -468,6 +480,12 @@ namespace erp_pfc_20252026.Pages
                 if (ligne == null) continue;
 
                 var sommeDebutOrdre = grp.Sum(d => d.DebutOrdre);
+
+                if (sommeDebutOrdre <= 0)
+                {
+                    articlesQteNulle.Add(codeArticleGrp); // Signaler côté client
+                    continue; // Ne pas écraser QuantiteALancer avec 0
+                }
 
                 ligne.QuantiteALancer = sommeDebutOrdre;
 
@@ -492,7 +510,7 @@ namespace erp_pfc_20252026.Pages
                 })
                 .ToList();
 
-            return new JsonResult(new { ok = true, prixTotaux = prixMisAJour });
+            return new JsonResult(new { ok = true, prixTotaux = prixMisAJour, articlesQteNulle });
         }
 
         private async Task<MRPPlan> CreerNouveauPlanAvecLignesAsync(
@@ -1077,6 +1095,9 @@ namespace erp_pfc_20252026.Pages
             try
             {
                 var currentUserId = sessionUserId.Value;
+
+                // Générer et stocker le PDF OA (bloque si un OA existe déjà pour ce plan+article)
+                await _oaService.GenererOrdreAchatAsync(input.PlanId, input.CodeArticle, input.Quantite);
 
                 var conv = await _messagerieService.GetOrCreateDirectConversationAsync(
                     currentUserId,

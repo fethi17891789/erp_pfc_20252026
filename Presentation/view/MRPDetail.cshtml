@@ -77,6 +77,7 @@
         }
         .mrp-toast-success { background: linear-gradient(135deg, #7B5EFF, #5b3fd4); box-shadow: 0 8px 24px rgba(123,94,255,0.35); }
         .mrp-toast-error   { background: linear-gradient(135deg, #e85d5d, #b33b3b); box-shadow: 0 8px 24px rgba(232,93,93,0.35); }
+        .mrp-toast-warning { background: linear-gradient(135deg, #c97a1a, #a35d0d); box-shadow: 0 8px 24px rgba(201,122,26,0.35); }
     </style>
 }
 
@@ -592,7 +593,7 @@
         setTimeout(function () {
             t.classList.remove('mrp-toast-visible');
             setTimeout(function () { t.remove(); }, 350);
-        }, type === 'error' ? 4000 : 2800);
+        }, type === 'error' ? 4000 : type === 'warning' ? 4000 : 2800);
     }
 
     const mrpBomInfos = @Html.Raw(Model.BomInfosJson ?? "[]");
@@ -1165,6 +1166,11 @@
             } else {
                 updateQuantitesALancerInMainGrid(res.prixTotaux || []);
                 showMrpToast('Tableaux MRP sauvegardés avec succès.', 'success');
+                if (Array.isArray(res.articlesQteNulle) && res.articlesQteNulle.length > 0) {
+                    res.articlesQteNulle.forEach(function(code) {
+                        showMrpToast('Quantité à lancer nulle pour ' + code + ' — aucun ordre planifié.', 'warning');
+                    });
+                }
             }
         } catch (e) {
             console.error('Erreur sauvegarde MRP', e);
@@ -1222,6 +1228,10 @@
     }
 
     // === POPUP ORDRE D'ACHAT (BACKEND + MESSAGERIE) ===
+
+    // Articles ayant déjà un OA PDF généré sur ce plan (pré-chargé depuis le serveur)
+    const codesOAGeneres = new Set(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.CodesArticlesOAGeneres)));
+
     let currentOAProduct = {
         codeArticle: null,
         libelle: null,
@@ -1229,6 +1239,11 @@
     };
 
     function openOAPopup(codeArticle, libelleArticle, quantite, planId) {
+        if (codesOAGeneres.has(codeArticle)) {
+            showMrpToast('Un ordre d\'achat a déjà été généré pour l\'article ' + codeArticle + '.', 'error');
+            return;
+        }
+
         currentOAProduct.codeArticle = codeArticle;
         currentOAProduct.libelle = libelleArticle;
         currentOAProduct.quantite = quantite;
@@ -1398,7 +1413,8 @@
                 return;
             }
 
-            showMrpToast("Proposition d'OA envoyee avec succes.", 'success');
+            codesOAGeneres.add(currentOAProduct.codeArticle);
+            showMrpToast("Ordre d'achat généré et proposition envoyée avec succès.", 'success');
             closeOAPopup();
         } catch (err) {
             console.error('Erreur SendOAProposal:', err);

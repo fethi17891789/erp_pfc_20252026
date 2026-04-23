@@ -51,6 +51,13 @@ namespace Metier.MRP
             if (quantite <= 0)
                 throw new ArgumentException("La quantité doit être > 0.", nameof(quantite));
 
+            // Un seul OF par couple (plan, article)
+            var ofExistant = await _db.MRPFichiers
+                .FirstOrDefaultAsync(f => f.PlanificationId == planificationId && f.CodeArticle == codeArticle);
+            if (ofExistant != null)
+                throw new InvalidOperationException(
+                    $"Un ordre de fabrication existe déjà pour l'article {codeArticle} sur ce plan (réf. {ofExistant.ReferenceOF}).");
+
             var plan = await _db.MRPPlans
                 .Include(p => p.Lignes)
                     .ThenInclude(l => l.Produit)
