@@ -954,6 +954,36 @@ app.UseRouting();
 
 app.UseSession();
 
+// Guard de session : toute page protégée redirige vers /ChooseProfile si non connecté
+app.Use(async (ctx, next) =>
+{
+    var path = ctx.Request.Path.Value?.ToLowerInvariant() ?? "";
+
+    // Pages publiques (pas besoin d'être connecté)
+    var pagesPubliques = new[]
+    {
+        "/", "/bddview", "/login", "/chooseprofile", "/createprofile", "/logout"
+    };
+
+    bool estPublique = Array.Exists(pagesPubliques, p => path == p)
+                    || path.StartsWith("/css/")
+                    || path.StartsWith("/js/")
+                    || path.StartsWith("/images/")
+                    || path.StartsWith("/fonts/")
+                    || path.StartsWith("/lib/")
+                    || path.StartsWith("/uploads/")
+                    || path.StartsWith("/chathub")
+                    || path.StartsWith("/logistiquehub");
+
+    if (!estPublique && ctx.Session.GetInt32("CurrentUserId") == null)
+    {
+        ctx.Response.Redirect("/ChooseProfile");
+        return;
+    }
+
+    await next();
+});
+
 app.UseAuthorization();
 
 app.MapRazorPages();
