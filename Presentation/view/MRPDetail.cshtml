@@ -78,6 +78,7 @@
         .mrp-toast-success { background: linear-gradient(135deg, #7B5EFF, #5b3fd4); box-shadow: 0 8px 24px rgba(123,94,255,0.35); }
         .mrp-toast-error   { background: linear-gradient(135deg, #e85d5d, #b33b3b); box-shadow: 0 8px 24px rgba(232,93,93,0.35); }
         .mrp-toast-warning { background: linear-gradient(135deg, #c97a1a, #a35d0d); box-shadow: 0 8px 24px rgba(201,122,26,0.35); }
+        .btn-lancer-blocked { opacity: 0.4; cursor: not-allowed; pointer-events: auto !important; }
     </style>
 }
 
@@ -244,11 +245,11 @@
 
                                     if (!planifOK)
                                     {
-                                        boutonTitleRoot = "Impossible de lancer un ordre : la planification n est pas en attente.";
+                                        boutonTitleRoot = "Impossible de lancer un ordre : la planification n'est pas en attente.";
                                     }
                                     else if (root.QuantiteALancer <= 0)
                                     {
-                                        boutonTitleRoot = "Quantite a lancer nulle ou negative.";
+                                        boutonTitleRoot = "Quantité à lancer nulle — saisissez des valeurs de début d'ordre dans le tableau MRP et sauvegardez.";
                                     }
 
                                     <tr class="mrp-row mrp-row-root"
@@ -273,10 +274,9 @@
                                             @if (isOFRoot)
                                             {
                                                 <button type="button"
-                                                        class="btn-primary btn-lancer-of"
+                                                        class="btn-primary btn-lancer-of @(boutonDisabledRoot ? "btn-lancer-blocked" : "")"
                                                         style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                        @(boutonDisabledRoot ? "disabled" : "")
-                                                        title="@boutonTitleRoot"
+                                                        data-reason="@boutonTitleRoot"
                                                         data-plan-id="@Model.Planification?.Id"
                                                         data-code="@root.CodeArticle"
                                                         data-qty="@root.QuantiteALancer"
@@ -287,11 +287,10 @@
                                             else if (isOARoot)
                                             {
                                                 <button type="button"
-                                                        class="btn-primary"
+                                                        class="btn-primary @(boutonDisabledRoot ? "btn-lancer-blocked" : "")"
                                                         style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                        @(boutonDisabledRoot ? "disabled" : "")
-                                                        title="@boutonTitleRoot"
-                                                        onclick="if(!this.disabled){openOAPopup('@root.CodeArticle','@root.LibelleArticle','@root.QuantiteALancer', '@Model.Planification?.Id');}">
+                                                        data-reason="@boutonTitleRoot"
+                                                        onclick="handleLancerOA(this,'@root.CodeArticle','@root.LibelleArticle','@root.QuantiteALancer','@Model.Planification?.Id')">
                                                     Lancer OA
                                                 </button>
                                             }
@@ -310,11 +309,11 @@
 
                                             if (!planifOK)
                                             {
-                                                boutonTitle = "Impossible de lancer un ordre : la planification n est pas en attente.";
+                                                boutonTitle = "Impossible de lancer un ordre : la planification n'est pas en attente.";
                                             }
                                             else if (c.QuantiteALancer <= 0)
                                             {
-                                                boutonTitle = "Quantite a lancer nulle ou negative.";
+                                                boutonTitle = "Quantité à lancer nulle — saisissez des valeurs de début d'ordre dans le tableau MRP et sauvegardez.";
                                             }
 
                                             <tr class="mrp-row mrp-row-child"
@@ -334,10 +333,9 @@
                                                         if (isOF)
                                                         {
                                                             <button type="button"
-                                                                    class="btn-primary btn-lancer-of"
+                                                                    class="btn-primary btn-lancer-of @(boutonDisabled ? "btn-lancer-blocked" : "")"
                                                                     style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                                    @(boutonDisabled ? "disabled" : "")
-                                                                    title="@boutonTitle"
+                                                                    data-reason="@boutonTitle"
                                                                     data-plan-id="@Model.Planification?.Id"
                                                                     data-code="@c.CodeArticle"
                                                                     data-qty="@c.QuantiteALancer"
@@ -348,11 +346,10 @@
                                                         else if (isOA)
                                                         {
                                                             <button type="button"
-                                                                    class="btn-primary"
+                                                                    class="btn-primary @(boutonDisabled ? "btn-lancer-blocked" : "")"
                                                                     style="width:110px; padding-inline:8px; font-size:0.8rem;"
-                                                                    @(boutonDisabled ? "disabled" : "")
-                                                                    title="@boutonTitle"
-                                                                    onclick="if(!this.disabled){openOAPopup('@c.CodeArticle','@c.LibelleArticle','@c.QuantiteALancer', '@Model.Planification?.Id');}">
+                                                                    data-reason="@boutonTitle"
+                                                                    onclick="handleLancerOA(this,'@c.CodeArticle','@c.LibelleArticle','@c.QuantiteALancer','@Model.Planification?.Id')">
                                                                 Lancer OA
                                                             </button>
                                                         }
@@ -1426,7 +1423,22 @@
     // LANCER OF EN AJAX — sans rechargement de page
     // ═══════════════════════════════════════════════════════════
 
+    function handleLancerOA(btn, codeArticle, libelleArticle, quantite, planId) {
+        if (btn.classList.contains('btn-lancer-blocked')) {
+            const reason = btn.dataset.reason || 'Impossible de lancer cet ordre.';
+            showMrpToast(reason, 'warning');
+            return;
+        }
+        openOAPopup(codeArticle, libelleArticle, quantite, planId);
+    }
+
     async function lancerOFAjax(btn) {
+        if (btn.classList.contains('btn-lancer-blocked')) {
+            const reason = btn.dataset.reason || 'Impossible de lancer cet ordre.';
+            showMrpToast(reason, 'warning');
+            return;
+        }
+
         const planId     = parseInt(btn.dataset.planId);
         const codeArticle = btn.dataset.code;
         const quantite   = parseFloat(btn.dataset.qty);
