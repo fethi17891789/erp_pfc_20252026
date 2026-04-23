@@ -826,11 +826,22 @@ using (var scope8 = app.Services.CreateScope())
                 }
                 
                 Console.WriteLine("[DEBUG] Table IaConfiguration prête.");
-                
-                // Renommage automatique de l'IA pour l'esthétique
-                using (var renameCmd = new NpgsqlCommand("UPDATE \"ErpUsers\" SET \"Login\"='GEMINI' WHERE \"Login\"='skyra-ia';", conn))
+
+                // Création du compte système GEMINI s'il n'existe pas encore.
+                // Ce compte est nécessaire pour que la messagerie attribue correctement
+                // les messages de l'IA. Il ne peut pas se connecter via le formulaire
+                // (email interne non utilisable + mot de passe inconnu après hachage Argon2).
+                const string insertGeminiSql = @"
+                    INSERT INTO ""ErpUsers"" (""Login"", ""Email"", ""Password"", ""Poste"", ""IsOnline"")
+                    VALUES ('GEMINI', 'gemini@skyra.internal', 'SYSTEM_ACCOUNT_NO_LOGIN', 'Assistant IA', false)
+                    ON CONFLICT (""Login"") DO NOTHING;";
+                using (var geminiCmd = new NpgsqlCommand(insertGeminiSql, conn))
                 {
-                    renameCmd.ExecuteNonQuery();
+                    var rows = geminiCmd.ExecuteNonQuery();
+                    if (rows > 0)
+                        Console.WriteLine("[IA] Compte système GEMINI créé.");
+                    else
+                        Console.WriteLine("[IA] Compte système GEMINI déjà présent.");
                 }
             }
         }
