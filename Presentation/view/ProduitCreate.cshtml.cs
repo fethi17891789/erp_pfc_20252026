@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 
-namespace erppfc20252026.Pages
+namespace erp_pfc_20252026.Pages
 {
     public class ProduitsModel : PageModel
     {
