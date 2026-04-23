@@ -55,29 +55,6 @@
 @section Styles {
     <link rel="stylesheet" href="~/css/Fabrication.css" />
     <style>
-        .mrp-toast-notif {
-            position: fixed;
-            bottom: 32px;
-            left: 50%;
-            transform: translateX(-50%) translateY(20px);
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #fff;
-            opacity: 0;
-            pointer-events: none;
-            z-index: 99999;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            white-space: nowrap;
-        }
-        .mrp-toast-notif.mrp-toast-visible {
-            opacity: 1;
-            transform: translateX(-50%) translateY(0);
-        }
-        .mrp-toast-success { background: linear-gradient(135deg, #7B5EFF, #5b3fd4); box-shadow: 0 8px 24px rgba(123,94,255,0.35); }
-        .mrp-toast-error   { background: linear-gradient(135deg, #e85d5d, #b33b3b); box-shadow: 0 8px 24px rgba(232,93,93,0.35); }
-        .mrp-toast-warning { background: linear-gradient(135deg, #c97a1a, #a35d0d); box-shadow: 0 8px 24px rgba(201,122,26,0.35); }
         .btn-lancer-blocked { opacity: 0.4; cursor: not-allowed; pointer-events: auto !important; }
     </style>
 }
@@ -581,18 +558,6 @@
 </form>
 
 <script>
-    function showMrpToast(message, type) {
-        const t = document.createElement('div');
-        t.className = 'mrp-toast-notif mrp-toast-' + (type || 'success');
-        t.textContent = message;
-        document.body.appendChild(t);
-        requestAnimationFrame(function () { t.classList.add('mrp-toast-visible'); });
-        setTimeout(function () {
-            t.classList.remove('mrp-toast-visible');
-            setTimeout(function () { t.remove(); }, 350);
-        }, type === 'error' ? 4000 : type === 'warning' ? 4000 : 2800);
-    }
-
     const mrpBomInfos = @Html.Raw(Model.BomInfosJson ?? "[]");
     const stockMrpByArticle = @Html.Raw(Model.StockMrpJson ?? "[]");
     const mrpBomDetails = @Html.Raw(Model.BomDetailsJson ?? "[]");
@@ -1091,7 +1056,7 @@
 
     async function saveCurrentMrpTables() {
         if (!currentPlanId) {
-            showMrpToast('Plan introuvable.', 'error');
+            showErpToast('Plan introuvable.', 'error');
             return;
         }
 
@@ -1154,24 +1119,24 @@
                 body: JSON.stringify(payload)
             });
             if (!resp.ok) {
-                showMrpToast('Erreur lors de la sauvegarde MRP.', 'error');
+                showErpToast('Erreur lors de la sauvegarde MRP.', 'error');
                 return;
             }
             const res = await resp.json();
             if (!res.ok) {
-                showMrpToast('Erreur : ' + (res.message || 'sauvegarde echouee'), 'error');
+                showErpToast('Erreur : ' + (res.message || 'sauvegarde echouee'), 'error');
             } else {
                 updateQuantitesALancerInMainGrid(res.prixTotaux || []);
-                showMrpToast('Tableaux MRP sauvegardés avec succès.', 'success');
+                showErpToast('Tableaux MRP sauvegardés avec succès.', 'success');
                 if (Array.isArray(res.articlesQteNulle) && res.articlesQteNulle.length > 0) {
                     res.articlesQteNulle.forEach(function(code) {
-                        showMrpToast('Quantité à lancer nulle pour ' + code + ' — aucun ordre planifié.', 'warning');
+                        showErpToast('Quantité à lancer nulle pour ' + code + ' — aucun ordre planifié.', 'warning');
                     });
                 }
             }
         } catch (e) {
             console.error('Erreur sauvegarde MRP', e);
-            showMrpToast('Erreur technique lors de la sauvegarde MRP.', 'error');
+            showErpToast('Erreur technique lors de la sauvegarde MRP.', 'error');
         }
     }
 
@@ -1237,7 +1202,7 @@
 
     function openOAPopup(codeArticle, libelleArticle, quantite, planId) {
         if (codesOAGeneres.has(codeArticle)) {
-            showMrpToast('Un ordre d\'achat a déjà été généré pour l\'article ' + codeArticle + '.', 'error');
+            showErpToast('Un ordre d\'achat a déjà été généré pour l\'article ' + codeArticle + '.', 'error');
             return;
         }
 
@@ -1351,18 +1316,18 @@
 
         const userIdStr = selectedUserId.value;
         if (!userIdStr) {
-            showMrpToast("Veuillez selectionner un utilisateur dans la liste.", 'error');
+            showErpToast("Veuillez selectionner un utilisateur dans la liste.", 'error');
             return;
         }
 
         const destUserId = parseInt(userIdStr, 10);
         if (!destUserId || isNaN(destUserId)) {
-            showMrpToast("Utilisateur selectionne invalide.", 'error');
+            showErpToast("Utilisateur selectionne invalide.", 'error');
             return;
         }
 
         if (!currentOAProduct.codeArticle) {
-            showMrpToast("Produit OA invalide.", 'error');
+            showErpToast("Produit OA invalide.", 'error');
             return;
         }
 
@@ -1370,7 +1335,7 @@
         const quantite = currentOAProduct.quantite || 0;
 
         if (!quantite || quantite <= 0) {
-            showMrpToast("Quantite OA invalide.", 'error');
+            showErpToast("Quantite OA invalide.", 'error');
             return;
         }
 
@@ -1400,22 +1365,22 @@
 
             if (!resp.ok) {
                 console.error('Erreur HTTP SendOAProposal:', resp.status);
-                showMrpToast("Erreur HTTP lors de l'envoi de la proposition OA.", 'error');
+                showErpToast("Erreur HTTP lors de l'envoi de la proposition OA.", 'error');
                 return;
             }
 
             const res = await resp.json();
             if (!res.ok) {
-                showMrpToast("Erreur lors de l'envoi de la proposition OA : " + (res.message || ''), 'error');
+                showErpToast("Erreur lors de l'envoi de la proposition OA : " + (res.message || ''), 'error');
                 return;
             }
 
             codesOAGeneres.add(currentOAProduct.codeArticle);
-            showMrpToast("Ordre d'achat généré et proposition envoyée avec succès.", 'success');
+            showErpToast("Ordre d'achat généré et proposition envoyée avec succès.", 'success');
             closeOAPopup();
         } catch (err) {
             console.error('Erreur SendOAProposal:', err);
-            showMrpToast("Erreur technique lors de l'envoi de la proposition OA.", 'error');
+            showErpToast("Erreur technique lors de l'envoi de la proposition OA.", 'error');
         }
     }
 
@@ -1426,7 +1391,7 @@
     function handleLancerOA(btn, codeArticle, libelleArticle, quantite, planId) {
         if (btn.classList.contains('btn-lancer-blocked')) {
             const reason = btn.dataset.reason || 'Impossible de lancer cet ordre.';
-            showMrpToast(reason, 'warning');
+            showErpToast(reason, 'warning');
             return;
         }
         openOAPopup(codeArticle, libelleArticle, quantite, planId);
@@ -1435,7 +1400,7 @@
     async function lancerOFAjax(btn) {
         if (btn.classList.contains('btn-lancer-blocked')) {
             const reason = btn.dataset.reason || 'Impossible de lancer cet ordre.';
-            showMrpToast(reason, 'warning');
+            showErpToast(reason, 'warning');
             return;
         }
 
@@ -1467,10 +1432,10 @@
             if (result.ok) {
                 ajouterLigneOFTableau(result);
             } else {
-                showMrpToast('Erreur : ' + result.message, 'error');
+                showErpToast('Erreur : ' + result.message, 'error');
             }
         } catch (e) {
-            showMrpToast('Erreur réseau : ' + e.message, 'error');
+            showErpToast('Erreur réseau : ' + e.message, 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;

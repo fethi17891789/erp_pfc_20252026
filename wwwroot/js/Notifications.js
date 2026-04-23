@@ -93,9 +93,10 @@
             '  <div class="toast-msg">' + content + '</div>' +
             '</div>';
 
-        miniToast.onclick = function () {
-            if (senderId) window.location.href = "/Messagerie?userId=" + senderId;
-        };
+        // Redirection uniquement si un vrai senderId est fourni
+        miniToast.onclick = senderId
+            ? function () { window.location.href = "/Messagerie?userId=" + senderId; }
+            : null;
 
         // Reset state
         miniToast.classList.remove("closing");
@@ -164,11 +165,8 @@
         window.showNotificationToast({
             SenderName: titre,
             Content: message,
-            SenderId: null
+            SenderId: null  // pas de senderId → onclick = null posé directement dans showNotificationToast
         });
-        // Surcharger onclick pour ne pas rediriger
-        var miniToast = document.getElementById("iphone-mini-toast");
-        if (miniToast) miniToast.onclick = null;
     };
 
     // --- Toast générique succès/erreur/info utilisable partout ---
@@ -177,7 +175,8 @@
         var colors = {
             success: { bg: 'linear-gradient(135deg,#7B5EFF,#5b3fd4)', shadow: 'rgba(123,94,255,0.35)' },
             error:   { bg: 'linear-gradient(135deg,#e85d5d,#b33b3b)', shadow: 'rgba(232,93,93,0.35)' },
-            info:    { bg: 'linear-gradient(135deg,#38bdf8,#0ea5e9)',  shadow: 'rgba(56,189,248,0.35)' }
+            info:    { bg: 'linear-gradient(135deg,#38bdf8,#0ea5e9)',  shadow: 'rgba(56,189,248,0.35)' },
+            warning: { bg: 'linear-gradient(135deg,#c97a1a,#a35d0d)', shadow: 'rgba(201,122,26,0.35)' }
         };
         var c = colors[type] || colors.info;
         t.style.cssText = [
@@ -201,6 +200,6 @@
             t.style.opacity = '0';
             t.style.transform = 'translateX(-50%) translateY(20px)';
             setTimeout(function () { t.remove(); }, 350);
-        }, type === 'error' ? 4000 : 2800);
+        }, (type === 'error' || type === 'warning') ? 4000 : 2800);
     };
 })();
