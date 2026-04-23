@@ -941,6 +941,32 @@ using (var scope10 = app.Services.CreateScope())
 }
 // --------------------------------------------------------------------
 
+// ---------- 11. RESET STATUTS DE PRÉSENCE AU DÉMARRAGE ----------
+// Le dictionnaire _userConnections (en mémoire) est remis à zéro à chaque redémarrage.
+// Sans ce reset, tous les utilisateurs restent marqués IsOnline=true en base indéfiniment.
+using (var scopeReset = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scopeReset.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(@"UPDATE ""ErpUsers"" SET ""IsOnline"" = false", conn);
+            var count = cmd.ExecuteNonQuery();
+            Console.WriteLine($"[Presence] Reset IsOnline → false pour {count} utilisateur(s) au démarrage.");
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors du reset IsOnline au démarrage : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
