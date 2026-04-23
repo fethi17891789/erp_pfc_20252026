@@ -958,6 +958,13 @@ app.UseAuthorization();
 
 app.MapRazorPages();
 
+// Déconnexion centralisée : vide la session et redirige vers la page de connexion
+app.MapPost("/logout", (HttpContext ctx) =>
+{
+    ctx.Session.Clear();
+    return Results.Redirect("/ChooseProfile");
+});
+
 app.MapHub<Metier.Messagerie.ChatHub>("/chathub");
 app.MapHub<Metier.Logistique.LogistiqueHub>("/logistiquehub");
 

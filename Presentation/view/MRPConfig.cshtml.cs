@@ -21,8 +21,8 @@ namespace erp_pfc_20252026.Pages
 
         public class InputModel
         {
-            [Display(Name = "Horizon par défaut (en jours)")]
-            [Range(1, 365, ErrorMessage = "L'horizon doit être entre 1 et 365 jours.")]
+            [Display(Name = "Horizon par dï¿½faut (en jours)")]
+            [Range(1, 365, ErrorMessage = "L'horizon doit ï¿½tre entre 1 et 365 jours.")]
             public int HorizonParDefautJours { get; set; }
         }
 
@@ -32,7 +32,7 @@ namespace erp_pfc_20252026.Pages
 
             if (cfg == null)
             {
-                // Pas encore de config en base : on affiche juste des valeurs par défaut côté UI
+                // Pas encore de config en base : on affiche juste des valeurs par dï¿½faut cï¿½tï¿½ UI
                 Input = new InputModel
                 {
                     HorizonParDefautJours = 30
@@ -54,21 +54,16 @@ namespace erp_pfc_20252026.Pages
                 return Page();
             }
 
-            int? userId = null; // à remplir si tu as un système d'utilisateur
+            int? userId = null; // ï¿½ remplir si tu as un systï¿½me d'utilisateur
 
-            // Ici, si la config n'existe pas, UpdateHorizonAsync la créera
+            // Ici, si la config n'existe pas, UpdateHorizonAsync la crï¿½era
             await _configService.UpdateHorizonAsync(Input.HorizonParDefautJours, userId);
 
-            TempData["MRPConfigSaved"] = "Configuration MRP enregistrée avec succès.";
+            TempData["MRPConfigSaved"] = "Configuration MRP enregistrï¿½e avec succï¿½s.";
 
-            // Après enregistrement, on revient sur la page du module MRP
+            // Aprï¿½s enregistrement, on revient sur la page du module MRP
             return RedirectToPage("/MRP");
         }
 
-        public IActionResult OnPostLogout()
-        {
-            HttpContext.Session.Clear();
-            return RedirectToPage("/BDDView");
-        }
     }
 }

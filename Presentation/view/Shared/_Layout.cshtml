@@ -201,7 +201,7 @@
             <h3>Confirmer la déconnexion</h3>
             <p>Voulez-vous vraiment vous déconnecter et revenir à l'écran de choix du profil&nbsp;?</p>
 
-            <form method="post" asp-page-handler="Logout" class="logout-modal-actions">
+            <form method="post" action="/logout" class="logout-modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
                 <button type="submit" class="btn-primary">Oui, se déconnecter</button>
             </form>
@@ -212,10 +212,12 @@
         function openLogoutModal() {
             var overlay = document.getElementById('logout-overlay');
             if(overlay) overlay.style.display = 'flex';
+            document.body.classList.add('logout-blur-active');
         }
         function closeLogoutModal() {
             var overlay = document.getElementById('logout-overlay');
             if(overlay) overlay.style.display = 'none';
+            document.body.classList.remove('logout-blur-active');
         }
         function toggleSidebar() {
             var shell = document.getElementById('erp-shell');

@@ -366,17 +366,6 @@
     </div>
 </div>
 
-<div id="logout-overlay" class="logout-overlay" style="display:none;">
-    <div class="logout-modal">
-        <h3>Confirmer la deconnexion</h3>
-        <p>Voulez-vous vraiment vous deconnecter et revenir a l'ecran de choix du profil&nbsp;?</p>
-
-        <form method="post" asp-page-handler="Logout" class="logout-modal-actions">
-            <button type="button" class="btn-secondary" onclick="closeLogoutModal()">Non, rester</button>
-            <button type="submit" class="btn-primary">Oui, se deconnecter</button>
-        </form>
-    </div>
-</div>
 
 @section Scripts {
 <script>
@@ -727,14 +716,6 @@
         wrapper.style.display = 'none';
     }
 
-    function openLogoutModal() {
-        document.getElementById('logout-overlay').style.display = 'flex';
-        document.body.classList.add('logout-blur-active');
-    }
 
-    function closeLogoutModal() {
-        document.getElementById('logout-overlay').style.display = 'none';
-        document.body.classList.remove('logout-blur-active');
-    }
 </script>
 }

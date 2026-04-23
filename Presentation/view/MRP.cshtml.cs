@@ -76,12 +76,6 @@ namespace erp_pfc_20252026.Pages
             return new JsonResult(produits);
         }
 
-        public IActionResult OnPostLogout()
-        {
-            HttpContext.Session.Clear();
-            return RedirectToPage("/BDDView");
-        }
-
         // Helpers simples pour la vue
 
         public string FormatDateRange(DateTime debut, DateTime fin)
@@ -96,15 +90,15 @@ namespace erp_pfc_20252026.Pages
 
             // Normaliser les variantes
             if (string.Equals(statut, "Annulee", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(statut, "Annulée", StringComparison.OrdinalIgnoreCase))
+                string.Equals(statut, "Annulï¿½e", StringComparison.OrdinalIgnoreCase))
                 return "Annulee";
 
             if (string.Equals(statut, "Terminee", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(statut, "Terminée", StringComparison.OrdinalIgnoreCase))
+                string.Equals(statut, "Terminï¿½e", StringComparison.OrdinalIgnoreCase))
                 return "Terminee";
 
             if (string.Equals(statut, "Sauvegardee", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(statut, "Sauvegardée", StringComparison.OrdinalIgnoreCase))
+                string.Equals(statut, "Sauvegardï¿½e", StringComparison.OrdinalIgnoreCase))
                 return "Sauvegardee";
 
             return statut;

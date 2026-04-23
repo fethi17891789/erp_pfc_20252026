@@ -924,12 +924,6 @@ namespace erp_pfc_20252026.Pages
             };
         }
 
-        public IActionResult OnPostLogout()
-        {
-            HttpContext.Session.Clear();
-            return RedirectToPage("/BDDView");
-        }
-
         public async Task<IActionResult> OnGetDownloadOFAsync(int id)
         {
             var fichier = await _db.MRPFichiers.FirstOrDefaultAsync(f => f.Id == id);

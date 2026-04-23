@@ -435,14 +435,6 @@
         imageModalOverlay.style.display = 'none';
     }
 
-    function openLogoutModal() {
-        document.getElementById('logout-overlay').style.display = 'flex';
-        document.body.classList.add('logout-blur-active');
-    }
-    function closeLogoutModal() {
-        document.getElementById('logout-overlay').style.display = 'none';
-        document.body.classList.remove('logout-blur-active');
-    }
 
     document.addEventListener('DOMContentLoaded', function () {
         const successToast = document.getElementById('product-success-toast');
