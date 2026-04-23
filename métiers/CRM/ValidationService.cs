@@ -38,10 +38,8 @@ namespace Metier.CRM
 
             try
             {
-                using var httpClient = new HttpClient(new HttpClientHandler { 
-                    AllowAutoRedirect = true,
-                    CheckCertificateRevocationList = false,
-                    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true 
+                using var httpClient = new HttpClient(new HttpClientHandler {
+                    AllowAutoRedirect = true
                 });
 
                 httpClient.Timeout = TimeSpan.FromSeconds(8);
