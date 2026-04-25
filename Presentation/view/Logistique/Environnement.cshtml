@@ -524,26 +524,35 @@
 
         @if (Model.Stats.CO2ParVehicule.Any())
         {
-            var maxCO2 = Model.Stats.CO2ParVehicule.Max(v => v.CO2TotalKgCeMois);
             <div class="modern-list">
                 <div class="modern-list-header">
-                    <div style="width: 25%;">VÉHICULE</div>
-                    <div style="width: 15%; text-align:center;">CARBURANT</div>
-                    <div style="width: 15%; text-align:center;">IMPACT (g/km)</div>
-                    <div style="width: 20%; text-align:center;">DISTANCE / TRAJETS</div>
-                    <div style="width: 25%;">INTENSITÉ CARBONE</div>
+                    <div style="width: 23%;">VÉHICULE</div>
+                    <div style="width: 13%; text-align:center;">CARBURANT</div>
+                    <div style="width: 13%; text-align:center;">IMPACT (g/km)</div>
+                    <div style="width: 17%; text-align:center;">DISTANCE / TRAJETS</div>
+                    <div style="width: 12%; text-align:center;">CONSO / MOIS</div>
+                    <div style="width: 22%;">INTENSITÉ CARBONE <span style="font-weight:400; color:var(--text-muted-2); font-size:0.6rem; letter-spacing:0;">(ADEME · 250 g/km = 100%)</span></div>
                 </div>
 
                 @foreach(var v in Model.Stats.CO2ParVehicule)
                 {
-                    var pct = maxCO2 > 0 ? (v.CO2TotalKgCeMois / maxCO2 * 100) : 0;
-                    string badgeCls  = v.CO2TotalKgCeMois < 5 ? "badge-green" : v.CO2TotalKgCeMois < 20 ? "badge-orange" : "badge-red";
-                    string barColor  = v.CO2TotalKgCeMois < 5 ? "#4ade80"     : v.CO2TotalKgCeMois < 20 ? "#fde047"     : "#f87171";
-                    string bgGlow    = v.CO2TotalKgCeMois < 5 ? "rgba(34,197,94,0.1)" : v.CO2TotalKgCeMois < 20 ? "rgba(234,179,8,0.1)" : "rgba(239,68,68,0.1)";
+                    // ── Étiquette énergétique ADEME (arrêté 10/04/2006, valeurs WLTP)
+                    // Référence absolue : 250 g/km = 100% (plafond catégorie F, au-delà = G "hors échelle")
+                    // Sources : Règlement UE 2019/631 + ADEME
+                    double gParKm   = v.EmissionCO2ParKm;
+                    double pct      = gParKm > 0 ? Math.Min(gParKm / 250.0 * 100.0, 100.0) : 0;
+                    bool horsNorme  = gParKm > 250;
+                    // Catégorie ADEME : A ≤100 | B ≤120 | C ≤140 | D ≤160 | E ≤200 | F ≤250 | G >250
+                    string ademe    = gParKm <= 100 ? "A" : gParKm <= 120 ? "B" : gParKm <= 140 ? "C" :
+                                      gParKm <= 160 ? "D" : gParKm <= 200 ? "E" : gParKm <= 250 ? "F" : "G";
+                    string badgeCls = gParKm <= 120 ? "badge-green" : gParKm <= 160 ? "badge-orange" : "badge-red";
+                    string barColor = gParKm <= 100 ? "#4ade80" : gParKm <= 120 ? "#a3e635" :
+                                      gParKm <= 140 ? "#fde047" : gParKm <= 200 ? "#fb923c" : "#f87171";
+                    string bgGlow   = gParKm <= 120 ? "rgba(34,197,94,0.1)" : gParKm <= 160 ? "rgba(234,179,8,0.1)" : "rgba(239,68,68,0.1)";
                     bool isElec      = v.TypeCarburant != null && v.TypeCarburant.ToLower().Contains("électr");
                     
                     <div class="modern-row" style="--row-glow: @bgGlow;">
-                        <div class="modern-cell" style="width: 25%; display: flex; align-items: center; gap: 12px;">
+                        <div class="modern-cell" style="width: 23%; display: flex; align-items: center; gap: 12px;">
                             <div class="veh-avatar" style="background: @(isElec ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.05)"); color: @(isElec ? "#4ade80" : "white");">
                                 @if(isElec){
                                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
@@ -557,30 +566,42 @@
                             </div>
                         </div>
 
-                        <div class="modern-cell" style="width: 15%; justify-content: center;">
+                        <div class="modern-cell" style="width: 13%; justify-content: center;">
                             <span class="badge badge-purple" style="font-size:0.75rem; padding: 4px 12px;">@(v.TypeCarburant ?? "N/A")</span>
                         </div>
 
-                        <div class="modern-cell" style="width: 15%; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+                        <div class="modern-cell" style="width: 13%; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
                             <div style="font-size:1.1rem; font-weight:700; color:white; font-variant-numeric:tabular-nums;">@v.EmissionCO2ParKm.ToString("F0")</div>
                             <div style="font-size:0.65rem; color:var(--text-muted-2); text-transform:uppercase; letter-spacing:0.05em;">g/km</div>
                         </div>
 
-                        <div class="modern-cell" style="width: 20%; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+                        <div class="modern-cell" style="width: 17%; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
                             <div style="font-size:0.9rem; font-weight:600; color:white; font-variant-numeric:tabular-nums;">@v.DistanceTotaleKm.ToString("F1") <span style="font-size:0.75rem; font-weight:normal; color:var(--text-muted);">km</span></div>
                             <div style="font-size:0.7rem; color:var(--text-muted-2);">@v.NombreTrajets trajet(s)</div>
                         </div>
 
-                        <div class="modern-cell" style="width: 25%; flex-direction: column; justify-content: center; align-items: flex-end; gap: 6px;">
-                            <div style="display:flex; justify-content:space-between; width:100%; align-items:center;">
-                                <span style="font-size:0.75rem; color:var(--text-muted); font-weight:600;">@v.CO2TotalKgCeMois.ToString("F2") kg</span>
-                                <span class="badge @badgeCls" style="font-size:0.65rem;">@(pct.ToString("F0"))%</span>
+                        <div class="modern-cell" style="width: 12%; flex-direction: column; justify-content: center; align-items: center; gap: 2px;">
+                            <div style="font-size:1rem; font-weight:700; font-variant-numeric:tabular-nums; color:@(v.CO2TotalKgCeMois < 5 ? "#4ade80" : v.CO2TotalKgCeMois < 20 ? "#fde047" : "#f87171");">
+                                @v.CO2TotalKgCeMois.ToString("F2")
+                            </div>
+                            <div style="font-size:0.65rem; color:var(--text-muted-2); text-transform:uppercase; letter-spacing:0.05em;">kg CO₂</div>
+                        </div>
+
+                        <div class="modern-cell" style="width: 22%; flex-direction: column; justify-content: center; align-items: flex-end; gap: 6px;">
+                            <div style="display:flex; justify-content:flex-end; width:100%; align-items:center;">
+                                <span class="badge @badgeCls" style="font-size:0.65rem; font-weight:800; letter-spacing:0.04em;"
+                                      title="Catégorie ADEME @ademe — @gParKm.ToString("F0") g/km@(horsNorme ? " · Hors échelle (>250 g/km)" : "")">
+                                    @ademe@(horsNorme ? " ⚠" : "")
+                                </span>
                             </div>
                             <div class="bar-track" style="width:100%; height:8px; border-radius:10px; background:rgba(255,255,255,0.06); box-shadow:inset 0 1px 3px rgba(0,0,0,0.5);">
-                                <div class="bar-fill" data-width="@(pct.ToString("F0", System.Globalization.CultureInfo.InvariantCulture))" 
-                                     style="background: linear-gradient(90deg, @barColor 0%, rgba(255,255,255,0.8) 100%); 
+                                <div class="bar-fill" data-width="@(pct.ToString("F0", System.Globalization.CultureInfo.InvariantCulture))"
+                                     style="background: linear-gradient(90deg, @barColor 0%, rgba(255,255,255,0.8) 100%);
                                             box-shadow: 0 0 10px @barColor;"></div>
                             </div>
+                            @if (horsNorme) {
+                                <div style="font-size:0.6rem; color:#f87171; margin-top:2px; text-align:right;">⚠ &gt;250 g/km (cat. G)</div>
+                            }
                         </div>
                     </div>
                 }
@@ -594,6 +615,26 @@
                 <small>Les données apparaîtront après la fin des premiers trajets.</small>
             </div>
         }
+
+        @* Légende étiquette ADEME *@
+        <div style="display:flex; align-items:center; gap:8px; margin-top:18px; flex-wrap:wrap;">
+            <span style="font-size:0.65rem; color:var(--text-muted-2); font-weight:600; text-transform:uppercase; letter-spacing:0.06em; margin-right:4px;">Étiquette ADEME :</span>
+            @foreach (var cat in new[] {
+                new { L="A", Color="#4ade80", Bg="rgba(34,197,94,0.12)",  Range="≤ 100 g/km" },
+                new { L="B", Color="#a3e635", Bg="rgba(163,230,53,0.12)", Range="≤ 120 g/km" },
+                new { L="C", Color="#fde047", Bg="rgba(253,224,71,0.12)", Range="≤ 140 g/km" },
+                new { L="D", Color="#fb923c", Bg="rgba(251,146,60,0.12)", Range="≤ 160 g/km" },
+                new { L="E", Color="#f87171", Bg="rgba(248,113,113,0.12)",Range="≤ 200 g/km" },
+                new { L="F", Color="#ef4444", Bg="rgba(239,68,68,0.12)",  Range="≤ 250 g/km" },
+                new { L="G", Color="#dc2626", Bg="rgba(220,38,38,0.12)",  Range="> 250 g/km" },
+            }) {
+                <span title="@cat.Range" style="display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:999px; background:@cat.Bg; cursor:default;">
+                    <span style="font-size:0.75rem; font-weight:800; color:@cat.Color;">@cat.L</span>
+                    <span style="font-size:0.6rem; color:var(--text-muted-2);">@cat.Range</span>
+                </span>
+            }
+            <span style="font-size:0.6rem; color:var(--text-muted-2); margin-left:4px;">— Source : Règlement UE 2019/631 · ADEME</span>
+        </div>
     </div>
 
     @* ── Historique des trajets ───────────────────────────────────────────── *@
