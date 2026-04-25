@@ -3,21 +3,24 @@ using Metier.Logistique;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Donnees.Logistique;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Metier.Logistique
 {
     public class LogistiqueHub : Hub
     {
         private readonly LogistiqueService _logistiqueService;
+        private readonly IServiceScopeFactory _scopeFactory;
         
         // Mapping statique : connexionId → (vehiculeId, trajetId)
         // Permet de clôturer le bon trajet si le chauffeur ferme l'appli (OnDisconnected)
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (int vehiculeId, int trajetId)> _connectionMap
             = new System.Collections.Concurrent.ConcurrentDictionary<string, (int vehiculeId, int trajetId)>();
 
-        public LogistiqueHub(LogistiqueService logistiqueService)
+        public LogistiqueHub(LogistiqueService logistiqueService, IServiceScopeFactory scopeFactory)
         {
             _logistiqueService = logistiqueService;
+            _scopeFactory = scopeFactory;
         }
 
         public async Task UpdatePosition(int vehiculeId, double lat, double lon)
@@ -80,6 +83,25 @@ namespace Metier.Logistique
             await _logistiqueService.EndTrajetAsync(trajetId, destination, distanceKm, traceJson, itineraireType);
             await _logistiqueService.UpdateCO2TrajetAsync(trajetId, co2Grammes, dureeArretMinutes);
             await Clients.Others.SendAsync("TrajetEnded", vehiculeId, trajetId, traceJson, distanceKm, co2Grammes);
+
+            // ── Phase 3 VSP : recalcul post-trajet avec élévation réelle ──
+            // Non-bloquant — s'exécute en arrière-plan, met à jour la BDD silencieusement
+            if (!string.IsNullOrEmpty(traceJson) && traceJson != "[]"
+                && vehicule?.EmissionCO2ParKm.HasValue == true)
+            {
+                int tid = trajetId;
+                double co2pkm  = vehicule.EmissionCO2ParKm.Value;
+                string carb    = vehicule.TypeCarburant  ?? "";
+                string transp  = vehicule.TypeTransport  ?? "";
+                string trace   = traceJson;
+                var sf = _scopeFactory;
+                _ = Task.Run(async () =>
+                {
+                    using var scope = sf.CreateScope();
+                    var svc = scope.ServiceProvider.GetRequiredService<LogistiqueService>();
+                    await svc.RecalculerCO2AvecElevationAsync(tid, trace, co2pkm, carb, transp);
+                });
+            }
         }
 
         public async Task<List<TrajetAvecBlockchainDto>> GetTrajetHistory()

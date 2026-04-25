@@ -388,10 +388,15 @@
 
                         <!-- Jauge CO2 -->
                         <div id="co2-panel" style="background:rgba(255,255,255,0.04); border-radius:10px; padding:10px; margin-bottom:8px;">
+                            <!-- Instantané VSP -->
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:7px; border-bottom:1px solid rgba(255,255,255,0.05);">
+                                <span style="font-size:0.65rem; color:var(--text-muted);">Instantané <span style="background:rgba(123,94,255,0.2); color:#a5b4fc; font-size:0.58rem; font-weight:700; padding:1px 5px; border-radius:4px; margin-left:3px; text-transform:uppercase; letter-spacing:0.04em;">VSP</span></span>
+                                <span id="live-co2-instant-pc" style="font-size:0.78rem; font-weight:700; color:#4ade80; transition:color 0.4s ease;">— g/km</span>
+                            </div>
                             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
                                 <span style="font-size:0.68rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:4px;">
                                     <svg style="width:12px;height:12px;color:#22c55e;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 0 1 0 20c-4 0-7.4-2.4-9-6"/><path d="M12 8v4l3 3"/><path d="M2 12C2 7 6 3 11 2"/></svg>
-                                    CO2 Émis
+                                    CO2 total trajet
                                 </span>
                                 <span id="live-co2-value" style="font-size:0.8rem; font-weight:700; color:#22c55e;">0 g</span>
                             </div>
@@ -704,15 +709,15 @@
 
     function showQrCode(vehiculeId, vehiculeName) {
         document.getElementById('qr-vehicule-name').innerText = "QR Code : " + vehiculeName;
-        
+
         // Nettoyer l'ancien QR code s'il existe
         const container = document.getElementById('qrcode-container');
         container.innerHTML = "";
-        
+
         // Construire l'URL (en utilisant l'origine actuelle)
         const baseUrl = window.location.origin;
         const trackingUrl = baseUrl + "/Logistique/Tracking?vehiculeId=" + vehiculeId + "&v=" + Date.now();
-        
+
         // Générer le nouveau QR code
         new QRCode(container, {
             text: trackingUrl,
@@ -722,7 +727,7 @@
             colorLight : "#ffffff",
             correctLevel : QRCode.CorrectLevel.H
         });
-        
+
         // Afficher la modale
         document.getElementById('qr-code-modal').style.display = 'flex';
     }
@@ -1125,6 +1130,7 @@
         // MAJ CO2 temps réel
         if (selectedVehiculeId == vehiculeId && co2Grammes !== undefined) {
             updateCO2Gauge(co2Grammes, vehiculeId);
+            mettreAJourInstantanePC(speed, vehiculeId, Date.now());
         }
 
         // MAJ Tracé
@@ -1136,7 +1142,12 @@
 
     connection.on("TrajetEnded", function (vehiculeId, trajetId, rawTraceJson, distanceKm, co2Grammes) {
         console.log("✅ Trajet terminé :", vehiculeId, trajetId, "Distance:", distanceKm, "CO2:", co2Grammes, "g");
-        
+
+        // Reset VSP instantané
+        delete vspStatePC[vehiculeId];
+        const elInst = document.getElementById('live-co2-instant-pc');
+        if (elInst) { elInst.innerText = '— g/km'; elInst.style.color = '#4ade80'; }
+
         // 1. Reset Statut UI Direct et Instantané
         const card = document.querySelector(`.vehicle-card[data-vehicule-id="${vehiculeId}"]`);
         if (card) {
@@ -1263,6 +1274,52 @@
             emissionCO2ParKm = v.EmissionCO2ParKm ?? 0
         })
     ));
+
+    // ── VSP CO₂ instantané (PC dashboard) ───────────────────────────
+    const vspStatePC = {}; // { vehiculeId: { prevSpeedMs, prevTs } }
+
+    function calculerVSPpc(vitesseMps, accMps2) {
+        return vitesseMps * (1.1 * accMps2 + 0.132) + 0.000302 * Math.pow(vitesseMps, 3);
+    }
+
+    function mettreAJourInstantanePC(speedKmh, vehiculeId, now) {
+        const veh = vehiculesData.find(v => v.id == vehiculeId);
+        const co2ParKm = veh?.emissionCO2ParKm > 0 ? veh.emissionCO2ParKm : 150;
+        const el = document.getElementById('live-co2-instant-pc');
+        if (!el) return;
+
+        const vitesseMps = speedKmh / 3.6;
+        const state = vspStatePC[vehiculeId] || null;
+
+        if (!state || speedKmh < 1) {
+            el.innerText = speedKmh < 1 ? '— g/km' : '…';
+            el.style.color = '#4ade80';
+            vspStatePC[vehiculeId] = { prevSpeedMs: vitesseMps, prevTs: now };
+            return;
+        }
+
+        const deltaT = (now - state.prevTs) / 1000;
+        if (deltaT <= 0 || deltaT > 30) {
+            vspStatePC[vehiculeId] = { prevSpeedMs: vitesseMps, prevTs: now };
+            return;
+        }
+
+        const accMps2 = (vitesseMps - state.prevSpeedMs) / deltaT;
+        const vsp = calculerVSPpc(vitesseMps, accMps2);
+
+        const vRef = 13.89;
+        const vspRef = vRef * 0.132 + 0.000302 * Math.pow(vRef, 3);
+        let dynFactor = vsp <= 0 ? 0.08 : Math.max(0.08, Math.min(vsp / vspRef, 4.0));
+        const baseRateGps = co2ParKm * vRef / 1000;
+        const co2G = baseRateGps * dynFactor * deltaT;
+        const distKm = vitesseMps * deltaT / 1000;
+        const rateGParKm = distKm > 0 ? co2G / distKm : co2ParKm;
+
+        el.innerText = Math.round(rateGParKm) + ' g/km';
+        el.style.color = rateGParKm < 120 ? '#4ade80' : rateGParKm < 200 ? '#fbbf24' : '#f87171';
+
+        vspStatePC[vehiculeId] = { prevSpeedMs: vitesseMps, prevTs: now };
+    }
 
     function updateCO2Gauge(co2Grammes, vehiculeId) {
         const co2Kg = co2Grammes / 1000;

@@ -304,6 +304,28 @@
         @@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         @@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         @@keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── Cartes CO₂ VSP ──────────────────────────────────── */
+        .stat-card.co2-card { position: relative; overflow: hidden; }
+        .stat-card.co2-card::before {
+            content: ''; position: absolute; inset: 0;
+            background: var(--co2-glow, transparent);
+            transition: background 0.6s ease; pointer-events: none;
+        }
+        .co2-card.co2-low  { --co2-glow: rgba(34, 197, 94, 0.07);  }
+        .co2-card.co2-mid  { --co2-glow: rgba(245, 158, 11, 0.09); }
+        .co2-card.co2-high { --co2-glow: rgba(239, 68, 68, 0.12);  }
+        #live-co2-instant, #live-co2-total { transition: color 0.5s ease; }
+        .co2-low  #live-co2-instant, .co2-low  #live-co2-total  { color: #4ade80; }
+        .co2-mid  #live-co2-instant, .co2-mid  #live-co2-total  { color: #fbbf24; }
+        .co2-high #live-co2-instant, .co2-high #live-co2-total  { color: #f87171; }
+        .co2-method-badge {
+            display: inline-block; font-size: 0.58rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            padding: 2px 6px; border-radius: 4px; margin-left: 4px;
+            background: rgba(123,94,255,0.15); color: var(--accent-light);
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -356,6 +378,14 @@
             <div class="stat-card">
                 <div class="stat-value"><span id="live-speed">0</span> <span class="stat-unit">km/h</span></div>
                 <div class="stat-label">Vitesse actuelle</div>
+            </div>
+            <div class="stat-card co2-card co2-low" id="card-co2-instant">
+                <div class="stat-value"><span id="live-co2-instant">—</span> <span class="stat-unit">g/km</span></div>
+                <div class="stat-label">CO₂ instantané <span class="co2-method-badge">VSP</span></div>
+            </div>
+            <div class="stat-card co2-card co2-low" id="card-co2-total">
+                <div class="stat-value"><span id="live-co2-total">0</span> <span class="stat-unit">g</span></div>
+                <div class="stat-label">CO₂ trajet total</div>
             </div>
         </div>
         <span class="demo-badge">🎬 SIMULATION</span>
@@ -715,6 +745,7 @@
                 tracePoints = [];
                 idleStartTime = null;
                 totalIdleMs = 0;
+                resetVSP();
                 localStorage.removeItem('erp_pending_trajet');
 
                 chronoInterval = setInterval(updateChronomètre, 1000);
@@ -744,6 +775,100 @@
         // --- Suivi ralenti (moteur allumé, vitesse ≤ 2 km/h) ---
         let idleStartTime = null;   // timestamp début arrêt actuel
         let totalIdleMs = 0;        // total accumulé en ms
+
+        // ── VSP (Vehicle Specific Power) — CO₂ dynamique ────────────
+        let vspPrevSpeedMs = null;   // vitesse du point précédent (m/s)
+        let vspPrevTimestamp = null; // timestamp du point précédent (ms)
+        let totalCO2GrammesVSP = 0; // CO₂ accumulé pour ce trajet (g)
+
+        /**
+         * Calcule le VSP (W/kg) sans pente — Phase 2.
+         * Formule NCHRP/MOVES : VSP = v*(1.1*a + 0.132) + 0.000302*v³
+         * v : m/s, a : m/s²
+         */
+        function calculerVSP(vitesseMps, accMps2) {
+            return vitesseMps * (1.1 * accMps2 + 0.132) + 0.000302 * Math.pow(vitesseMps, 3);
+        }
+
+        /**
+         * Calcule le CO₂ émis (g) pendant deltaT secondes à partir du VSP,
+         * calibré sur le facteur d'émission théorique du véhicule.
+         * Retourne { co2G, rateGParKm } pour affichage.
+         */
+        function calculerCO2VSP(vsp, vitesseMps, deltaT, co2ParKm) {
+            const base = co2ParKm > 0 ? co2ParKm : 150; // défaut ADEME moyen si inconnu
+
+            // Ralenti moteur allumé (vitesse ≈ 0)
+            if (vitesseMps < 0.5) {
+                // Taux de ralenti : ~0.3% du taux à 50 km/h par seconde
+                const idleRateGps = base * 0.0021; // ≈ base/km × 0.3 km/h en g/s
+                return { co2G: idleRateGps * deltaT, rateGParKm: 0 };
+            }
+
+            // VSP de référence à 50 km/h (13.89 m/s), accél=0, grade=0
+            const vRef  = 13.89;
+            const vspRef = vRef * 0.132 + 0.000302 * Math.pow(vRef, 3); // ≈ 2.64 W/kg
+            const baseRateGps = base * vRef / 1000;                      // g/s à la vitesse ref
+
+            let dynFactor;
+            if (vsp <= 0) {
+                // Frein moteur / roue libre — consommation minimale
+                dynFactor = 0.08;
+            } else {
+                // Proportion linéaire du VSP, cappée à 4× le régime de référence
+                dynFactor = Math.max(0.08, Math.min(vsp / vspRef, 4.0));
+            }
+
+            const co2G = baseRateGps * dynFactor * deltaT;
+            // Emission instantanée en g/km pour affichage
+            const distKm = vitesseMps * deltaT / 1000;
+            const rateGParKm = distKm > 0 ? co2G / distKm : base;
+
+            return { co2G, rateGParKm };
+        }
+
+        /** Met à jour les cartes CO₂ VSP avec code couleur dynamique. */
+        function mettreAJourAffichageCO2(rateGParKm, totalG) {
+            const cardInstant = document.getElementById('card-co2-instant');
+            const cardTotal   = document.getElementById('card-co2-total');
+            const elInstant   = document.getElementById('live-co2-instant');
+            const elTotal     = document.getElementById('live-co2-total');
+
+            if (!elInstant || !elTotal) return;
+
+            // Intensité instantanée (g/km)
+            let lvl;
+            if (rateGParKm <= 0)        lvl = 'low';
+            else if (rateGParKm < 120)  lvl = 'low';
+            else if (rateGParKm < 200)  lvl = 'mid';
+            else                         lvl = 'high';
+
+            elInstant.innerText = rateGParKm > 0 ? Math.round(rateGParKm) : '—';
+
+            // Total trajet : afficher en g ou kg selon magnitude
+            if (totalG >= 1000) {
+                elTotal.innerText = (totalG / 1000).toFixed(2);
+                elTotal.nextElementSibling && (elTotal.parentElement.querySelector('.stat-unit').innerText = 'kg');
+            } else {
+                elTotal.innerText = Math.round(totalG);
+                elTotal.parentElement.querySelector('.stat-unit') && (elTotal.parentElement.querySelector('.stat-unit').innerText = 'g');
+            }
+
+            ['co2-low','co2-mid','co2-high'].forEach(c => {
+                cardInstant.classList.remove(c);
+                cardTotal.classList.remove(c);
+            });
+            cardInstant.classList.add('co2-' + lvl);
+            cardTotal.classList.add('co2-' + lvl);
+        }
+
+        /** Réinitialise l'état VSP (appelé au démarrage d'un trajet). */
+        function resetVSP() {
+            vspPrevSpeedMs  = null;
+            vspPrevTimestamp = null;
+            totalCO2GrammesVSP = 0;
+            mettreAJourAffichageCO2(0, 0);
+        }
 
         function onIdleStart() { if (!idleStartTime) idleStartTime = Date.now(); }
         function onIdleEnd() {
@@ -796,12 +921,12 @@
                 }
 
                 activeTrajetId = await connection.invoke("StartTrajet", parseInt(activeVehiculeId), deviceId, "Démarrage mobile");
-                
+
                 // État actif
                 isTracking = true;
                 container.classList.add('is-tracking');
                 subtitleText.innerText = `Trajet #${activeTrajetId} en cours...`;
-                
+
                 // Init Stats
                 startTime = Date.now();
                 totalDistanceKm = 0;
@@ -809,6 +934,7 @@
                 tracePoints = [];
                 idleStartTime = null;
                 totalIdleMs = 0;
+                resetVSP();
                 localStorage.removeItem('erp_pending_trajet');
 
                 chronoInterval = setInterval(updateChronomètre, 1000);
@@ -936,6 +1062,7 @@
                 tracePoints = [];
                 idleStartTime = null;
                 totalIdleMs = 0;
+                resetVSP();
                 localStorage.removeItem('erp_pending_trajet');
 
                 container.classList.add('is-tracking', 'is-demo');
@@ -1025,6 +1152,24 @@
                     if (speedKmh < 5) speedKmh = 25 + Math.random() * 15;
                     uiLiveSpeed.innerText = speedKmh.toFixed(0);
 
+                    // ── VSP CO₂ dynamique (mode démo) ────────────────────
+                    const demoVitesseMps = speedKmh / 3.6;
+                    const demoVeh = getVehiculeData();
+                    const demoCO2ParKm = demoVeh?.co2ParKm || 150;
+                    if (vspPrevSpeedMs !== null && vspPrevTimestamp !== null) {
+                        const demoTs = Date.now();
+                        const demoDeltat = Math.max(0.1, (demoTs - vspPrevTimestamp) / 1000);
+                        const demoAcc = (demoVitesseMps - vspPrevSpeedMs) / demoDeltat;
+                        const demoVsp = calculerVSP(demoVitesseMps, demoAcc);
+                        const { co2G: demoCO2G, rateGParKm: demoRate } = calculerCO2VSP(demoVsp, demoVitesseMps, demoDeltat, demoCO2ParKm);
+                        totalCO2GrammesVSP += demoCO2G;
+                        mettreAJourAffichageCO2(demoRate, totalCO2GrammesVSP);
+                        vspPrevTimestamp = demoTs;
+                    } else {
+                        vspPrevTimestamp = Date.now();
+                    }
+                    vspPrevSpeedMs = demoVitesseMps;
+
                     // Barre de progression
                     const progress = ((demoPointIndex + 1) / totalSteps) * 100;
                     demoProgressFill.style.width = progress + '%';
@@ -1110,6 +1255,24 @@
             } else {
                 lastPosition = { lat, lon, timestamp: ts, sysTimestamp: now };
             }
+
+            // ── VSP CO₂ dynamique ────────────────────────────────────
+            const vitesseMps = speedKmh / 3.6;
+            const veh = getVehiculeData();
+            const co2ParKm = veh?.co2ParKm || 150;
+
+            if (vspPrevSpeedMs !== null && vspPrevTimestamp !== null) {
+                const deltaT = (now - vspPrevTimestamp) / 1000; // secondes
+                if (deltaT > 0 && deltaT < 30) { // ignorer les sauts > 30s (perte GPS)
+                    const accMps2 = (vitesseMps - vspPrevSpeedMs) / deltaT;
+                    const vsp = calculerVSP(vitesseMps, accMps2);
+                    const { co2G, rateGParKm } = calculerCO2VSP(vsp, vitesseMps, deltaT, co2ParKm);
+                    totalCO2GrammesVSP += co2G;
+                    mettreAJourAffichageCO2(rateGParKm, totalCO2GrammesVSP);
+                }
+            }
+            vspPrevSpeedMs   = vitesseMps;
+            vspPrevTimestamp = now;
 
             // Suivi ralenti
             if (speedKmh <= 2) onIdleStart(); else onIdleEnd();

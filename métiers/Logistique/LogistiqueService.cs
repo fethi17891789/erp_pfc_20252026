@@ -460,6 +460,123 @@ namespace Metier.Logistique
             }
         }
 
+        // ── DTO interne pour désérialiser le tracé GPS ───────────────
+        private sealed class TracePoint
+        {
+            [System.Text.Json.Serialization.JsonPropertyName("lat")]
+            public double Lat { get; set; }
+            [System.Text.Json.Serialization.JsonPropertyName("lon")]
+            public double Lon { get; set; }
+            [System.Text.Json.Serialization.JsonPropertyName("timestamp")]
+            public long Timestamp { get; set; }
+        }
+
+        private static double HaversineMetres(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6_371_000;
+            double dLat = (lat2 - lat1) * Math.PI / 180;
+            double dLon = (lon2 - lon1) * Math.PI / 180;
+            double a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                     + Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180)
+                     * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            return R * 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        }
+
+        /// <summary>
+        /// Phase 3 VSP : recalcule le CO2 d'un trajet terminé en intégrant
+        /// la pente réelle via Open-Elevation API (gratuit, sans clé).
+        /// Non-bloquant — met à jour la BDD si le résultat est cohérent.
+        /// </summary>
+        public async Task RecalculerCO2AvecElevationAsync(
+            int trajetId, string traceJson,
+            double emissionCO2ParKm, string? typeCarburant, string? typeTransport)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(traceJson) || traceJson == "[]") return;
+
+                var points = JsonSerializer.Deserialize<List<TracePoint>>(traceJson);
+                if (points == null || points.Count < 2) return;
+
+                // ── 1. Récupération des élévations (batch 100 points) ────────
+                double[] elevations = new double[points.Count];
+                const int BATCH = 100;
+
+                for (int i = 0; i < points.Count; i += BATCH)
+                {
+                    var slice = points.Skip(i).Take(BATCH).ToList();
+                    var body = JsonSerializer.Serialize(new
+                    {
+                        locations = slice.Select(p => new { latitude = p.Lat, longitude = p.Lon })
+                    });
+                    var content = new StringContent(body, System.Text.Encoding.UTF8, "application/json");
+
+                    using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(20));
+                    var resp = await _httpClient.PostAsync(
+                        "https://api.open-elevation.com/api/v1/lookup", content, cts.Token);
+                    resp.EnsureSuccessStatusCode();
+
+                    using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+                    var results = doc.RootElement.GetProperty("results").EnumerateArray().ToList();
+                    for (int j = 0; j < results.Count && (i + j) < points.Count; j++)
+                        elevations[i + j] = results[j].GetProperty("elevation").GetDouble();
+                }
+
+                // ── 2. Calcul VSP + pente segment par segment ────────────────
+                double totalCO2G   = 0;
+                double prevSpeedMs = 0;
+                double base_       = emissionCO2ParKm > 0 ? emissionCO2ParKm : 150;
+                const double vRef  = 13.89;
+                double vspRef      = vRef * 0.132 + 0.000302 * Math.Pow(vRef, 3); // ≈ 2.64
+                double baseRateGps = base_ * vRef / 1000;
+
+                for (int i = 1; i < points.Count; i++)
+                {
+                    double deltaT = (points[i].Timestamp - points[i - 1].Timestamp) / 1000.0;
+                    if (deltaT <= 0 || deltaT > 120) { prevSpeedMs = 0; continue; }
+
+                    double distM    = HaversineMetres(points[i-1].Lat, points[i-1].Lon, points[i].Lat, points[i].Lon);
+                    double speedMps = distM / deltaT;
+                    if (speedMps > 55) { prevSpeedMs = 0; continue; } // clip 200 km/h
+
+                    double grade    = distM > 1 ? (elevations[i] - elevations[i-1]) / distM : 0;
+                    grade           = Math.Max(-0.15, Math.Min(0.15, grade)); // clip ±15 %
+
+                    double accMps2  = (speedMps - prevSpeedMs) / deltaT;
+                    double vsp      = speedMps * (1.1 * accMps2 + 9.81 * grade + 0.132)
+                                    + 0.000302 * Math.Pow(speedMps, 3);
+
+                    double dynFactor;
+                    if (speedMps < 0.5)
+                        dynFactor = base_ * 0.0021 / baseRateGps; // ralenti
+                    else if (vsp <= 0)
+                        dynFactor = 0.08;                          // frein moteur
+                    else
+                        dynFactor = Math.Max(0.08, Math.Min(vsp / vspRef, 4.0));
+
+                    totalCO2G  += baseRateGps * dynFactor * deltaT;
+                    prevSpeedMs = speedMps;
+                }
+
+                // ── 3. Mise à jour BDD si cohérent ──────────────────────────
+                if (totalCO2G > 0)
+                {
+                    var trajet = await _context.LogistiqueTrajets.FindAsync(trajetId);
+                    if (trajet != null)
+                    {
+                        trajet.Co2EmisGrammes = Math.Round(totalCO2G, 0);
+                        await _context.SaveChangesAsync();
+                        Console.WriteLine($"[VSP+ELEVATION] Trajet {trajetId} CO2 affiné : {Math.Round(totalCO2G / 1000, 3)} kg");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[VSP+ELEVATION] Recalcul trajet {trajetId} ignoré : {ex.Message}");
+                // Non-bloquant : l'estimation initiale reste en base
+            }
+        }
+
         /// <summary>
         /// Statistiques RSE pour le dashboard environnement.
         /// </summary>

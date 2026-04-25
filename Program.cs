@@ -1061,7 +1061,8 @@ app.Use(async (ctx, next) =>
                     || path.StartsWith("/lib/")
                     || path.StartsWith("/uploads/")
                     || path.StartsWith("/chathub")
-                    || path.StartsWith("/logistiquehub");
+                    || path.StartsWith("/logistiquehub")
+                    || path.StartsWith("/logistique/tracking"); // Accessible sans session (téléphone chauffeur)
 
     if (!estPublique && ctx.Session.GetInt32("CurrentUserId") == null)
     {
