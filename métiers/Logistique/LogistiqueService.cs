@@ -507,20 +507,45 @@ namespace Metier.Logistique
             double co2SiElectrique = trajetsThermiques.Sum(x => x.t.DistanceParcourueKm * 20);
             stats.EconomiesPotentiellesKg = Math.Round(Math.Max(0, co2ThermiqueActuel - co2SiElectrique) / 1000.0, 2);
 
-            // Données mensuelles (6 derniers mois)
+            // Données mensuelles — historique infini (du premier trajet enregistré jusqu'au mois en cours)
+            var tousLesTrajetsMensuels = await _context.LogistiqueTrajets
+                .Where(t => t.Statut == "Termine")
+                .OrderBy(t => t.DateDebut)
+                .ToListAsync();
+
             stats.DonneesMensuelles = new List<MoisRSE>();
-            for (int i = 5; i >= 0; i--)
+            var culture = new System.Globalization.CultureInfo("fr-FR");
+            var moisCourant = new DateTime(now.Year, now.Month, 1);
+
+            if (tousLesTrajetsMensuels.Any())
             {
-                var debut = DateTime.SpecifyKind(new DateTime(now.Year, now.Month, 1).AddMonths(-i), DateTimeKind.Utc);
-                var fin = DateTime.SpecifyKind(debut.AddMonths(1), DateTimeKind.Utc);
-                var trajetsMois = await _context.LogistiqueTrajets
-                    .Where(t => t.Statut == "Termine" && t.DateDebut >= debut && t.DateDebut < fin)
-                    .ToListAsync();
+                var premierTrajet = tousLesTrajetsMensuels.First().DateDebut;
+                var moisDepart = new DateTime(premierTrajet.Year, premierTrajet.Month, 1);
+                var curseur = moisDepart;
+                while (curseur <= moisCourant)
+                {
+                    var debutMoisI = DateTime.SpecifyKind(curseur, DateTimeKind.Utc);
+                    var finMoisI   = DateTime.SpecifyKind(curseur.AddMonths(1), DateTimeKind.Utc);
+                    var trajetsMois = tousLesTrajetsMensuels
+                        .Where(t => t.DateDebut >= debutMoisI && t.DateDebut < finMoisI)
+                        .ToList();
+                    stats.DonneesMensuelles.Add(new MoisRSE
+                    {
+                        Label      = curseur.ToString("MMM yyyy", culture),
+                        CO2TotalKg = Math.Round(trajetsMois.Sum(t => t.Co2EmisGrammes) / 1000.0, 2),
+                        DistanceKm = Math.Round(trajetsMois.Sum(t => t.DistanceParcourueKm), 1)
+                    });
+                    curseur = curseur.AddMonths(1);
+                }
+            }
+            else
+            {
+                // Aucun trajet : afficher uniquement le mois en cours avec zéro
                 stats.DonneesMensuelles.Add(new MoisRSE
                 {
-                    Label = debut.ToString("MMM yy", new System.Globalization.CultureInfo("fr-FR")),
-                    CO2TotalKg = Math.Round(trajetsMois.Sum(t => t.Co2EmisGrammes) / 1000.0, 2),
-                    DistanceKm = Math.Round(trajetsMois.Sum(t => t.DistanceParcourueKm), 1)
+                    Label      = moisCourant.ToString("MMM yyyy", culture),
+                    CO2TotalKg = 0,
+                    DistanceKm = 0
                 });
             }
 

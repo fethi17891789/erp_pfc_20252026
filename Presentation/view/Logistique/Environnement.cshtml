@@ -232,6 +232,43 @@
 .kpi-card:nth-child(3) { animation-delay: 0.16s; }
 .kpi-card:nth-child(4) { animation-delay: 0.22s; }
 
+/* ── Navigation chart mensuel ────────────────────────────────────────── */
+.chart-card-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 20px;
+}
+.chart-nav-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.chart-nav-btn {
+    width: 30px; height: 30px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.55);
+    cursor: pointer; font-size: 15px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+}
+.chart-nav-btn:hover:not(:disabled) {
+    background: rgba(123,94,255,0.2); border-color: rgba(123,94,255,0.45); color: #fff;
+    transform: scale(1.1);
+}
+.chart-nav-btn:disabled { opacity: 0.25; cursor: default; }
+
+.chart-today-btn {
+    position: absolute; bottom: 10px; right: 10px;
+    background: linear-gradient(135deg, #7b5eff, #8b6fff);
+    border: none; border-radius: 10px;
+    padding: 6px 13px 6px 10px; color: #fff;
+    font-size: 0.73rem; font-weight: 700; font-family: inherit;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 4px 16px rgba(123,94,255,0.4);
+    opacity: 0; transform: translateX(14px); pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.16,1,0.3,1),
+                transform 0.3s cubic-bezier(0.16,1,0.3,1),
+                box-shadow 0.2s;
+}
+.chart-today-btn.visible { opacity: 1; transform: translateX(0); pointer-events: auto; }
+.chart-today-btn:hover { box-shadow: 0 6px 22px rgba(123,94,255,0.6); }
+.chart-today-btn svg { flex-shrink: 0; }
+
 /* ── KPI cards cliquables ─────────────────────────────────────────────── */
 .kpi-card.clickable { cursor: pointer; }
 .kpi-card.clickable:active { transform: translateY(-2px) scale(0.99); }
@@ -495,10 +532,26 @@
     <div class="chart-grid">
 
         <div class="chart-card">
-            <div class="chart-card-title">Émissions mensuelles</div>
-            <div class="chart-card-sub">CO2 total émis en kg — 6 derniers mois</div>
-            <div style="position: relative; height: 220px; width: 100%;">
+            <div class="chart-card-header">
+                <div>
+                    <div class="chart-card-title">Émissions mensuelles</div>
+                    <div class="chart-card-sub" id="chart-period-label">Mois complets — CO₂ total en kg</div>
+                </div>
+                <div class="chart-nav-btns">
+                    <button id="chart-prev" class="chart-nav-btn" title="Période précédente">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                    </button>
+                    <button id="chart-next" class="chart-nav-btn" title="Période suivante">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div style="position: relative; height: 220px; width: 100%; user-select: none;" id="chart-mensuel-wrap">
                 <canvas id="chart-mensuel"></canvas>
+                <button id="chart-today-btn" class="chart-today-btn">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    Aujourd'hui
+                </button>
             </div>
         </div>
 
@@ -927,47 +980,43 @@
         });
     }, 300);
 
-    const monthLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.Label)));
-    const monthCO2    = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.CO2TotalKg)));
+    const allLabels = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.Label)));
+    const allCO2    = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Stats.DonneesMensuelles.Select(m => m.CO2TotalKg)));
 
-    // ── Générateur de texture de Carbone / Hachures colorées ────────
+    const WINDOW_SIZE = 6;
+    let windowStart = Math.max(0, allLabels.length - WINDOW_SIZE);
+
+    // ── Générateur de texture ─────────────────────────────────────────
     function createTexturedColor(baseColor) {
         const pCanvas = document.createElement('canvas');
-        pCanvas.width = 10;
-        pCanvas.height = 10;
+        pCanvas.width = 10; pCanvas.height = 10;
         const pctx = pCanvas.getContext('2d');
-        
-        // Couleur de fond fluo
         pctx.fillStyle = baseColor;
         pctx.fillRect(0, 0, 10, 10);
-        
-        // Texture hachurée (style tech / blueprint)
-        pctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        pctx.strokeStyle = 'rgba(255,255,255,0.15)';
         pctx.lineWidth = 2;
         pctx.beginPath();
-        pctx.moveTo(0, 10);
-        pctx.lineTo(10, 0);
-        pctx.moveTo(-5, 5);
-        pctx.lineTo(5, -5);
-        pctx.moveTo(5, 15);
-        pctx.lineTo(15, 5);
+        pctx.moveTo(0, 10); pctx.lineTo(10, 0);
+        pctx.moveTo(-5, 5); pctx.lineTo(5, -5);
+        pctx.moveTo(5, 15); pctx.lineTo(15, 5);
         pctx.stroke();
-
         return document.getElementById('chart-mensuel').getContext('2d').createPattern(pCanvas, 'repeat');
     }
 
-    // ── Bar chart mensuel (Barres arrondies & Animation ressort) ──────
+    // ── Création du chart avec la fenêtre initiale ────────────────────
     const ctxBar = document.getElementById('chart-mensuel').getContext('2d');
-    
-    new Chart(ctxBar, {
+    const texNormal = createTexturedColor('#7b5eff');
+    const texHover  = createTexturedColor('#a882ff');
+
+    const chartMensuel = new Chart(ctxBar, {
         type: 'bar',
         data: {
-            labels: monthLabels,
+            labels: allLabels.slice(windowStart, windowStart + WINDOW_SIZE),
             datasets: [{
                 label: 'CO2',
-                data: monthCO2,
-                backgroundColor: createTexturedColor('#7b5eff'), // Violet Neon + Texture
-                hoverBackgroundColor: createTexturedColor('#a882ff'),
+                data: allCO2.slice(windowStart, windowStart + WINDOW_SIZE),
+                backgroundColor: texNormal,
+                hoverBackgroundColor: texHover,
                 borderRadius: 14,
                 borderSkipped: 'bottom',
                 barThickness: 32,
@@ -976,25 +1025,17 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { 
-                duration: 1200, 
-                easing: 'easeOutElastic',
-                delay: (context) => context.dataIndex * 80 
-            },
+            animation: { duration: 500, easing: 'easeOutQuart' },
             plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: 'rgba(8,10,28,0.96)',
-                    titleColor: '#fff',
-                    bodyColor: '#4ade80',
-                    borderColor: 'rgba(123, 94, 255, 0.4)',
-                    borderWidth: 1,
-                    padding: 16,
-                    cornerRadius: 16,
+                    titleColor: '#fff', bodyColor: '#4ade80',
+                    borderColor: 'rgba(123,94,255,0.4)', borderWidth: 1,
+                    padding: 16, cornerRadius: 16,
                     titleFont: { size: 13, family: "'Plus Jakarta Sans'" },
                     bodyFont: { size: 14, weight: 'bold' },
-                    boxPadding: 6,
-                    usePointStyle: true,
+                    boxPadding: 6, usePointStyle: true,
                     callbacks: { label: ctx => ` ${ctx.parsed.y} kg émis` }
                 }
             },
@@ -1013,6 +1054,79 @@
             }
         }
     });
+
+    // ── Mise à jour de la fenêtre ─────────────────────────────────────
+    const btnPrev    = document.getElementById('chart-prev');
+    const btnNext    = document.getElementById('chart-next');
+    const todayBtn   = document.getElementById('chart-today-btn');
+    const periodLbl  = document.getElementById('chart-period-label');
+
+    function updateChartWindow() {
+        const labels = allLabels.slice(windowStart, windowStart + WINDOW_SIZE);
+        const data   = allCO2.slice(windowStart, windowStart + WINDOW_SIZE);
+
+        chartMensuel.data.labels = labels;
+        chartMensuel.data.datasets[0].data = data;
+        chartMensuel.update();
+
+        periodLbl.textContent = labels.length > 0
+            ? labels[0] + '  →  ' + labels[labels.length - 1]
+            : 'Mois complets — CO₂ total en kg';
+
+        btnPrev.disabled = (windowStart === 0);
+        btnNext.disabled = (windowStart >= allLabels.length - WINDOW_SIZE);
+
+        const atEnd = windowStart >= allLabels.length - WINDOW_SIZE;
+        todayBtn.classList.toggle('visible', !atEnd);
+    }
+
+    // Init sans animation
+    updateChartWindow();
+
+    btnPrev.addEventListener('click', () => {
+        if (windowStart > 0) {
+            windowStart = Math.max(0, windowStart - WINDOW_SIZE);
+            updateChartWindow();
+        }
+    });
+
+    btnNext.addEventListener('click', () => {
+        if (windowStart < allLabels.length - WINDOW_SIZE) {
+            windowStart = Math.min(allLabels.length - WINDOW_SIZE, windowStart + WINDOW_SIZE);
+            updateChartWindow();
+        }
+    });
+
+    todayBtn.addEventListener('click', () => {
+        windowStart = Math.max(0, allLabels.length - WINDOW_SIZE);
+        updateChartWindow();
+    });
+
+    // ── Swipe / Drag (souris + tactile) ──────────────────────────────
+    const wrap = document.getElementById('chart-mensuel-wrap');
+    let dragX = null;
+
+    function onStart(x) { dragX = x; }
+    function onEnd(x) {
+        if (dragX === null) return;
+        const diff = dragX - x; // positif = glisse vers la gauche = passé
+        if (Math.abs(diff) > 45) {
+            if (diff > 0 && windowStart > 0) {
+                windowStart = Math.max(0, windowStart - 1);
+                updateChartWindow();
+            } else if (diff < 0 && windowStart < allLabels.length - WINDOW_SIZE) {
+                windowStart = Math.min(allLabels.length - WINDOW_SIZE, windowStart + 1);
+                updateChartWindow();
+            }
+        }
+        dragX = null;
+    }
+
+    wrap.addEventListener('mousedown',  e => onStart(e.clientX));
+    wrap.addEventListener('mouseup',    e => onEnd(e.clientX));
+    wrap.addEventListener('mouseleave', e => { if (dragX !== null) onEnd(e.clientX); });
+    wrap.addEventListener('touchstart', e => onStart(e.touches[0].clientX),        { passive: true });
+    wrap.addEventListener('touchend',   e => onEnd(e.changedTouches[0].clientX));
 
     // ── Donut mix énergétique (Sleek Ring) ─────────────
     const vehData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
