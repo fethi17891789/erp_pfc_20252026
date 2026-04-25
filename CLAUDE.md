@@ -16,6 +16,26 @@ Le nom marketing du produit est **« SKYRA »** (anciennement « ERP Suite »). 
 
 ---
 
+## 💡 PHILOSOPHIE D'INNOVATION — RÈGLE FONDAMENTALE
+
+> **Toujours chercher à innover. Think outside the box.**
+
+SKYRA ne doit pas se contenter de reproduire ce que font les ERP existants (Odoo, SAP, Dynamics). Chaque module, chaque fonctionnalité est une opportunité d'apporter quelque chose que les concurrents n'ont pas.
+
+### Principes d'innovation à appliquer systématiquement :
+
+1. **Avant d'implémenter une fonctionnalité standard**, se demander : *est-ce qu'il existe une approche plus intelligente, plus précise, ou plus originale que ce que font les autres ?* Si oui, la proposer.
+
+2. **Exploiter les technologies gratuites de pointe** — APIs publiques (Open-Elevation, Open-Meteo, OSRM…), modèles IA (Gemini), algorithmes académiques (VSP, COPERT…) — pour offrir des capacités que des logiciels commerciaux facturent des milliers d'euros.
+
+3. **Croiser les disciplines** — La meilleure innovation vient souvent d'appliquer une méthode d'un domaine (physique des transports, épidémiologie, cryptographie…) à un problème ERP classique.
+
+4. **Évaluer systématiquement** si une nouvelle implémentation est présente dans les ERPs concurrents. Si ce n'est pas le cas, le signaler explicitement — c'est un argument de valeur pour le PFC.
+
+5. **La contrainte zéro coût est un moteur d'innovation**, pas une limitation. Trouver des équivalents gratuits de qualité professionnelle force à explorer des solutions plus créatives que l'achat d'une API payante.
+
+---
+
 ## 🧭 PHILOSOPHIE UX — RÈGLE FONDAMENTALE
 
 > **SKYRA doit être aussi puissant qu'Odoo, mais significativement plus simple à utiliser.**
