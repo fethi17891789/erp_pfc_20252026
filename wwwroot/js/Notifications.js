@@ -125,6 +125,88 @@
     };
 
     // ═══════════════════════════════════════════════════
+    // LECTEUR AUDIO CUSTOM (même design que la messagerie)
+    // ═══════════════════════════════════════════════════
+    function createNotifAudioPlayer(url) {
+        var container = document.createElement("div");
+        container.className = "audio-player";
+
+        var playBtn = document.createElement("button");
+        playBtn.type = "button";
+        playBtn.className = "audio-play-btn";
+        playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+
+        var rightCol = document.createElement("div");
+        rightCol.className = "audio-content-right";
+
+        var visualRow = document.createElement("div");
+        visualRow.className = "audio-visual-row";
+
+        var progressContainer = document.createElement("div");
+        progressContainer.className = "audio-progress-container";
+        var progressBar = document.createElement("div");
+        progressBar.className = "audio-progress-bar";
+        progressContainer.appendChild(progressBar);
+
+        var waves = document.createElement("div");
+        waves.className = "audio-waves";
+        for (var i = 0; i < 12; i++) {
+            var bar = document.createElement("div");
+            bar.className = "audio-wave-bar";
+            bar.style.height = (4 + Math.random() * 10) + "px";
+            waves.appendChild(bar);
+        }
+        visualRow.appendChild(progressContainer);
+        visualRow.appendChild(waves);
+
+        var infoRow = document.createElement("div");
+        infoRow.className = "audio-info-row";
+        var titleLabel = document.createElement("span");
+        titleLabel.textContent = "Vocal";
+        var timeLabel = document.createElement("span");
+        timeLabel.textContent = "00:00";
+        infoRow.appendChild(titleLabel);
+        infoRow.appendChild(timeLabel);
+
+        rightCol.appendChild(visualRow);
+        rightCol.appendChild(infoRow);
+        container.appendChild(playBtn);
+        container.appendChild(rightCol);
+
+        var audio = new Audio(url);
+
+        playBtn.onclick = function (e) {
+            e.stopPropagation();
+            if (audio.paused) {
+                audio.play();
+                playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+            } else {
+                audio.pause();
+                playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+            }
+        };
+        audio.ontimeupdate = function () {
+            var pct = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = pct + "%";
+            var m = Math.floor(audio.currentTime / 60);
+            var s = Math.floor(audio.currentTime % 60);
+            timeLabel.textContent = (m < 10 ? "0" + m : m) + ":" + (s < 10 ? "0" + s : s);
+        };
+        audio.onended = function () {
+            playBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+            progressBar.style.width = "0%";
+        };
+        progressContainer.onclick = function (e) {
+            e.stopPropagation();
+            var rect = progressContainer.getBoundingClientRect();
+            var pct = (e.clientX - rect.left) / rect.width;
+            if (!isNaN(audio.duration)) audio.currentTime = pct * audio.duration;
+        };
+
+        return container;
+    }
+
+    // ═══════════════════════════════════════════════════
     // TIROIR — ajout d'un item enrichi
     // ═══════════════════════════════════════════════════
     function addToDrawer(data) {
@@ -145,11 +227,9 @@
 
         // Contenu principal selon le type
         var mainContent;
-        if (msgType === "audio" && attachUrl) {
-            mainContent =
-                '<audio class="notif-audio-player" controls preload="none">' +
-                '  <source src="' + attachUrl + '" type="audio/webm">' +
-                '</audio>';
+        var isAudio = (msgType === "audio" && attachUrl);
+        if (isAudio) {
+            mainContent = '<div class="notif-audio-placeholder"></div>';
         } else if (msgType === "image" && attachUrl) {
             mainContent = '<img class="notif-img-preview" src="' + attachUrl + '" alt="Image">';
         } else {
@@ -197,16 +277,24 @@
         item.dataset.convId   = convId;
         item.dataset.senderId = senderId;
         item.innerHTML =
-            '<div class="notif-item-avatar">' + initial + '</div>' +
-            '<div class="notif-item-body">' +
-            '  <div class="notif-item-title">' + senderName + '</div>' +
-            '  ' + mainContent +
-            '  <div class="notif-item-footer">' +
-            '    <span class="notif-item-time">' + timeAgo(ts) + '</span>' +
+            '<div class="notif-item-main">' +
+            '  <div class="notif-item-avatar">' + initial + '</div>' +
+            '  <div class="notif-item-body">' +
+            '    <div class="notif-item-title">' + senderName + '</div>' +
+            '    ' + mainContent +
+            '    <div class="notif-item-footer">' +
+            '      <span class="notif-item-time">' + timeAgo(ts) + '</span>' +
             (convId > 0 ? '<button class="notif-reply-btn" type="button">Répondre</button>' : '') +
+            '    </div>' +
             '  </div>' +
             '</div>' +
             replyHtml;
+
+        // Injection du lecteur audio custom (après innerHTML)
+        if (isAudio) {
+            var placeholder = item.querySelector(".notif-audio-placeholder");
+            if (placeholder) placeholder.replaceWith(createNotifAudioPlayer(attachUrl));
+        }
 
         // --- Événements ---
         if (convId > 0) {
@@ -252,12 +340,39 @@
                 afterSend(replyZone, replyBtn);
             });
 
-            // Image
+            // Image (bouton)
             if (imgBtn) imgBtn.addEventListener("click", function (e) {
                 e.stopPropagation();
                 drawerImageTarget = { convId: convId, replyZone: replyZone, replyBtn: replyBtn };
                 var inp = document.getElementById("drawer-img-input");
                 if (inp) inp.click();
+            });
+
+            // Drag & drop image
+            item.addEventListener("dragover", function (e) {
+                if (e.dataTransfer && e.dataTransfer.types && Array.prototype.indexOf.call(e.dataTransfer.types, "Files") !== -1) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    item.classList.add("notif-drop-active");
+                }
+            });
+            item.addEventListener("dragleave", function (e) {
+                if (!item.contains(e.relatedTarget)) {
+                    item.classList.remove("notif-drop-active");
+                }
+            });
+            item.addEventListener("drop", function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                item.classList.remove("notif-drop-active");
+                var files = e.dataTransfer && e.dataTransfer.files;
+                if (!files || files.length === 0) return;
+                var file = files[0];
+                if (!file.type.startsWith("image/")) {
+                    window.showErpToast("Seules les images sont acceptées.", "warning");
+                    return;
+                }
+                uploadDrawerImage(file, { convId: convId, replyZone: replyZone, replyBtn: replyBtn });
             });
         }
 
