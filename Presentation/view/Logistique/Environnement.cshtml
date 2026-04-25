@@ -231,6 +231,161 @@
 .kpi-card:nth-child(2) { animation-delay: 0.10s; }
 .kpi-card:nth-child(3) { animation-delay: 0.16s; }
 .kpi-card:nth-child(4) { animation-delay: 0.22s; }
+
+/* ── KPI cards cliquables ─────────────────────────────────────────────── */
+.kpi-card.clickable { cursor: pointer; }
+.kpi-card.clickable:active { transform: translateY(-2px) scale(0.99); }
+
+/* ── Modaux RSE ───────────────────────────────────────────────────────── */
+.rse-modal {
+    position: fixed; inset: 0; z-index: 99999;
+    display: none; align-items: center; justify-content: center;
+    padding: 20px;
+}
+.rse-modal.open { display: flex; }
+.rse-modal-backdrop {
+    position: absolute; inset: 0;
+    background: rgba(2, 3, 10, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+@@keyframes rseModalIn {
+    from { opacity: 0; transform: scale(0.93) translateY(16px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@@keyframes rseModalOut {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to   { opacity: 0; transform: scale(0.93) translateY(16px); }
+}
+.rse-modal-panel {
+    position: relative; z-index: 1;
+    width: 720px; max-width: 96vw; max-height: 88vh;
+    background: radial-gradient(ellipse at 10% 0%, rgba(123,94,255,0.18) 0%, transparent 55%),
+                radial-gradient(ellipse at 90% 100%, rgba(15,23,42,0.95) 0%, rgba(3,7,18,0.98) 100%);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 28px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 40px 120px rgba(0,0,0,0.85), 0 0 0 1px rgba(123,94,255,0.08) inset;
+    animation: rseModalIn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.rse-modal-panel.closing { animation: rseModalOut 0.22s cubic-bezier(0.55, 0, 0.45, 1) forwards; }
+
+.rse-modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 24px 28px 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    flex-shrink: 0;
+}
+.rse-modal-header-left { display: flex; align-items: center; gap: 14px; }
+.rse-modal-icon {
+    width: 44px; height: 44px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.rse-modal-header h2 { font-size: 1.1rem; font-weight: 800; color: #fff; margin: 0 0 3px 0; letter-spacing: -0.02em; }
+.rse-modal-header p  { font-size: 0.72rem; color: var(--text-muted); margin: 0; }
+.rse-modal-close {
+    width: 36px; height: 36px; border-radius: 12px; border: none;
+    background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5);
+    font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+.rse-modal-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+.rse-modal-body {
+    overflow-y: auto; padding: 22px 28px 28px;
+    flex: 1;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(123,94,255,0.3) transparent;
+}
+.rse-modal-body::-webkit-scrollbar { width: 4px; }
+.rse-modal-body::-webkit-scrollbar-track { background: transparent; }
+.rse-modal-body::-webkit-scrollbar-thumb { background: rgba(123,94,255,0.35); border-radius: 2px; }
+
+/* ── Grille véhicules (popup flotte) ─────────────────────────────────── */
+.fleet-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+}
+.fleet-card {
+    background: rgba(8,10,28,0.7);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px; padding: 18px;
+    transition: border-color 0.25s, transform 0.25s;
+    position: relative; overflow: hidden;
+}
+.fleet-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: var(--fc-glow, transparent);
+    opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    border-radius: inherit;
+}
+.fleet-card:hover { border-color: rgba(123,94,255,0.25); transform: translateY(-2px); }
+.fleet-card:hover::before { opacity: 1; }
+
+.fleet-card-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.fleet-avatar {
+    width: 46px; height: 46px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; flex-shrink: 0;
+}
+.fleet-card-name { font-size: 0.95rem; font-weight: 700; color: #fff; margin-bottom: 3px; }
+.fleet-card-matricule { font-size: 0.7rem; color: var(--text-muted); font-family: monospace; letter-spacing: 0.04em; }
+.fleet-card-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+.fleet-stat-row { display: flex; justify-content: space-between; gap: 8px; }
+.fleet-stat {
+    flex: 1; background: rgba(255,255,255,0.03); border-radius: 10px; padding: 10px 12px; text-align: center;
+}
+.fleet-stat-val { font-size: 1rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; }
+.fleet-stat-label { font-size: 0.6rem; color: var(--text-muted-2); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 2px; }
+
+/* ── Classement CO2 (popup polluant) ────────────────────────────────── */
+.rank-list { display: flex; flex-direction: column; gap: 10px; }
+.rank-item {
+    display: flex; align-items: center; gap: 14px;
+    background: rgba(8,10,28,0.6);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 16px; padding: 14px 18px;
+    transition: border-color 0.25s, transform 0.25s;
+    position: relative; overflow: hidden;
+}
+.rank-item::before {
+    content: ''; position: absolute; inset: 0;
+    background: var(--rank-glow, transparent);
+    opacity: 0; transition: opacity 0.3s; pointer-events: none; border-radius: inherit;
+}
+.rank-item:hover { border-color: rgba(255,255,255,0.1); transform: translateX(4px); }
+.rank-item:hover::before { opacity: 1; }
+.rank-item.rank-1 { border-color: rgba(250,204,21,0.2); }
+.rank-item.rank-2 { border-color: rgba(148,163,184,0.15); }
+.rank-item.rank-3 { border-color: rgba(180,120,60,0.15); }
+
+.rank-medal {
+    font-size: 1.5rem; flex-shrink: 0; width: 32px; text-align: center; line-height: 1;
+}
+.rank-num {
+    width: 32px; flex-shrink: 0; text-align: center;
+    font-size: 0.95rem; font-weight: 800; color: var(--text-muted-2);
+}
+.rank-avatar {
+    width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+}
+.rank-info { flex: 1; min-width: 0; }
+.rank-name { font-size: 0.92rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+.rank-sub  { font-size: 0.7rem; color: var(--text-muted); }
+.rank-bar-wrap { flex: 1; max-width: 180px; }
+.rank-bar-track {
+    height: 6px; background: rgba(255,255,255,0.05);
+    border-radius: 999px; overflow: hidden; margin-bottom: 4px;
+}
+.rank-bar-fill {
+    height: 100%; border-radius: 999px; width: 0;
+    transition: width 1.2s cubic-bezier(0.16,1,0.3,1);
+}
+.rank-co2 { text-align: right; flex-shrink: 0; min-width: 72px; }
+.rank-co2-val { font-size: 1rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rank-co2-unit { font-size: 0.65rem; color: var(--text-muted-2); margin-top: 1px; }
 </style>
 }
 
@@ -275,7 +430,7 @@
         </div>
 
         <!-- Véhicule polluant -->
-        <div class="kpi-card" style="
+        <div class="kpi-card clickable" onclick="openModal('modal-classement')" style="
             --kpi-color: rgba(239,68,68,0.4);
             --kpi-shadow: rgba(239,68,68,0.15);
             --kpi-bg-hover: radial-gradient(ellipse at 0% 0%, rgba(239,68,68,0.08), transparent 65%);
@@ -315,7 +470,7 @@
         </div>
 
         <!-- Flotte -->
-        <div class="kpi-card" style="
+        <div class="kpi-card clickable" onclick="openModal('modal-flotte')" style="
             --kpi-color: rgba(123,94,255,0.45);
             --kpi-shadow: rgba(123,94,255,0.2);
             --kpi-bg-hover: radial-gradient(ellipse at 0% 0%, rgba(123,94,255,0.1), transparent 65%);
@@ -515,6 +670,206 @@
         }
     </div>
 
+
+    @* ── Modal Flotte complète ─────────────────────────────────────────────── *@
+    @{
+        var rseDict = Model.Stats.CO2ParVehicule.ToDictionary(r => r.VehiculeId);
+    }
+    <div id="modal-flotte" class="rse-modal" onclick="handleBackdropClick(event, 'modal-flotte')">
+        <div class="rse-modal-backdrop"></div>
+        <div class="rse-modal-panel">
+            <div class="rse-modal-header">
+                <div class="rse-modal-header-left">
+                    <div class="rse-modal-icon" style="background: rgba(123,94,255,0.15);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v4h-7V8z"/>
+                            <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2>Flotte complète</h2>
+                        <p>@Model.Vehicules.Count véhicule(s) enregistré(s)</p>
+                    </div>
+                </div>
+                <button class="rse-modal-close" onclick="closeModal('modal-flotte')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="rse-modal-body">
+                @if (Model.Vehicules.Any())
+                {
+                    <div class="fleet-grid">
+                        @foreach (var v in Model.Vehicules)
+                        {
+                            bool isElec = v.TypeCarburant != null && v.TypeCarburant.ToLower().Contains("électr");
+                            string avatarBg  = isElec ? "rgba(34,197,94,0.15)"  : "rgba(123,94,255,0.12)";
+                            string avatarClr = isElec ? "#4ade80" : "#a78bfa";
+                            string statutBadge = v.Statut switch {
+                                "En Trajet"   => "badge-purple",
+                                "Maintenance" => "badge-orange",
+                                _             => "badge-green"
+                            };
+                            rseDict.TryGetValue(v.Id, out var stat);
+                            double co2 = stat?.CO2TotalKgCeMois ?? 0;
+                            int trajets = stat?.NombreTrajets ?? 0;
+                            double dist = stat?.DistanceTotaleKm ?? 0;
+                            string glowColor = isElec ? "rgba(34,197,94,0.07)" : "rgba(123,94,255,0.07)";
+
+                            <div class="fleet-card" style="--fc-glow: radial-gradient(ellipse at 0% 0%, @glowColor, transparent 65%);">
+                                <div class="fleet-card-top">
+                                    <div class="fleet-avatar" style="background:@avatarBg; color:@avatarClr;">
+                                        @if (isElec) {
+                                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                        } else {
+                                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                                        }
+                                    </div>
+                                    <div style="flex:1; min-width:0;">
+                                        <div class="fleet-card-name">@v.Nom</div>
+                                        <div class="fleet-card-matricule">@(v.Matricule ?? "—")</div>
+                                    </div>
+                                    <span class="badge @statutBadge" style="font-size:0.65rem; flex-shrink:0;">@v.Statut</span>
+                                </div>
+
+                                <div class="fleet-card-badges">
+                                    @if (!string.IsNullOrEmpty(v.TypeTransport)) {
+                                        <span class="badge badge-purple">@v.TypeTransport</span>
+                                    }
+                                    @if (!string.IsNullOrEmpty(v.TypeCarburant)) {
+                                        <span class="badge @(isElec ? "badge-green" : "badge-orange")">@v.TypeCarburant</span>
+                                    }
+                                    @if (v.Annee.HasValue) {
+                                        <span class="badge" style="background:rgba(255,255,255,0.06); color:var(--text-muted);">@v.Annee</span>
+                                    }
+                                </div>
+
+                                @if (!string.IsNullOrEmpty(v.Marque) || !string.IsNullOrEmpty(v.Modele)) {
+                                    <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px; padding:8px 10px; background:rgba(255,255,255,0.03); border-radius:8px;">
+                                        @(v.Marque ?? "") @(v.Modele ?? "")
+                                    </div>
+                                }
+
+                                <div class="fleet-stat-row">
+                                    <div class="fleet-stat">
+                                        <div class="fleet-stat-val" style="color:@(co2 < 5 ? "#4ade80" : co2 < 20 ? "#fde047" : "#f87171");">
+                                            @co2.ToString("F1")
+                                        </div>
+                                        <div class="fleet-stat-label">kg CO₂/mois</div>
+                                    </div>
+                                    <div class="fleet-stat">
+                                        <div class="fleet-stat-val">@trajets</div>
+                                        <div class="fleet-stat-label">Trajets</div>
+                                    </div>
+                                    <div class="fleet-stat">
+                                        <div class="fleet-stat-val" style="font-size:0.85rem;">@dist.ToString("F0")</div>
+                                        <div class="fleet-stat-label">km ce mois</div>
+                                    </div>
+                                    @if (v.EmissionCO2ParKm.HasValue) {
+                                        <div class="fleet-stat">
+                                            <div class="fleet-stat-val" style="font-size:0.85rem;">@v.EmissionCO2ParKm.Value.ToString("F0")</div>
+                                            <div class="fleet-stat-label">g/km</div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                        <p>Aucun véhicule enregistré</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    @* ── Modal Classement CO2 ──────────────────────────────────────────────── *@
+    <div id="modal-classement" class="rse-modal" onclick="handleBackdropClick(event, 'modal-classement')">
+        <div class="rse-modal-backdrop"></div>
+        <div class="rse-modal-panel" style="width:580px;">
+            <div class="rse-modal-header">
+                <div class="rse-modal-header-left">
+                    <div class="rse-modal-icon" style="background: rgba(239,68,68,0.12);">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2>Classement CO₂</h2>
+                        <p>Véhicules classés par émissions — mois en cours</p>
+                    </div>
+                </div>
+                <button class="rse-modal-close" onclick="closeModal('modal-classement')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="rse-modal-body">
+                @if (Model.Stats.CO2ParVehicule.Any())
+                {
+                    var maxCO2rank = Model.Stats.CO2ParVehicule.Max(x => x.CO2TotalKgCeMois);
+                    <div class="rank-list" id="rank-list-items">
+                        @for (int i = 0; i < Model.Stats.CO2ParVehicule.Count; i++)
+                        {
+                            var v = Model.Stats.CO2ParVehicule[i];
+                            int rank = i + 1;
+                            bool isElecR = v.TypeCarburant != null && v.TypeCarburant.ToLower().Contains("électr");
+                            double pctR = maxCO2rank > 0 ? (v.CO2TotalKgCeMois / maxCO2rank * 100) : 0;
+                            string barClr  = v.CO2TotalKgCeMois < 5 ? "#4ade80" : v.CO2TotalKgCeMois < 20 ? "#fde047" : "#f87171";
+                            string valClr  = v.CO2TotalKgCeMois < 5 ? "#4ade80" : v.CO2TotalKgCeMois < 20 ? "#fde047" : "#f87171";
+                            string glowR   = v.CO2TotalKgCeMois < 5 ? "rgba(34,197,94,0.06)" : v.CO2TotalKgCeMois < 20 ? "rgba(234,179,8,0.06)" : "rgba(239,68,68,0.06)";
+                            string medal   = rank == 1 ? "🥇" : rank == 2 ? "🥈" : rank == 3 ? "🥉" : "";
+                            string rankCls = rank <= 3 ? $"rank-{rank}" : "";
+                            string avatarBgR = isElecR ? "rgba(34,197,94,0.15)" : "rgba(255,255,255,0.06)";
+                            string avatarClrR = isElecR ? "#4ade80" : "rgba(255,255,255,0.6)";
+
+                            <div class="rank-item @rankCls" style="--rank-glow: radial-gradient(ellipse at 0% 50%, @glowR, transparent 70%);"
+                                 data-pct="@pctR.ToString("F0", System.Globalization.CultureInfo.InvariantCulture)"
+                                 data-bar-color="@barClr">
+                                @if (!string.IsNullOrEmpty(medal)) {
+                                    <div class="rank-medal">@medal</div>
+                                } else {
+                                    <div class="rank-num">@rank</div>
+                                }
+                                <div class="rank-avatar" style="background:@avatarBgR; color:@avatarClrR;">
+                                    @if (isElecR) {
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                                    } else {
+                                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                                    }
+                                </div>
+                                <div class="rank-info">
+                                    <div class="rank-name">@v.Nom</div>
+                                    <div class="rank-sub">@(v.TypeCarburant ?? "N/A") · @v.NombreTrajets trajet(s) · @v.DistanceTotaleKm.ToString("F0") km</div>
+                                </div>
+                                <div class="rank-bar-wrap">
+                                    <div class="rank-bar-track">
+                                        <div class="rank-bar-fill" style="background: linear-gradient(90deg, @barClr, rgba(255,255,255,0.7)); box-shadow: 0 0 8px @barClr;"></div>
+                                    </div>
+                                    <div style="font-size:0.62rem; color:var(--text-muted-2); text-align:right;">@v.EmissionCO2ParKm.ToString("F0") g/km</div>
+                                </div>
+                                <div class="rank-co2">
+                                    <div class="rank-co2-val" style="color:@valClr;">@v.CO2TotalKgCeMois.ToString("F2")</div>
+                                    <div class="rank-co2-unit">kg CO₂</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19v-6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2zm0 0V9a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v10m-6 0a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2m0 0V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2z"/></svg>
+                        <p>Aucune donnée de trajet ce mois</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
 </section>
 
 @section Scripts {
@@ -679,6 +1034,59 @@
                     callbacks: { label: ctx => ` ${ctx.parsed} véhicule(s)` }
                 }
             }
+        }
+    });
+
+    // ── Modaux RSE ────────────────────────────────────────────────────────
+    window.openModal = function (id) {
+        var modal = document.getElementById(id);
+        if (!modal) return;
+        var panel = modal.querySelector('.rse-modal-panel');
+        if (panel) { panel.classList.remove('closing'); }
+        modal.classList.add('open');
+        document.body.style.overflow = 'hidden';
+
+        // Animer les barres du classement à l'ouverture
+        if (id === 'modal-classement') {
+            setTimeout(function () {
+                modal.querySelectorAll('.rank-item').forEach(function (item) {
+                    var fill = item.querySelector('.rank-bar-fill');
+                    if (fill) fill.style.width = (item.dataset.pct || '0') + '%';
+                });
+            }, 80);
+        }
+    };
+
+    window.closeModal = function (id) {
+        var modal = document.getElementById(id);
+        if (!modal) return;
+        var panel = modal.querySelector('.rse-modal-panel');
+        if (panel) {
+            panel.classList.add('closing');
+            setTimeout(function () {
+                modal.classList.remove('open');
+                panel.classList.remove('closing');
+                document.body.style.overflow = '';
+                // Reset barres
+                modal.querySelectorAll('.rank-bar-fill').forEach(function (b) { b.style.width = '0'; });
+            }, 220);
+        } else {
+            modal.classList.remove('open');
+            document.body.style.overflow = '';
+        }
+    };
+
+    window.handleBackdropClick = function (e, id) {
+        if (e.target.closest('.rse-modal-panel')) return;
+        closeModal(id);
+    };
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            ['modal-flotte', 'modal-classement'].forEach(function (id) {
+                var m = document.getElementById(id);
+                if (m && m.classList.contains('open')) closeModal(id);
+            });
         }
     });
 </script>
