@@ -84,8 +84,12 @@ Name: "{autoprograms}\{#MyAppName}"; Filename: "{#MyInstallDir}\ERP\{#MyAppExeNa
 
 [Run]
 ; ── Étape 1 : Enregistrer le Watchdog comme Service Windows ──
+; On stop + delete d'abord pour garantir que la nouvelle version est toujours enregistrée (réinstallation)
+Filename: "sc.exe"; Parameters: "stop SKYRA_Watchdog"; Flags: runhidden
+Filename: "sc.exe"; Parameters: "delete SKYRA_Watchdog"; Flags: runhidden
+
 Filename: "sc.exe"; Parameters: "create SKYRA_Watchdog binPath=""{#MyInstallDir}\Watchdog\{#MyWatchdogExe}"" start=auto DisplayName=""SKYRA ERP Watchdog"""; \
-  Flags: runhidden; StatusMsg: "Installation du service de surveillance..."; Check: not IsWin64Service
+  Flags: runhidden; StatusMsg: "Installation du service de surveillance..."
 
 Filename: "sc.exe"; Parameters: "description SKYRA_Watchdog ""Service de surveillance et mise à jour automatique de SKYRA ERP"""; \
   Flags: runhidden
@@ -114,12 +118,3 @@ Type: filesandordirs; Name: "{#MyInstallDir}\*.exe"
 Type: filesandordirs; Name: "{#MyInstallDir}\*.dll"
 Type: filesandordirs; Name: "{#MyInstallDir}\.json"
 
-[Code]
-// Vérifie si le service Windows existe déjà (pour éviter les doublons)
-function IsWin64Service: Boolean;
-var 
-  ResultCode: Integer;
-begin
-  Exec('sc.exe', 'query SKYRA_Watchdog', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Result := (ResultCode = 0);
-end;

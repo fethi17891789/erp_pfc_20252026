@@ -405,3 +405,7 @@ dotnet ef database update
 5. **Le Launcher (Bootstrapper + Watchdog + InnoSetup)** est un projet séparé dans le même repo. Il ne fait PAS partie du build principal (.csproj l'exclut explicitement).
 
 6. **Le projet utilise des accents dans les noms de dossiers** (`métiers/`) — attention aux chemins sur certains OS/outils.
+
+7. **⚠️ SÉCURITÉ À REVOIR — Credentials BDD identiques pour tous les utilisateurs** — Le Bootstrapper génère un `erpconfig.json` avec des credentials fixes (`openpg`/`openpgpwd`) identiques pour toutes les installations. Ce n'est pas un problème critique aujourd'hui car PostgreSQL n'écoute que sur `localhost` (inaccessible depuis l'extérieur), mais c'est une mauvaise pratique à corriger avant une distribution à grande échelle.
+   - **Risque** : Si PostgreSQL est un jour exposé sur le réseau (multi-postes, accès distant), n'importe qui connaissant ces credentials publics peut accéder à la base.
+   - **Solution potentielle** : Générer un mot de passe aléatoire fort lors de l'installation (ex: `Guid.NewGuid().ToString("N")`) et l'écrire à la fois dans `erpconfig.json` et dans la commande `CREATE ROLE`. Chaque installation aurait ainsi ses propres credentials uniques.

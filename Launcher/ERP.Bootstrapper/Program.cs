@@ -36,8 +36,8 @@ try
     string erpZip = Path.Combine(dbDir, "erp_binaries.zip");
 
     // URLs à mettre à jour par l'utilisateur (Final)
-    string pgUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.1.0/postgresql_portable.zip";
-    string erpUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.1.0/erp_binaries.zip";
+    string pgUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.2.0/postgresql_portable.zip";
+    string erpUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.2.0/erp_binaries.zip";
 
     if (!File.Exists(pgZip))
     {
@@ -118,9 +118,9 @@ try
 
     if (!File.Exists(erpConfigFile))
     {
-        // Accès Superuser par défaut pour le premier lancement
-        var connString = $"Host=localhost;Port=5432;Database=postgres;Username=postgres;Password=";
-        string erpConfigContent = "{\n  \"ConnectionStrings\": {\n    \"DefaultConnection\": \"" + connString + "\"\n  }\n}";
+        // Credentials attendus par l'ERP (format attendu par ErpConfigStorage)
+        var connString = $"Host=localhost;Port=5432;Database=fethifethifethi;Username=openpg;Password=openpgpwd";
+        string erpConfigContent = "{\n  \"ConnectionString\": \"" + connString + "\"\n}";
         await File.WriteAllTextAsync(erpConfigFile, erpConfigContent);
         Console.WriteLine($"[CONFIG] Configuration de connexion créée : {erpConfigFile}");
     }
@@ -144,7 +144,10 @@ try
         
         Console.WriteLine($"[INFO] Exécutable détecté : {erpExeName}");
         
-        if (File.Exists(erpExe))
+        string erpProcessName = Path.GetFileNameWithoutExtension(erpExeName);
+        bool alreadyRunning = Process.GetProcessesByName(erpProcessName).Length > 0;
+
+        if (!alreadyRunning && File.Exists(erpExe))
         {
             Process.Start(new ProcessStartInfo
             {

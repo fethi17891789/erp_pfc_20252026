@@ -165,8 +165,9 @@ public static class SilentInstaller
 
         Console.WriteLine("[INSTALL] Initialisation du rôle 'openpg'...");
 
-        // On crée l'utilisateur 'openpg' réclamé par votre ERP
-        RunProcess(psql, "-U postgres -d postgres -c \"CREATE ROLE openpg WITH LOGIN SUPERUSER;\"");
+        // On crée l'utilisateur 'openpg' avec le mot de passe attendu par l'ERP
+        RunProcess(psql, "-U postgres -d postgres -c \"CREATE ROLE openpg WITH LOGIN SUPERUSER PASSWORD 'openpgpwd';\"");
+        RunProcess(psql, "-U postgres -d postgres -c \"CREATE DATABASE fethifethifethi OWNER openpg;\"");
         
         Console.WriteLine("[INSTALL] Rôle configuré.");
     }

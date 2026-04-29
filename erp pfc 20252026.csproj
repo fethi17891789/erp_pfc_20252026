@@ -4,6 +4,7 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<RootNamespace>erp_pfc_20252026</RootNamespace>
+		<AssemblyName>SkyraERP</AssemblyName>
 
 		<!-- EXE console : la fenêtre CMD s'affiche -->
 		<OutputType>Exe</OutputType>

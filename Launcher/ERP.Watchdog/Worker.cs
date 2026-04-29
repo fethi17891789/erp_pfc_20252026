@@ -16,7 +16,6 @@ public class WatchdogWorker : BackgroundService
     private readonly ILogger<WatchdogWorker> _logger;
     private readonly HttpClient _http;
 
-    private const string ErpProcessName = "SkyraERP";
     private const string InstallDir = @"C:\SKYRA";
     private const string VersionUrl = "https://raw.githubusercontent.com/fethi17891789/erp_pfc_20252026/refs/heads/master/version.json";
     private const string CurrentVersionFile = @"C:\SKYRA\version.txt";
@@ -92,7 +91,7 @@ public class WatchdogWorker : BackgroundService
         _logger.LogWarning("⚠ ERP SKYRA non détecté ! Relance en cours...");
 
         // On attend que le Bootstrapper ait au moins créé le fichier de config
-        var configPath = Path.Combine(InstallDir, "appsettings.Production.json");
+        var configPath = Path.Combine(InstallDir, "ERP", "appsettings.Production.json");
         if (!File.Exists(configPath))
         {
             _logger.LogInformation("Attente de la configuration initiale par le Bootstrapper...");
@@ -115,7 +114,7 @@ public class WatchdogWorker : BackgroundService
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = erpExe,
-                    WorkingDirectory = InstallDir,
+                    WorkingDirectory = Path.Combine(InstallDir, "ERP"),
                     UseShellExecute = false
                 });
                 _logger.LogInformation("✓ ERP SKYRA relancé avec succès (Self-Healing).");
@@ -131,11 +130,12 @@ public class WatchdogWorker : BackgroundService
 
     private async Task EnsurePostgresRunningAsync()
     {
-        var pgCtl = Path.Combine(InstallDir, "Database", "PostgreSQL", "bin", "pg_ctl.exe");
+        var pgBaseDir = Path.Combine(InstallDir, "Database", "PostgreSQL");
+        var pgCtl = FindFileInDirectory(pgBaseDir, "pg_ctl.exe");
         var dataDir = Path.Combine(InstallDir, "Database", "data");
         var logFile = Path.Combine(InstallDir, "Database", "postgres.log");
 
-        if (!File.Exists(pgCtl)) return;
+        if (string.IsNullOrEmpty(pgCtl)) return;
 
         var pgProcesses = Process.GetProcessesByName("postgres");
         if (pgProcesses.Length > 0) return;
@@ -209,7 +209,7 @@ public class WatchdogWorker : BackgroundService
             await BackupDatabaseAsync();
 
             // 2. Stop ERP gracefully
-            foreach (var proc in Process.GetProcessesByName(ErpProcessName))
+            foreach (var proc in Process.GetProcessesByName(erpProcessName))
             {
                 proc.Kill(entireProcessTree: true);
                 await proc.WaitForExitAsync();
@@ -217,9 +217,9 @@ public class WatchdogWorker : BackgroundService
             await Task.Delay(1000);
 
             // 3. Extract new files
-            var backupDir = Path.Combine(InstallDir, "_backup");
+            var backupDir = InstallDir.TrimEnd('\\') + "_backup"; // C:\SKYRA_backup (à côté, pas dedans)
             if (Directory.Exists(backupDir)) Directory.Delete(backupDir, true);
-            Directory.Move(InstallDir, backupDir); // Move current to backup
+            Directory.Move(InstallDir, backupDir);
 
             Directory.CreateDirectory(InstallDir);
             System.IO.Compression.ZipFile.ExtractToDirectory(_pendingUpdateZipPath, InstallDir);
@@ -238,8 +238,9 @@ public class WatchdogWorker : BackgroundService
             // Rollback: restore backup
             try
             {
+                var backupDir = InstallDir.TrimEnd('\\') + "_backup";
                 if (Directory.Exists(InstallDir)) Directory.Delete(InstallDir, true);
-                Directory.Move(Path.Combine(InstallDir, "_backup"), InstallDir);
+                Directory.Move(backupDir, InstallDir);
                 await EnsureErpIsRunningAsync();
                 _logger.LogInformation("Rollback effectué. Version précédente restaurée.");
             }
@@ -286,6 +287,13 @@ public class WatchdogWorker : BackgroundService
         if (File.Exists(CurrentVersionFile))
             return File.ReadAllText(CurrentVersionFile).Trim();
         return "0.0.0";
+    }
+
+    private static string? FindFileInDirectory(string dir, string fileName)
+    {
+        if (!Directory.Exists(dir)) return null;
+        var files = Directory.GetFiles(dir, fileName, SearchOption.AllDirectories);
+        return files.Length > 0 ? files[0] : null;
     }
 }
 

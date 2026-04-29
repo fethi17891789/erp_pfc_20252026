@@ -629,6 +629,48 @@ END $$;";
 }
 // --------------------------------------------------------------------
 
+// ---------- 5.5. CREATION AUTOMATIQUE TABLE MRPTables ----------
+using (var scopeMrpTableaux = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scopeMrpTableaux.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createMrpTableauxSql = @"
+                CREATE TABLE IF NOT EXISTS ""MRPTables"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""MRPPlanLigneId"" INTEGER NOT NULL REFERENCES ""MRPPlanLignes""(""Id"") ON DELETE CASCADE,
+                    ""NumeroPeriode"" INTEGER NOT NULL,
+                    ""DatePeriode"" TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                    ""BesoinBrut"" NUMERIC(18,4) NOT NULL DEFAULT 0,
+                    ""StockPrevisionnel"" NUMERIC(18,4) NOT NULL DEFAULT 0,
+                    ""BesoinNet"" NUMERIC(18,4) NOT NULL DEFAULT 0,
+                    ""FinOrdre"" NUMERIC(18,4) NOT NULL DEFAULT 0,
+                    ""DebutOrdre"" NUMERIC(18,4) NOT NULL DEFAULT 0,
+                    ""DelaiJours"" INTEGER NOT NULL DEFAULT 0
+                );";
+
+            using (var cmd = new NpgsqlCommand(createMrpTableauxSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création de la table MRPTables...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Table MRPTables prête.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto de MRPTables : {ex.Message}");
+    }
+}
+// --------------------------------------------------------------------
+
 // ---------- 6. CREATION AUTOMATIQUE TABLE MRP FICHIERS (PDF OF) ----------
 using (var scope6 = app.Services.CreateScope())
 {
@@ -792,6 +834,45 @@ using (var scope7 = app.Services.CreateScope())
     catch (Exception ex)
     {
         Console.WriteLine($"Erreur lors de la création auto des tables Logistique : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
+// ---------- 8. CREATION AUTOMATIQUE TABLE ErpUsers ----------
+using (var scopeUsers = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scopeUsers.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createErpUsersSql = @"
+                CREATE TABLE IF NOT EXISTS ""ErpUsers"" (
+                    ""Id"" SERIAL PRIMARY KEY,
+                    ""Login"" VARCHAR(255) NOT NULL UNIQUE,
+                    ""Email"" VARCHAR(255) NOT NULL DEFAULT '',
+                    ""Password"" VARCHAR(255) NOT NULL DEFAULT '',
+                    ""LogoFileName"" VARCHAR(255) NULL,
+                    ""Poste"" VARCHAR(255) NOT NULL DEFAULT '',
+                    ""IsOnline"" BOOLEAN NOT NULL DEFAULT FALSE
+                );";
+
+            using (var cmd = new NpgsqlCommand(createErpUsersSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création de la table ErpUsers...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Table ErpUsers prête.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto de ErpUsers : {ex.Message}");
     }
 }
 // --------------------------------------------------------------------
