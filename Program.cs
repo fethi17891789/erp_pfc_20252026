@@ -993,6 +993,18 @@ using (var scope9 = app.Services.CreateScope())
                 cmd.ExecuteNonQuery();
                 Console.WriteLine("[DEBUG] Tables CRM prêtes.");
             }
+
+            // Migration : ajout des colonnes de géolocalisation si elles n'existent pas encore
+            const string alterContactsGeoSql = @"
+                ALTER TABLE ""Contacts"" ADD COLUMN IF NOT EXISTS ""AdresseComplete"" VARCHAR(500) NULL;
+                ALTER TABLE ""Contacts"" ADD COLUMN IF NOT EXISTS ""Latitude"" DOUBLE PRECISION NULL;
+                ALTER TABLE ""Contacts"" ADD COLUMN IF NOT EXISTS ""Longitude"" DOUBLE PRECISION NULL;";
+
+            using (var cmd = new NpgsqlCommand(alterContactsGeoSql, conn))
+            {
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Colonnes géolocalisation Contacts prêtes.");
+            }
         }
     }
     catch (Exception ex)

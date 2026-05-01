@@ -3,8 +3,11 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.DependencyInjection;
 using Metier.Logistique;
 using Donnees.Logistique;
+using Donnees;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace erp_pfc_20252026.Pages.Logistique
 {
@@ -12,11 +15,13 @@ namespace erp_pfc_20252026.Pages.Logistique
     {
         private readonly LogistiqueService _logistiqueService;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly ErpDbContext _context;
 
-        public IndexModel(LogistiqueService logistiqueService, IServiceScopeFactory scopeFactory)
+        public IndexModel(LogistiqueService logistiqueService, IServiceScopeFactory scopeFactory, ErpDbContext context)
         {
             _logistiqueService = logistiqueService;
             _scopeFactory = scopeFactory;
+            _context = context;
         }
 
         public List<Vehicule> Vehicules { get; set; } = new List<Vehicule>();
@@ -70,6 +75,22 @@ namespace erp_pfc_20252026.Pages.Logistique
                 }
             }
             return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnGetClientsGeoAsync()
+        {
+            var clients = await _context.Contacts
+                .Where(c => (c.Roles & ContactRole.Client) != 0
+                         && c.Latitude != null && c.Longitude != null)
+                .Select(c => new {
+                    id = c.Id,
+                    nom = c.FullName,
+                    adresse = c.AdresseComplete,
+                    lat = c.Latitude,
+                    lon = c.Longitude
+                })
+                .ToListAsync();
+            return new JsonResult(clients);
         }
 
         public async Task<IActionResult> OnPostUpdateVehiculeAsync(

@@ -241,6 +241,75 @@
     .vehicle-label-tooltip.leaflet-tooltip-bottom::before {
         border-bottom-color: rgba(123, 94, 255, 0.65) !important;
     }
+
+    /* ── Popup client ──────────────────────────────────────────── */
+    .client-popup .leaflet-popup-content-wrapper {
+        background: rgba(8, 10, 26, 0.97) !important;
+        border: 1px solid rgba(123, 94, 255, 0.5) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 12px 36px rgba(0,0,0,0.6), 0 0 0 1px rgba(123,94,255,0.12) !important;
+        padding: 0 !important;
+        overflow: hidden;
+    }
+    .client-popup .leaflet-popup-content {
+        margin: 0 !important;
+        color: white !important;
+    }
+    .client-popup .leaflet-popup-tip-container { display: none; }
+    .client-popup-inner {
+        padding: 14px 16px 12px;
+        min-width: 200px;
+    }
+    .client-popup-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 8px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+    }
+    .client-popup-icon {
+        width: 32px; height: 32px;
+        border-radius: 9px;
+        background: rgba(123,94,255,0.18);
+        border: 1px solid rgba(123,94,255,0.35);
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0;
+        color: #a78bfa;
+    }
+    .client-popup-name {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #fff;
+        line-height: 1.2;
+    }
+    .client-popup-address {
+        font-size: 0.75rem;
+        color: #a4a7c8;
+        line-height: 1.4;
+        margin-bottom: 10px;
+    }
+    .client-popup-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 12px;
+        background: linear-gradient(135deg, rgba(123,94,255,0.2), rgba(139,111,255,0.2));
+        border: 1px solid rgba(123,94,255,0.4);
+        border-radius: 8px;
+        color: #c4b5fd;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 140ms, border-color 140ms;
+        font-family: inherit;
+    }
+    .client-popup-btn:hover {
+        background: linear-gradient(135deg, rgba(123,94,255,0.35), rgba(139,111,255,0.35));
+        border-color: rgba(123,94,255,0.7);
+        color: #fff;
+    }
     </style>
 }
 
@@ -883,6 +952,56 @@
     })();
 
     var markers = {};
+    var clientMarkers = [];
+
+    // Icône client — badge carré violet avec silhouette personne
+    function makeClientIcon() {
+        return L.divIcon({
+            className: '',
+            iconSize: [34, 40],
+            iconAnchor: [17, 40],
+            popupAnchor: [0, -42],
+            html: '<div style="position:relative;width:34px;height:40px;">' +
+                    '<div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:8px solid rgba(123,94,255,0.9);"></div>' +
+                    '<div style="width:34px;height:34px;background:linear-gradient(135deg,#7b5eff,#9c8cff);border-radius:10px;border:2px solid rgba(255,255,255,0.25);box-shadow:0 4px 16px rgba(123,94,255,0.6);display:flex;align-items:center;justify-content:center;">' +
+                        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="white" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>' +
+                    '</div>' +
+                  '</div>'
+        });
+    }
+
+    function loadClientMarkers() {
+        fetch('?handler=ClientsGeo')
+            .then(function(r) { return r.json(); })
+            .then(function(clients) {
+                clientMarkers.forEach(function(m) { map.removeLayer(m); });
+                clientMarkers = [];
+                clients.forEach(function(c) {
+                    var popupHtml =
+                        '<div class="client-popup-inner">' +
+                            '<div class="client-popup-header">' +
+                                '<div class="client-popup-icon">' +
+                                    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>' +
+                                '</div>' +
+                                '<div class="client-popup-name">' + c.nom + '</div>' +
+                            '</div>' +
+                            (c.adresse ? '<div class="client-popup-address">' + c.adresse + '</div>' : '') +
+                            '<a href="/AnnuaireNew/' + c.id + '" class="client-popup-btn">' +
+                                '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>' +
+                                'Voir la fiche' +
+                            '</a>' +
+                        '</div>';
+
+                    var m = L.marker([c.lat, c.lon], { icon: makeClientIcon() })
+                        .addTo(map)
+                        .bindPopup(popupHtml, { className: 'client-popup', maxWidth: 260 });
+                    clientMarkers.push(m);
+                });
+            })
+            .catch(function() {});
+    }
+
+    loadClientMarkers();
 
     // Icône premium pour les marqueurs (pulsating dot)
     function makeVehicleIcon(isActive) {

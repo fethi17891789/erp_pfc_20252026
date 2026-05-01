@@ -31,6 +31,16 @@ namespace erp_pfc_20252026.Pages
         [BindProperty]
         public string PhoneCountryCode { get; set; } = "FR";
 
+        [BindProperty]
+        public string? AdresseComplete { get; set; }
+
+        // Reçus en string pour éviter l'échec de binding avec la culture française (point vs virgule)
+        [BindProperty]
+        public string? LatitudeRaw { get; set; }
+
+        [BindProperty]
+        public string? LongitudeRaw { get; set; }
+
         public string SuccessMessage { get; set; } = string.Empty;
         public string ErrorMessage { get; set; } = string.Empty;
 
@@ -43,6 +53,9 @@ namespace erp_pfc_20252026.Pages
                     return RedirectToPage("/AnnuaireList");
 
                 CurrentContact = contact;
+                AdresseComplete = contact.AdresseComplete;
+                LatitudeRaw = contact.Latitude?.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                LongitudeRaw = contact.Longitude?.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
                 // Extraction des roles pour peupler le JS côté Front
                 var rolesList = Enum.GetValues<ContactRole>()
@@ -113,6 +126,9 @@ namespace erp_pfc_20252026.Pages
             }
             // Si aucun n'est sélectionné, on peut forcer un rôle par défaut ou laisser "None"
             CurrentContact.Roles = finalRole;
+            CurrentContact.AdresseComplete = AdresseComplete;
+            CurrentContact.Latitude = double.TryParse(LatitudeRaw, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lat) ? lat : (double?)null;
+            CurrentContact.Longitude = double.TryParse(LongitudeRaw, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var lon) ? lon : (double?)null;
 
             try
             {

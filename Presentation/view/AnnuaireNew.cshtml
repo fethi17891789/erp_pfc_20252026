@@ -9,6 +9,7 @@
 }
 
 @section Styles {
+<link rel="stylesheet" href="~/lib/leaflet/leaflet.min.css" asp-append-version="true" />
 <style>
 /* ─── LAYOUT ──────────────────────────────────────────────────── */
 .ann-form-wrap {
@@ -208,10 +209,38 @@
     to   { opacity: 1; transform: scale(1)    translateY(0);   }
 }
 
-/* ─── SELECT ──────────────────────────────────────────────────── */
-.select-wrapper select option {
-    background: #0f172a;
-    color: #e2e8f0;
+/* ─── MINI CARTE ADRESSE ──────────────────────────────────────── */
+#adresse-map .leaflet-container {
+    background: #0a0c1a !important;
+    border-radius: 12px;
+}
+#adresse-map .leaflet-tile-container {
+    filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+.adresse-suggestion-item {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 120ms;
+    line-height: 1.4;
+}
+.adresse-suggestion-item:hover {
+    background: rgba(123,94,255,0.15);
+    color: var(--accent-light);
+}
+
+/* ─── ROLE DROPDOWN OPTIONS ───────────────────────────────────── */
+.role-option {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 120ms;
+}
+.role-option:hover {
+    background: rgba(123,94,255,0.15);
+    color: var(--accent-light);
 }
 
 /* ─── ADD ROLE BUTTON ─────────────────────────────────────────── */
@@ -722,25 +751,75 @@
                     </div>
                     <div class="form-section-body">
                         <div style="display:flex;gap:8px;">
-                            <div class="select-wrapper" style="flex:1;">
-                                <select id="role-select" class="form-input">
-                                    <option value="">Choisir un type...</option>
-                                    <option value="Client">Client</option>
-                                    <option value="Fournisseur">Fournisseur</option>
-                                    <option value="Employe">Employé</option>
-                                    <option value="Partenaire">Partenaire</option>
-                                    <option value="Investisseur">Investisseur</option>
-                                </select>
-                                <span class="select-icon">
-                                    <svg viewBox="0 0 20 20" fill="currentColor">
-                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                                    </svg>
-                                </span>
+                            <div style="position:relative;flex:1;" id="role-picker">
+                                <div id="role-trigger" class="form-input" onclick="toggleRoleDropdown(event)"
+                                     style="display:flex;align-items:center;gap:8px;cursor:pointer;padding-right:34px;user-select:none;">
+                                    <span id="role-label" style="font-size:0.85rem;color:var(--text-muted);">Choisir un type...</span>
+                                </div>
+                                <svg style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted-2);"
+                                     viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="6 9 12 15 18 9"/>
+                                </svg>
+                                <input type="hidden" id="role-select" value="">
+                                <div id="role-list" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:9999;background:linear-gradient(135deg,rgba(8,11,32,0.99),rgba(18,22,54,0.99));border:1.2px solid rgba(123,94,255,0.5);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(123,94,255,0.1);padding:4px 0 6px;">
+                                    <div class="role-option" data-value="Client" onclick="selectRole('Client')">Client</div>
+                                    <div class="role-option" data-value="Fournisseur" onclick="selectRole('Fournisseur')">Fournisseur</div>
+                                    <div class="role-option" data-value="Employe" onclick="selectRole('Employé','Employe')">Employé</div>
+                                    <div class="role-option" data-value="Partenaire" onclick="selectRole('Partenaire')">Partenaire</div>
+                                    <div class="role-option" data-value="Investisseur" onclick="selectRole('Investisseur')">Investisseur</div>
+                                </div>
                             </div>
                             <button type="button" class="btn-add-role" onclick="addRoleTag()">+ Ajouter</button>
                         </div>
                         <div class="tags-container" id="tags-container"></div>
                         <input type="hidden" asp-for="SelectedRoles" id="SelectedRoles" />
+                    </div>
+                </div>
+
+                <!-- SECTION ADRESSE CLIENT — visible seulement si Client est dans les tags -->
+                <div class="form-section-card" id="section-adresse-client" style="display:none;">
+                    <div class="form-section-header">
+                        <div class="form-section-icon">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                                <circle cx="12" cy="9" r="2.5"/>
+                            </svg>
+                        </div>
+                        <span class="form-section-title">Adresse du client</span>
+                    </div>
+                    <div class="form-section-body">
+                        <div class="form-group" style="margin:0;">
+                        <div style="position:relative;">
+                            <input type="text" id="adresse-input"
+                                   placeholder="Commencez à taper une adresse..."
+                                   autocomplete="off"
+                                   oninput="onAdresseInput(this.value)"
+                                   style="padding-right:38px;width:100%;" />
+                            <span id="spinner-adresse" style="display:none;position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--accent);">
+                                <svg viewBox="0 0 50 50" style="width:16px;height:16px;animation:spin 1s linear infinite;">
+                                    <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="31.4 31.4" stroke-linecap="round"/>
+                                </svg>
+                            </span>
+                            <span id="icon-adresse" class="validation-icon"></span>
+                            <!-- Suggestions autocomplétion -->
+                            <div id="adresse-suggestions"
+                                 style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;
+                                        background:linear-gradient(135deg,rgba(8,11,32,0.99),rgba(18,22,54,0.99));
+                                        border:1.2px solid rgba(123,94,255,0.5);border-radius:12px;
+                                        box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(123,94,255,0.1);
+                                        padding:4px 0 6px; max-height:220px; overflow-y:auto;">
+                            </div>
+                        </div>
+                        </div>
+                        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;">
+                            Si l'adresse n'est pas trouvée, déplacez le pin sur la carte ci-dessous.
+                        </div>
+                        <!-- Mini-carte Leaflet -->
+                        <div id="adresse-map" style="height:220px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);margin-top:10px;overflow:hidden;"></div>
+                        <!-- Inputs cachés pour la sauvegarde -->
+                        <input type="hidden" name="AdresseComplete" id="adresse-hidden" value="@Model.AdresseComplete" />
+                        <input type="hidden" name="LatitudeRaw" id="latitude-hidden" value="@Model.LatitudeRaw" />
+                        <input type="hidden" name="LongitudeRaw" id="longitude-hidden" value="@Model.LongitudeRaw" />
                     </div>
                 </div>
 
@@ -891,7 +970,250 @@
 </section>
 
 @section Scripts {
+<script src="~/lib/leaflet/leaflet.min.js" asp-append-version="true"></script>
 <script>
+
+/* ══════════════════════════════════════════════════════════════
+   ADRESSE CLIENT — Autocomplétion + Mini-carte Leaflet
+══════════════════════════════════════════════════════════════ */
+
+var adresseMap = null;
+var adressePin = null;
+var adresseMapInit = false;
+var adresseDebounceTimer = null;
+
+// Prétraitement : nettoyage + expansion abréviations
+var ABBREV = {
+    '\\bbd\\b': 'boulevard', '\\bav\\b': 'avenue', '\\bave\\b': 'avenue',
+    '\\brte\\b': 'route', '\\bst\\b': 'saint', '\\bste\\b': 'sainte',
+    '\\bpl\\b': 'place', '\\bsq\\b': 'square', '\\balle\\b': 'allée',
+    '\\bimm\\b': 'immeuble', '\\bcite\\b': 'cité'
+};
+
+function preprocessAdresse(raw) {
+    var s = raw.replace(/\s+/g, ' ').trim().toLowerCase();
+    Object.keys(ABBREV).forEach(function(k) {
+        s = s.replace(new RegExp(k, 'gi'), ABBREV[k]);
+    });
+    return s;
+}
+
+function initAdresseMap(lat, lon) {
+    if (adresseMapInit) return;
+    adresseMapInit = true;
+    var defaultLat = lat || 36.7538;
+    var defaultLon = lon || 3.0588;
+    var defaultZoom = (lat && lon) ? 14 : 5;
+
+    // requestAnimationFrame garantit que le DOM est rendu avant que Leaflet calcule les dimensions
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            adresseMap = L.map('adresse-map', { zoomControl: true }).setView([defaultLat, defaultLon], defaultZoom);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(adresseMap);
+
+            var pinIcon = L.divIcon({
+                className: '',
+                iconSize: [28, 28],
+                iconAnchor: [14, 28],
+                html: '<div style="width:20px;height:20px;background:#7b5eff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid white;box-shadow:0 2px 8px rgba(123,94,255,0.6);"></div>'
+            });
+
+            adressePin = L.marker([defaultLat, defaultLon], { icon: pinIcon, draggable: true }).addTo(adresseMap);
+
+            adressePin.on('dragend', function(e) {
+                var pos = e.target.getLatLng();
+                reverseGeocode(pos.lat, pos.lng);
+            });
+
+            adresseMap.on('click', function(e) {
+                adressePin.setLatLng(e.latlng);
+                reverseGeocode(e.latlng.lat, e.latlng.lng);
+            });
+
+            adresseMap.invalidateSize();
+        });
+    });
+}
+
+function setAdresseIcon(state) {
+    var icon = document.getElementById('icon-adresse');
+    var input = document.getElementById('adresse-input');
+    if (!icon) return;
+    icon.className = 'validation-icon';
+    icon.style.display = 'none';
+    input.classList.remove('input-valid', 'input-invalid');
+    if (state === 'success') {
+        icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><polyline points="20 6 9 17 4 12"/></svg>';
+        icon.className = 'validation-icon success';
+        icon.style.display = 'inline-block';
+        input.classList.add('input-valid');
+    } else if (state === 'error') {
+        icon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        icon.className = 'validation-icon error';
+        icon.style.display = 'inline-block';
+        input.classList.add('input-invalid');
+    }
+}
+
+function updateAdresseMap(lat, lon, label) {
+    document.getElementById('latitude-hidden').value = lat;
+    document.getElementById('longitude-hidden').value = lon;
+    document.getElementById('adresse-hidden').value = label;
+    document.getElementById('adresse-input').value = label;
+    setAdresseIcon('success');
+
+    if (!adresseMapInit) {
+        initAdresseMap(lat, lon);
+    } else {
+        // La carte est déjà initialisée, on déplace juste le pin
+        if (adresseMap && adressePin) {
+            adresseMap.setView([lat, lon], 15);
+            adressePin.setLatLng([lat, lon]);
+            adresseMap.invalidateSize();
+        }
+    }
+}
+
+function reverseGeocode(lat, lon) {
+    var url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lon + '&addressdetails=1';
+    fetch(url, { headers: { 'Accept-Language': 'fr' } })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var label = data.display_name || (lat.toFixed(5) + ', ' + lon.toFixed(5));
+            document.getElementById('adresse-input').value = label;
+            document.getElementById('adresse-hidden').value = label;
+            document.getElementById('latitude-hidden').value = lat;
+            document.getElementById('longitude-hidden').value = lon;
+            setAdresseIcon('success');
+        })
+        .catch(function() {
+            var label = lat.toFixed(5) + ', ' + lon.toFixed(5);
+            document.getElementById('adresse-hidden').value = label;
+            document.getElementById('adresse-input').value = label;
+            document.getElementById('latitude-hidden').value = lat;
+            document.getElementById('longitude-hidden').value = lon;
+            setAdresseIcon('success');
+        });
+}
+
+function onAdresseInput(val) {
+    clearTimeout(adresseDebounceTimer);
+    setAdresseIcon(null); // reset icône dès que l'utilisateur retape
+    document.getElementById('latitude-hidden').value = '';
+    document.getElementById('longitude-hidden').value = '';
+    var suggestions = document.getElementById('adresse-suggestions');
+    if (val.length < 4) { suggestions.style.display = 'none'; return; }
+    adresseDebounceTimer = setTimeout(function() { fetchSuggestions(val); }, 300);
+}
+
+function fetchSuggestions(raw) {
+    var query = preprocessAdresse(raw);
+    document.getElementById('spinner-adresse').style.display = 'block';
+    var photonUrl = 'https://photon.komoot.io/api/?q=' + encodeURIComponent(query) + '&limit=5&lang=fr';
+
+    fetch(photonUrl)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('spinner-adresse').style.display = 'none';
+            if (data.features && data.features.length > 0) {
+                renderSuggestions(data.features.map(function(f) {
+                    var p = f.properties;
+                    var parts = [p.name, p.street, p.housenumber, p.city || p.county, p.country].filter(Boolean);
+                    return {
+                        label: parts.join(', '),
+                        lat: f.geometry.coordinates[1],
+                        lon: f.geometry.coordinates[0]
+                    };
+                }));
+            } else {
+                // Fallback Nominatim
+                fetchNominatim(query);
+            }
+        })
+        .catch(function() {
+            document.getElementById('spinner-adresse').style.display = 'none';
+            fetchNominatim(query);
+        });
+}
+
+function fetchNominatim(query) {
+    document.getElementById('spinner-adresse').style.display = 'block';
+    var url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query) + '&limit=5&addressdetails=1&accept-language=fr';
+    fetch(url)
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            document.getElementById('spinner-adresse').style.display = 'none';
+            renderSuggestions(data.map(function(item) {
+                return { label: item.display_name, lat: parseFloat(item.lat), lon: parseFloat(item.lon) };
+            }));
+        })
+        .catch(function() {
+            document.getElementById('spinner-adresse').style.display = 'none';
+        });
+}
+
+function renderSuggestions(items) {
+    var box = document.getElementById('adresse-suggestions');
+    box.innerHTML = '';
+    if (!items.length) {
+        box.style.display = 'none';
+        setAdresseIcon('error');
+        return;
+    }
+    items.forEach(function(item) {
+        var div = document.createElement('div');
+        div.className = 'adresse-suggestion-item';
+        div.textContent = item.label;
+        div.onclick = function(e) {
+            e.stopPropagation();
+            box.style.display = 'none';
+            updateAdresseMap(item.lat, item.lon, item.label);
+        };
+        box.appendChild(div);
+    });
+    box.style.display = 'block';
+}
+
+// Ferme suggestions au clic extérieur
+document.addEventListener('click', function(e) {
+    if (!document.getElementById('adresse-input')?.contains(e.target) &&
+        !document.getElementById('adresse-suggestions')?.contains(e.target)) {
+        var s = document.getElementById('adresse-suggestions');
+        if (s) s.style.display = 'none';
+    }
+});
+
+// Affiche/cache la section adresse selon si "Client" est dans les tags
+function updateAdresseVisibility() {
+    var section = document.getElementById('section-adresse-client');
+    if (!section) return;
+    var isClient = !!tagsSet['Client'];
+    if (isClient) {
+        section.style.display = 'block';
+        // Initialise la carte si elle n'existe pas encore
+        if (!adresseMapInit) {
+            var lat = parseFloat(document.getElementById('latitude-hidden').value) || null;
+            var lon = parseFloat(document.getElementById('longitude-hidden').value) || null;
+            var addr = document.getElementById('adresse-hidden').value;
+            if (lat && lon) {
+                document.getElementById('adresse-input').value = addr;
+                setAdresseIcon('success');
+                initAdresseMap(lat, lon);
+            } else {
+                initAdresseMap();
+            }
+        } else if (adresseMap) {
+            // Carte déjà créée mais peut avoir des dimensions incorrectes après un display:none
+            requestAnimationFrame(function() { adresseMap.invalidateSize(); });
+        }
+    } else {
+        section.style.display = 'none';
+    }
+}
+
+
 /* ══════════════════════════════════════════════════════════════
    TAGS / RÔLES
 ══════════════════════════════════════════════════════════════ */
@@ -905,6 +1227,7 @@ window.addEventListener('DOMContentLoaded', function () {
         });
         renderTags();
     }
+    updateAdresseVisibility();
     @if (isEdit)
     {
         @:loadRelations();
@@ -917,17 +1240,39 @@ window.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+function toggleRoleDropdown(event) {
+    event.stopPropagation();
+    var list = document.getElementById('role-list');
+    list.style.display = list.style.display === 'none' ? 'block' : 'none';
+}
+
+function selectRole(label, value) {
+    var val = value || label;
+    document.getElementById('role-select').value = val;
+    document.getElementById('role-label').textContent = label;
+    document.getElementById('role-label').style.color = 'var(--text)';
+    document.getElementById('role-list').style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+    if (!document.getElementById('role-picker')?.contains(e.target))
+        document.getElementById('role-list').style.display = 'none';
+});
+
 function addRoleTag() {
-    var select = document.getElementById('role-select');
-    var val = select.value;
+    var val = document.getElementById('role-select').value;
     if (!val) return;
     if (!tagsSet[val]) { tagsSet[val] = true; renderTags(); }
-    select.value = '';
+    document.getElementById('role-select').value = '';
+    document.getElementById('role-label').textContent = 'Choisir un type...';
+    document.getElementById('role-label').style.color = 'var(--text-muted)';
+    updateAdresseVisibility();
 }
 
 function removeTag(val) {
     delete tagsSet[val];
     renderTags();
+    updateAdresseVisibility();
 }
 
 function renderTags() {

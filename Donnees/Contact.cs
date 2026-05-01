@@ -39,5 +39,12 @@ namespace Donnees
         public string? Comment { get; set; }
 
         public DateTime DateCreation { get; set; } = DateTime.UtcNow;
+
+        [MaxLength(500)]
+        public string? AdresseComplete { get; set; }
+
+        public double? Latitude { get; set; }
+
+        public double? Longitude { get; set; }
     }
 }
