@@ -278,6 +278,7 @@ RÉPONDS UNIQUEMENT EN JSON VALIDE :
   ""Email"": """",
   ""Phone"": """",
   ""Website"": ""{discoveredUrl ?? ""}"",
+  ""Adresse"": ""Adresse postale complète si trouvée sur le site ou via Google Search, sinon vide"",
   ""Comment"": ""Résumé de ce qui a été réellement trouvé...""
 }}";
 

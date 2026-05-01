@@ -1780,6 +1780,10 @@ async function callAiAssistant() {
             if (data.Phone)     fillField('input-phone',             data.Phone);
             if (data.Website)  { fillField('input-website', data.Website); showLogoPreview(data.Website); }
             if (data.Comment)   fillField('CurrentContact_Comment',  data.Comment);
+            if (data.Adresse && tagsSet['Client']) {
+                document.getElementById('adresse-input').value = data.Adresse;
+                fetchSuggestions(data.Adresse);
+            }
             promptEl.value       = '';
             promptEl.placeholder = '✨ Fiche générée avec succès !';
             showToast('Fiche générée avec succès via ' + (data.ModelUsed || 'Gemini'), 'success');
