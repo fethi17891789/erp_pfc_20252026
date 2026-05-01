@@ -61,7 +61,7 @@
                 {
                     @foreach (var produit in Model.Produits)
                     {
-                        <div class="form-group product-item" data-ref="@produit.Reference" style="margin:0; position:relative;">
+                        <div class="form-group product-item" data-ref="@produit.Reference" data-nom="@produit.Nom" style="margin:0; position:relative;">
                             <div class="product-card"
                                  style="
                                             padding:12px 12px;
@@ -178,7 +178,7 @@
 
 <!-- POPUP SUPPRESSION PRODUIT -->
 <div id="delete-overlay" class="logout-overlay" style="display:none;">
-    <div class="logout-modal">
+    <div class="logout-modal" onclick="event.stopPropagation()">
         <h3>Supprimer ce produit</h3>
         <p>Voulez-vous vraiment supprimer ce produit ? Cette action est irréversible.</p>
 
@@ -226,69 +226,38 @@
         if (!container) return;
         const term = searchTerm.toLowerCase().trim();
         const items = container.querySelectorAll('.product-item');
-
         items.forEach(el => {
-            const ref = el.getAttribute('data-ref') || '';
-            if (term === '' || ref.toLowerCase().includes(term)) {
-                el.style.display = 'block';
-            } else {
-                el.style.display = 'none';
-            }
+            const ref = (el.getAttribute('data-ref') || '').toLowerCase();
+            const nom = (el.getAttribute('data-nom') || '').toLowerCase();
+            el.style.display = (term === '' || ref.includes(term) || nom.includes(term)) ? 'block' : 'none';
         });
-    }
-
-    // Modal Suppression
-    const overlay = document.getElementById('delete-overlay');
-    const deleteIdInput = document.getElementById('deleteProductId');
-    const deleteRefSpan = document.getElementById('delete-product-ref');
-
-    function closeDeleteModal() {
-        overlay.style.display = 'none';
-        deleteIdInput.value = '';
-        deleteRefSpan.innerText = '';
-    }
-
-    function openDeleteModal(id, ref) {
-        event.stopPropagation();
-        event.preventDefault();
-        deleteIdInput.value = id;
-        deleteRefSpan.innerText = ref;
-        overlay.style.display = 'flex';
     }
 
     function toggleProductMenu(event, id) {
         event.preventDefault();
         event.stopPropagation();
-
         const menu = document.getElementById('product-menu-' + id);
         const isVisible = menu.style.display === 'block';
-
         document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none');
-
         menu.style.display = isVisible ? 'none' : 'block';
     }
 
+    // Ferme les menus déroulants au clic extérieur (pas la modal)
     document.addEventListener('click', function () {
         document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none');
-        document.getElementById('delete-overlay').style.display = 'none';
     });
 
     function openDeleteModal(event, id) {
         event.preventDefault();
         event.stopPropagation();
-
         document.querySelectorAll('.product-menu').forEach(m => m.style.display = 'none');
-
-        const idInput = document.getElementById('delete-product-id');
-        idInput.value = id;
-
+        document.getElementById('delete-product-id').value = id;
         document.getElementById('delete-overlay').style.display = 'flex';
     }
 
     function closeDeleteModal() {
         document.getElementById('delete-overlay').style.display = 'none';
     }
-
 
     function openProductImageModal(url) {
         if (!url) return;

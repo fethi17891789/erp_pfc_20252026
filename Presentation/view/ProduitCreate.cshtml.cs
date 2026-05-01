@@ -71,6 +71,17 @@ namespace erp_pfc_20252026.Pages
                 return RedirectToPage();
             }
 
+            // 1b) BOM composant : ce produit est-il utilisé comme composant dans une autre nomenclature ?
+            bool estUtiliseCommeComposant = await _context.BomLignes
+                .AnyAsync(bl => bl.ComposantProduitId == id);
+
+            if (estUtiliseCommeComposant)
+            {
+                Console.WriteLine($"WARN Produits.OnPostDeleteAsync - produit id={id} utilisé comme composant dans une BOM, suppression refusée");
+                TempData["Error"] = "Impossible de supprimer ce produit : il est utilisé comme composant dans une ou plusieurs nomenclatures. Retirez-le des nomenclatures concernées avant de le supprimer.";
+                return RedirectToPage();
+            }
+
             // Ici : soit aucune ligne MRP, soit toutes les planifs sont en statut Annulee.
             // On peut donc supprimer les lignes MRP associ�es (plans annul�s) pour ce produit.
             var mrpLinesForProduct = await mrpLinesQuery.ToListAsync();
