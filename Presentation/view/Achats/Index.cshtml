@@ -33,15 +33,26 @@
     @* ── EN-TÊTE ──────────────────────────────────────────────────────────── *@
     <div class="achats-page-header">
         <div>
-            <h1 class="achats-page-title">Bons de commande</h1>
-            <p class="achats-page-subtitle">Gérez vos commandes fournisseurs de A à Z</p>
+            <h1 class="achats-page-title">@Model.TitreFiltre</h1>
+            <p class="achats-page-subtitle">@Model.SousTitreFiltre</p>
         </div>
-        <a asp-page="/Achats/BonCommande" class="btn-primary bc-btn-nouveau">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;">
-                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Nouveau bon de commande
-        </a>
+        <div style="display:flex;align-items:center;gap:10px;">
+            @if (!string.IsNullOrEmpty(Model.Filtre))
+            {
+                <a asp-page="/Achats/Index" class="bc-btn-filtre-reset">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                    Tous les BCs
+                </a>
+            }
+            <a asp-page="/Achats/BonCommande" class="btn-primary bc-btn-nouveau">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nouveau bon de commande
+            </a>
+        </div>
     </div>
 
     @* ── KPI CARDS ─────────────────────────────────────────────────────────── *@
@@ -113,11 +124,24 @@
                     <path d="M16 10a4 4 0 01-8 0"/>
                 </svg>
             </div>
-            <h3>Aucun bon de commande</h3>
-            <p>Créez votre premier bon de commande pour démarrer vos achats.</p>
-            <a asp-page="/Achats/BonCommande" class="btn-primary">
-                Créer un bon de commande
-            </a>
+            @if (Model.Filtre == "receptions")
+            {
+                <h3>Aucun BC en attente de réception</h3>
+                <p>Les BCs confirmés par le fournisseur apparaîtront ici.</p>
+                <a asp-page="/Achats/Index" class="btn-primary">Voir tous les BCs</a>
+            }
+            else if (Model.Filtre == "factures")
+            {
+                <h3>Aucun BC prêt à être facturé</h3>
+                <p>Les BCs réceptionnés pour lesquels une facture peut être enregistrée apparaîtront ici.</p>
+                <a asp-page="/Achats/Index" class="btn-primary">Voir tous les BCs</a>
+            }
+            else
+            {
+                <h3>Aucun bon de commande</h3>
+                <p>Créez votre premier bon de commande pour démarrer vos achats.</p>
+                <a asp-page="/Achats/BonCommande" class="btn-primary">Créer un bon de commande</a>
+            }
         </div>
     }
     else

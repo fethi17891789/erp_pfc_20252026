@@ -217,6 +217,14 @@ namespace Metier.Achats
         //  BONS DE RÉCEPTION
         // =====================================================================
 
+        public async Task<AchatBonReception?> GetBonReceptionAsync(int id)
+        {
+            return await _db.AchatBonReceptions
+                .Include(r => r.BonCommande).ThenInclude(b => b!.Fournisseur)
+                .Include(r => r.Lignes).ThenInclude(l => l.Produit)
+                .FirstOrDefaultAsync(r => r.Id == id);
+        }
+
         public async Task<AchatBonReception> CreerBonReceptionAsync(
             int bcId,
             DateTime dateReception,
@@ -339,6 +347,22 @@ namespace Metier.Achats
         // =====================================================================
         //  FACTURES FOURNISSEURS
         // =====================================================================
+
+        public async Task<AchatFactureFournisseur?> GetFactureAsync(int id)
+        {
+            return await _db.AchatFacturesFournisseur
+                .Include(f => f.BonCommande).ThenInclude(b => b!.Fournisseur)
+                .Include(f => f.BonReception)
+                .FirstOrDefaultAsync(f => f.Id == id);
+        }
+
+        public async Task<List<AchatFactureFournisseur>> GetFacturesParBCAsync(int bcId)
+        {
+            return await _db.AchatFacturesFournisseur
+                .Where(f => f.BonCommandeId == bcId)
+                .OrderByDescending(f => f.DateCreation)
+                .ToListAsync();
+        }
 
         public async Task<AchatFactureFournisseur> CreerFactureAsync(
             int bcId, int? brId, string? numeroFournisseur,

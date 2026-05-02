@@ -1,0 +1,367 @@
+@page
+@model erp_pfc_20252026.Pages.Achats.BonReceptionModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using global::Donnees.Achats
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = Model.ModeCreation ? "Nouvelle réception" : $"Réception {Model.BonReception?.Numero}";
+    Layout = "~/Presentation/view/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/Achats.css" asp-append-version="true" />
+}
+
+@section HeaderLeft {
+    <div class="breadcrumb">
+        <a class="breadcrumb-item" asp-page="/Achats/Index">Achats</a>
+        <span class="breadcrumb-sep">›</span>
+        @if (Model.BonCommande != null)
+        {
+            <a class="breadcrumb-item" asp-page="/Achats/BonCommande" asp-route-id="@Model.BonCommande.Id">
+                @Model.BonCommande.Numero
+            </a>
+            <span class="breadcrumb-sep">›</span>
+        }
+        <span class="breadcrumb-item breadcrumb-active">
+            @(Model.ModeCreation ? "Nouvelle réception" : Model.BonReception!.Numero)
+        </span>
+    </div>
+}
+
+@if (Model.MessageSucces != null)
+{
+    <div id="br-toast" class="bc-toast bc-toast-visible">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0;">
+            <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        @Model.MessageSucces
+    </div>
+}
+
+<div class="achats-page">
+
+    @* ── EN-TÊTE ───────────────────────────────────────────────────────────── *@
+    <div class="achats-page-header">
+        <div>
+            <h1 class="achats-page-title">
+                @(Model.ModeCreation ? "Nouvelle réception" : Model.BonReception!.Numero)
+            </h1>
+            <p class="achats-page-subtitle">
+                @if (Model.ModeCreation)
+                {
+                    <span>Réception pour le BC <strong>@Model.BonCommande!.Numero</strong> — @(Model.BonCommande.Fournisseur?.FullName ?? "—")</span>
+                }
+                else
+                {
+                    var (sbg, sc, sl) = BonReceptionModel.GetEtatStyle(Model.BonReception!.Statut == StatutBonReception.Valide ? EtatReceptionLigne.Conforme : EtatReceptionLigne.Manquant);
+                    <span>Lié au BC <strong>@Model.BonReception!.BonCommande?.Numero</strong> — @Model.BonReception.DateReception.ToString("dd/MM/yyyy")</span>
+                }
+            </p>
+        </div>
+        @if (!Model.ModeCreation && Model.BonReception!.BonCommande != null)
+        {
+            <a asp-page="/Achats/BonCommande" asp-route-id="@Model.BonReception.BonCommande!.Id" class="bc-btn-back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+                Retour au BC
+            </a>
+        }
+    </div>
+
+    @if (Model.MessageErreur != null)
+    {
+        <div class="bc-alert-warning" style="margin-bottom:20px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            @Model.MessageErreur
+        </div>
+    }
+
+    @* ══════════════════════════════════════════════════════════════════════════
+       MODE CRÉATION
+    ══════════════════════════════════════════════════════════════════════════ *@
+    @if (Model.ModeCreation)
+    {
+        var bc = Model.BonCommande!;
+        var produitsDonnees = bc.Lignes.Select(l => new {
+            produitId         = l.ProduitId,
+            nom               = l.Produit?.Nom ?? "—",
+            reference         = l.Produit?.Reference ?? "",
+            quantiteCommandee = l.Quantite,
+            quantiteRecue     = l.Quantite,   // pré-rempli = commandée
+            etat              = EtatReceptionLigne.Conforme
+        }).ToList();
+
+        <form method="post" asp-page-handler="Creer" asp-route-bcId="@bc.Id">
+            <input type="hidden" name="LignesJson" id="lignes-json" value='@Html.Raw(JsonSerializer.Serialize(produitsDonnees))' />
+
+            <div class="bc-form-layout">
+
+                @* ── BLOC INFOS RÉCEPTION ── *@
+                <div class="bc-section-card">
+                    <div class="bc-section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                            <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                        </svg>
+                        Informations de réception
+                    </div>
+                    <div class="bc-form-grid">
+                        <div class="bc-field">
+                            <label class="bc-field-label">Date de réception</label>
+                            <input type="date" name="DateReceptionStr" class="bc-input"
+                                   value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="bc-field">
+                            <label class="bc-field-label">Fournisseur</label>
+                            <div class="bc-input bc-input-readonly">@(bc.Fournisseur?.FullName ?? "—")</div>
+                        </div>
+                        <div class="bc-field bc-field-full">
+                            <label class="bc-field-label">Notes de réception (optionnel)</label>
+                            <textarea name="Notes" class="bc-textarea" rows="2"
+                                      placeholder="Ex : Livraison en 2 palettes, légères marques sur emballage extérieur…"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                @* ── LIGNES À RÉCEPTIONNER ── *@
+                <div class="bc-section-card">
+                    <div class="bc-section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+                            <line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/>
+                            <line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+                        </svg>
+                        Lignes commandées — saisir les quantités reçues
+                    </div>
+
+                    <table class="bc-table br-table" id="br-lignes-table">
+                        <thead>
+                            <tr>
+                                <th>Produit</th>
+                                <th style="text-align:center;width:120px;">Qté commandée</th>
+                                <th style="text-align:center;width:140px;">Qté reçue</th>
+                                <th style="width:160px;">État</th>
+                            </tr>
+                        </thead>
+                        <tbody id="br-tbody">
+                            @for (int i = 0; i < bc.Lignes.Count; i++)
+                            {
+                                var ligne = bc.Lignes[i];
+                                <tr class="br-ligne" data-index="@i">
+                                    <td>
+                                        <div class="br-produit-nom">@(ligne.Produit?.Nom ?? "—")</div>
+                                        @if (!string.IsNullOrEmpty(ligne.Produit?.Reference))
+                                        {
+                                            <div class="conf-table-ref">Réf. @ligne.Produit.Reference</div>
+                                        }
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <span class="br-qte-cmd">@ligne.Quantite.ToString("N2")</span>
+                                    </td>
+                                    <td style="text-align:center;">
+                                        <input type="number" class="br-qte-input"
+                                               value="@ligne.Quantite.ToString("0.##")"
+                                               min="0" step="0.01"
+                                               data-index="@i"
+                                               oninput="mettreAJourLigne(@i, 'quantiteRecue', parseFloat(this.value)||0)" />
+                                    </td>
+                                    <td>
+                                        <select class="br-etat-select"
+                                                data-index="@i"
+                                                onchange="mettreAJourLigne(@i, 'etat', this.value)">
+                                            <option value="Conforme">✓ Conforme</option>
+                                            <option value="Endommage">⚠ Endommagé</option>
+                                            <option value="Manquant">✗ Manquant</option>
+                                        </select>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+
+                    <div class="br-recap" id="br-recap">
+                        <div class="br-recap-item">
+                            <span class="br-recap-lbl">Articles conformes</span>
+                            <span class="br-recap-val" id="recap-conformes" style="color:#22c55e;">—</span>
+                        </div>
+                        <div class="br-recap-item">
+                            <span class="br-recap-lbl">Endommagés</span>
+                            <span class="br-recap-val" id="recap-endommages" style="color:#fbbf24;">—</span>
+                        </div>
+                        <div class="br-recap-item">
+                            <span class="br-recap-lbl">Manquants</span>
+                            <span class="br-recap-val" id="recap-manquants" style="color:#ef4444;">—</span>
+                        </div>
+                    </div>
+                </div>
+
+                @* ── BOUTON VALIDER ── *@
+                <div class="bc-form-actions">
+                    <a asp-page="/Achats/BonCommande" asp-route-id="@bc.Id" class="bc-btn-secondary">Annuler</a>
+                    <button type="submit" class="btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Valider la réception
+                    </button>
+                </div>
+
+            </div>
+        </form>
+    }
+
+    @* ══════════════════════════════════════════════════════════════════════════
+       MODE DÉTAIL
+    ══════════════════════════════════════════════════════════════════════════ *@
+    else
+    {
+        var br = Model.BonReception!;
+        bool valide = br.Statut == StatutBonReception.Valide;
+
+        @* Badge statut *@
+        <div class="bc-detail-header" style="margin-bottom:24px;">
+            <div class="bc-detail-meta">
+                <h2 class="bc-detail-num">@br.Numero</h2>
+                @if (valide)
+                {
+                    <span class="bc-statut-badge" style="background:rgba(34,197,94,0.10);color:#22c55e;border:1px solid #22c55e;">
+                        Validé — stock mis à jour
+                    </span>
+                }
+                else
+                {
+                    <span class="bc-statut-badge" style="background:rgba(251,191,36,0.10);color:#fbbf24;border:1px solid #fbbf24;">
+                        En cours
+                    </span>
+                }
+            </div>
+            @if (!valide)
+            {
+                <form method="post" asp-page-handler="Valider" asp-route-id="@br.Id">
+                    <button type="submit" class="btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Valider et mettre à jour le stock
+                    </button>
+                </form>
+            }
+        </div>
+
+        @* Infos *@
+        <div class="bc-info-grid" style="margin-bottom:24px;">
+            <div class="bc-info-item">
+                <span class="bc-info-label">Bon de commande lié</span>
+                <a asp-page="/Achats/BonCommande" asp-route-id="@(br.BonCommande?.Id)" class="bc-info-val bc-link">
+                    @(br.BonCommande?.Numero ?? "—")
+                </a>
+            </div>
+            <div class="bc-info-item">
+                <span class="bc-info-label">Fournisseur</span>
+                <span class="bc-info-val">@(br.BonCommande?.Fournisseur?.FullName ?? "—")</span>
+            </div>
+            <div class="bc-info-item">
+                <span class="bc-info-label">Date de réception</span>
+                <span class="bc-info-val">@br.DateReception.ToString("dd/MM/yyyy")</span>
+            </div>
+            <div class="bc-info-item">
+                <span class="bc-info-label">Créé le</span>
+                <span class="bc-info-val">@br.DateCreation.ToString("dd/MM/yyyy HH:mm")</span>
+            </div>
+            @if (!string.IsNullOrEmpty(br.Notes))
+            {
+                <div class="bc-info-item bc-info-full">
+                    <span class="bc-info-label">Notes</span>
+                    <span class="bc-info-val">@br.Notes</span>
+                </div>
+            }
+        </div>
+
+        @* Tableau des lignes *@
+        <div class="bc-section-card">
+            <div class="bc-section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+                    <line x1="8" y1="18" x2="21" y2="18"/>
+                </svg>
+                Détail de la réception
+            </div>
+            <table class="bc-table">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th style="text-align:right;">Qté commandée</th>
+                        <th style="text-align:right;">Qté reçue</th>
+                        <th>État</th>
+                        <th style="text-align:right;">Écart</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ligne in br.Lignes)
+                    {
+                        var (eBg, eColor, eLabel) = BonReceptionModel.GetEtatStyle(ligne.Etat);
+                        decimal ecart = ligne.QuantiteRecue - ligne.QuantiteCommandee;
+                        <tr>
+                            <td>
+                                <div class="br-produit-nom">@(ligne.Produit?.Nom ?? "—")</div>
+                                @if (!string.IsNullOrEmpty(ligne.Produit?.Reference))
+                                {
+                                    <div class="conf-table-ref">Réf. @ligne.Produit.Reference</div>
+                                }
+                            </td>
+                            <td style="text-align:right;">@ligne.QuantiteCommandee.ToString("N2")</td>
+                            <td style="text-align:right;font-weight:600;">@ligne.QuantiteRecue.ToString("N2")</td>
+                            <td>
+                                <span class="bc-statut-badge" style="background:@eBg;color:@eColor;border:1px solid @eColor;">
+                                    @eLabel
+                                </span>
+                            </td>
+                            <td style="text-align:right;font-weight:600;color:@(ecart < 0 ? "#ef4444" : ecart > 0 ? "#22c55e" : "#a4a7c8");">
+                                @(ecart == 0 ? "—" : ecart > 0 ? $"+{ecart:N2}" : ecart.ToString("N2"))
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<script>
+// ── Données initiales des lignes (mode création) ─────────────────────────
+const lignes = JSON.parse(document.getElementById('lignes-json')?.value || '[]');
+
+function mettreAJourLigne(index, champ, valeur) {
+    if (index < 0 || index >= lignes.length) return;
+    lignes[index][champ] = valeur;
+    document.getElementById('lignes-json').value = JSON.stringify(lignes);
+    mettreAJourRecap();
+}
+
+function mettreAJourRecap() {
+    const conformes  = lignes.filter(l => l.etat === 'Conforme').length;
+    const endommages = lignes.filter(l => l.etat === 'Endommage').length;
+    const manquants  = lignes.filter(l => l.etat === 'Manquant').length;
+    const recC = document.getElementById('recap-conformes');
+    const recE = document.getElementById('recap-endommages');
+    const recM = document.getElementById('recap-manquants');
+    if (recC) recC.textContent = conformes + ' ligne' + (conformes !== 1 ? 's' : '');
+    if (recE) recE.textContent = endommages + ' ligne' + (endommages !== 1 ? 's' : '');
+    if (recM) recM.textContent = manquants + ' ligne' + (manquants !== 1 ? 's' : '');
+}
+
+// Toast auto-hide
+const toast = document.getElementById('br-toast');
+if (toast) setTimeout(() => toast.classList.remove('bc-toast-visible'), 4000);
+
+// Init récap au chargement
+mettreAJourRecap();
+</script>
+}

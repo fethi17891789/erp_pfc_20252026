@@ -68,6 +68,26 @@
                         <button type="submit" class="bc-btn-danger">Supprimer</button>
                     </form>
                 }
+                @if (bc.Statut == StatutBonCommande.Confirme || bc.Statut == StatutBonCommande.PartiellemtRecu)
+                {
+                    <a asp-page="/Achats/BonReception" asp-route-bcId="@bc.Id" class="btn-primary bc-btn-send">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
+                            <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                            <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                        </svg>
+                        Créer un bon de réception
+                    </a>
+                }
+                @if (bc.Statut == StatutBonCommande.Recu || bc.Statut == StatutBonCommande.PartiellemtRecu)
+                {
+                    <a asp-page="/Achats/Facture" asp-route-bcId="@bc.Id" class="bc-btn-secondary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Créer une facture
+                    </a>
+                }
             </div>
         </div>
 
@@ -190,6 +210,7 @@
                         <th style="text-align:right;">Quantité</th>
                         <th style="text-align:right;">Prix unitaire HT</th>
                         <th style="text-align:right;">Total HT</th>
+                        <th style="width:80px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -208,6 +229,13 @@
                             <td style="text-align:right; font-weight:600;">@ligne.Quantite.ToString("N2")</td>
                             <td style="text-align:right;">@ligne.PrixUnitaireHT.ToString("N2") DZD</td>
                             <td style="text-align:right; font-weight:700; color:var(--accent-light);">@ligne.TotalHT.ToString("N2") DZD</td>
+                            <td style="text-align:right;">
+                                <a asp-page="/Achats/AnalysePrix" asp-route-produitId="@ligne.ProduitId"
+                                   class="bc-link" style="font-size:11px;font-weight:600;white-space:nowrap;"
+                                   title="Graphique historique des prix et simulateur Et si ?">
+                                   📈 Analyser
+                                </a>
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -229,6 +257,109 @@
                 </div>
             </div>
         </div>
+
+        @* ── BONS DE RÉCEPTION LIÉS ────────────────────────────────────── *@
+        @if (bc.BonsReception.Any())
+        {
+            <div class="bc-section-card" style="margin-top:20px;">
+                <div class="bc-section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                        <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                        <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+                    </svg>
+                    Bons de réception (@bc.BonsReception.Count)
+                </div>
+                <table class="bc-table" style="margin:0;">
+                    <thead>
+                        <tr>
+                            <th>Numéro</th>
+                            <th>Date</th>
+                            <th>Statut</th>
+                            <th>Articles</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var br in bc.BonsReception.OrderByDescending(r => r.DateCreation))
+                        {
+                            bool brValide = br.Statut == StatutBonReception.Valide;
+                            <tr>
+                                <td style="font-weight:700;">@br.Numero</td>
+                                <td>@br.DateReception.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    @if (brValide)
+                                    {
+                                        <span class="bc-statut-badge" style="background:rgba(34,197,94,0.10);color:#22c55e;border:1px solid #22c55e;">Validé</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="bc-statut-badge" style="background:rgba(251,191,36,0.10);color:#fbbf24;border:1px solid #fbbf24;">En cours</span>
+                                    }
+                                </td>
+                                <td>@br.Lignes.Count ligne@(br.Lignes.Count > 1 ? "s" : "")</td>
+                                <td style="text-align:right;">
+                                    <a asp-page="/Achats/BonReception" asp-route-id="@br.Id" class="bc-link" style="font-size:12px;font-weight:600;">
+                                        Voir →
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @* ── FACTURES LIÉES ────────────────────────────────────────────── *@
+        @if (Model.Factures.Any())
+        {
+            <div class="bc-section-card" style="margin-top:12px;">
+                <div class="bc-section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                    </svg>
+                    Factures (@Model.Factures.Count)
+                </div>
+                <table class="bc-table" style="margin:0;">
+                    <thead>
+                        <tr>
+                            <th>N° SKYRA</th>
+                            <th>N° Fournisseur</th>
+                            <th>Date</th>
+                            <th style="text-align:right;">Montant TTC</th>
+                            <th>Statut</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var fac in Model.Factures)
+                        {
+                            var (fBg, fColor, fLabel) = BonCommandeModel.GetFactureStatutStyle(fac.Statut);
+                            <tr>
+                                <td style="font-weight:700;">@fac.Numero</td>
+                                <td>@(fac.NumeroFournisseur ?? "—")</td>
+                                <td>@fac.DateFacture.ToString("dd/MM/yyyy")</td>
+                                <td style="text-align:right;font-weight:700;">@fac.MontantTTC.ToString("N2") DZD</td>
+                                <td>
+                                    <span class="bc-statut-badge" style="background:@fBg;color:@fColor;border:1px solid @fColor;">
+                                        @fLabel
+                                        @if (fac.AlerteEcartPrix)
+                                        {
+                                            <span style="margin-left:4px;">⚠</span>
+                                        }
+                                    </span>
+                                </td>
+                                <td style="text-align:right;">
+                                    <a asp-page="/Achats/Facture" asp-route-id="@fac.Id" class="bc-link" style="font-size:12px;font-weight:600;">
+                                        Voir →
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     }
 
     @* ═══════════════════════════════════════════════════════════════
@@ -439,7 +570,8 @@
 @if (Model.ModeCreation)
 {
     <script id="produits-data" type="application/json">
-        @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Produits))
+        @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Produits,
+            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase }))
     </script>
 }
 
@@ -463,8 +595,8 @@ function ouvrirAjoutLigne() {
     document.getElementById('input-qte').value = '1';
     document.getElementById('input-prix').value = '';
     document.getElementById('hint-cout-achat').textContent = '';
-    document.getElementById('produit-results').innerHTML = '';
     document.getElementById('modal-ligne').style.display = 'flex';
+    filtrerProduits(''); // afficher la liste complète dès l'ouverture
     setTimeout(() => document.getElementById('search-produit').focus(), 50);
 }
 
@@ -480,24 +612,34 @@ function fermerModalSiDehors(e) {
 function filtrerProduits(q) {
     const container = document.getElementById('produit-results');
     const query = q.toLowerCase().trim();
-    if (!query) { container.innerHTML = ''; return; }
 
-    const matches = produits.filter(p =>
-        p.nom.toLowerCase().includes(query) ||
-        p.reference.toLowerCase().includes(query)
-    ).slice(0, 8);
+    const matches = !query
+        ? produits.slice(0, 10)
+        : produits.filter(p =>
+            p.nom.toLowerCase().includes(query) ||
+            (p.reference || '').toLowerCase().includes(query)
+          ).slice(0, 10);
 
-    container.innerHTML = matches.length === 0
-        ? '<div class="bc-produit-none">Aucun composant trouvé</div>'
-        : matches.map(p => `
-            <div class="bc-produit-item" onclick="selectionnerProduit(${p.id}, '${p.nom.replace(/'/g,"\\'")}', ${p.coutAchat}, ${p.estMatierePremiere})">
+    if (matches.length === 0) {
+        container.innerHTML = '<div class="bc-produit-none">Aucun produit trouvé</div>';
+        return;
+    }
+
+    container.innerHTML = matches.map(p => {
+        const tagCls  = p.estMatierePremiere ? 'bc-tag-mp' : 'bc-tag-st';
+        const tagLbl  = p.typeLabel || (p.estMatierePremiere ? 'MP' : 'Autre');
+        const prix    = Number(p.coutAchat).toLocaleString('fr-FR', {minimumFractionDigits:2});
+        const nomSafe = p.nom.replace(/'/g, "\\'");
+        return `
+            <div class="bc-produit-item" onclick="selectionnerProduit(${p.id}, '${nomSafe}', ${p.coutAchat}, ${p.estMatierePremiere})">
                 <span class="bc-produit-nom">${p.nom}</span>
                 <span class="bc-produit-meta">
-                    ${p.reference ? p.reference + ' · ' : ''}
-                    ${p.estMatierePremiere ? '<span class="bc-tag-mp">MP</span>' : '<span class="bc-tag-st">Sous-trait.</span>'}
-                    · ${Number(p.coutAchat).toLocaleString('fr-FR', {minimumFractionDigits:2})} DZD
+                    ${p.reference ? '<code style="font-size:0.7rem;opacity:.7">' + p.reference + '</code> · ' : ''}
+                    <span class="${tagCls}">${tagLbl}</span>
+                    · ${prix} DZD
                 </span>
-            </div>`).join('');
+            </div>`;
+    }).join('');
 }
 
 function selectionnerProduit(id, nom, coutAchat, estMP) {

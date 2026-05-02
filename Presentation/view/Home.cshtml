@@ -105,6 +105,117 @@
             </div>
         </section>
 
+        <!-- KPI ACHATS — affiché si le module est actif, sinon CTA de configuration -->
+        @if (!Model.AchatsActive)
+        {
+            <section class="erp-content" style="padding-top:0;padding-bottom:0;">
+                <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;
+                            background:rgba(123,94,255,0.06);border:1px solid rgba(123,94,255,0.2);
+                            border-radius:14px;margin-bottom:24px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#9C8CFF" stroke-width="2" style="width:20px;height:20px;flex-shrink:0;">
+                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 01-8 0"/>
+                    </svg>
+                    <span style="font-size:13px;color:var(--text-muted);flex:1;">
+                        Le module <strong style="color:var(--text);">Achats</strong> n'est pas encore configuré.
+                    </span>
+                    <a asp-page="/Achats/Config" style="font-size:12px;font-weight:700;color:var(--accent);text-decoration:none;
+                       padding:6px 14px;border:1px solid rgba(123,94,255,0.35);border-radius:8px;
+                       transition:background 150ms;" onmouseover="this.style.background='rgba(123,94,255,0.12)'"
+                       onmouseout="this.style.background='transparent'">
+                        Configurer →
+                    </a>
+                </div>
+            </section>
+        }
+        @if (Model.AchatsActive)
+        {
+            <section class="erp-content" style="padding-top:0;padding-bottom:0;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="width:16px;height:16px;">
+                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 01-8 0"/>
+                    </svg>
+                    <span style="font-size:13px;font-weight:700;color:var(--text);">Achats — vue rapide</span>
+                    <a asp-page="/Achats/Hub" style="margin-left:auto;font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">Voir tout →</a>
+                </div>
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;">
+
+                    <!-- En attente -->
+                    <a asp-page="/Achats/Index" style="display:flex;align-items:center;gap:12px;padding:16px 18px;
+                       background:rgba(251,191,36,0.06);border:1px solid rgba(251,191,36,0.2);border-radius:14px;
+                       text-decoration:none;transition:transform 150ms,box-shadow 150ms;"
+                       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(251,191,36,0.15)';"
+                       onmouseout="this.style.transform='';this.style.boxShadow='';">
+                        <div style="width:40px;height:40px;border-radius:12px;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" style="width:18px;height:18px;">
+                                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div style="font-size:1.6rem;font-weight:800;color:#fbbf24;line-height:1;">@Model.NbBCEnAttente</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">En attente</div>
+                        </div>
+                    </a>
+
+                    <!-- Confirmés -->
+                    <a asp-page="/Achats/Index" style="display:flex;align-items:center;gap:12px;padding:16px 18px;
+                       background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:14px;
+                       text-decoration:none;transition:transform 150ms,box-shadow 150ms;"
+                       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(34,197,94,0.15)';"
+                       onmouseout="this.style.transform='';this.style.boxShadow='';">
+                        <div style="width:40px;height:40px;border-radius:12px;background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" style="width:18px;height:18px;">
+                                <polyline points="20 6 9 17 4 12"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div style="font-size:1.6rem;font-weight:800;color:#22c55e;line-height:1;">@Model.NbBCConfirmes</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Confirmés</div>
+                        </div>
+                    </a>
+
+                    <!-- Refusés -->
+                    <a asp-page="/Achats/Index" style="display:flex;align-items:center;gap:12px;padding:16px 18px;
+                       background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:14px;
+                       text-decoration:none;transition:transform 150ms,box-shadow 150ms;"
+                       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(239,68,68,0.15)';"
+                       onmouseout="this.style.transform='';this.style.boxShadow='';">
+                        <div style="width:40px;height:40px;border-radius:12px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="width:18px;height:18px;">
+                                <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div style="font-size:1.6rem;font-weight:800;color:#ef4444;line-height:1;">@Model.NbBCRefuses</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Refusés</div>
+                        </div>
+                    </a>
+
+                    <!-- Facturés -->
+                    <a asp-page="/Achats/Index" style="display:flex;align-items:center;gap:12px;padding:16px 18px;
+                       background:rgba(192,132,252,0.06);border:1px solid rgba(192,132,252,0.2);border-radius:14px;
+                       text-decoration:none;transition:transform 150ms,box-shadow 150ms;"
+                       onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(192,132,252,0.15)';"
+                       onmouseout="this.style.transform='';this.style.boxShadow='';">
+                        <div style="width:40px;height:40px;border-radius:12px;background:rgba(192,132,252,0.12);border:1px solid rgba(192,132,252,0.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" style="width:18px;height:18px;">
+                                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div style="font-size:1.6rem;font-weight:800;color:#c084fc;line-height:1;">@Model.NbBCFactures</div>
+                            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Facturés</div>
+                        </div>
+                    </a>
+
+                </div>
+            </section>
+        }
+
         <!-- BLOC PRINCIPAL : MODULES -->
         <section class="erp-content">
             <div class="section-header">
@@ -135,23 +246,23 @@
                 </article>
 
                 <!-- Achats -->
-                <article class="module-tile">
+                <article class="module-tile" onclick="window.location='/Achats/Hub'" style="cursor:pointer;">
                     <div class="module-tile-header">
-                        <div class="module-circle">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="9" cy="21" r="1"></circle>
-                                <circle cx="20" cy="21" r="1"></circle>
-                                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                        <div class="module-circle" style="background:rgba(123,94,255,0.15);border-color:rgba(123,94,255,0.3);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="#9C8CFF" stroke-width="2">
+                                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                                <line x1="3" y1="6" x2="21" y2="6"/>
+                                <path d="M16 10a4 4 0 01-8 0"/>
                             </svg>
                         </div>
-                        <span class="module-badge">Achats</span>
+                        <span class="module-badge" style="background:rgba(123,94,255,0.15);color:#9C8CFF;">Achats</span>
                     </div>
                     <h3>Approvisionnement</h3>
-                    <p>Commandes fournisseurs et réceptions.</p>
+                    <p>Bons de commande, réceptions, factures et analyse des prix fournisseurs.</p>
                     <div class="module-tile-footer">
-                        <span class="module-status-dot"></span>
-                        <span class="module-status-text">À venir</span>
-                        <button class="module-action" type="button">Ouvrir</button>
+                        <span class="module-status-dot" style="background:#22c55e;box-shadow:0 0 6px #22c55e;"></span>
+                        <span class="module-status-text" style="color:#22c55e;">Actif</span>
+                        <a asp-page="/Achats/Hub" class="module-action" style="text-decoration:none;">Ouvrir</a>
                     </div>
                 </article>
 

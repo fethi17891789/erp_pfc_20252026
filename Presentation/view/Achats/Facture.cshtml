@@ -1,0 +1,353 @@
+@page
+@model erp_pfc_20252026.Pages.Achats.FactureModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using global::Donnees.Achats
+
+@{
+    ViewData["Title"] = Model.ModeCreation ? "Nouvelle facture" : $"Facture {Model.Facture?.Numero}";
+    Layout = "~/Presentation/view/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/Achats.css" asp-append-version="true" />
+}
+
+@section HeaderLeft {
+    <div class="breadcrumb">
+        <a class="breadcrumb-item" asp-page="/Achats/Index">Achats</a>
+        <span class="breadcrumb-sep">›</span>
+        @if (Model.BonCommande != null)
+        {
+            <a class="breadcrumb-item" asp-page="/Achats/BonCommande" asp-route-id="@Model.BonCommande.Id">
+                @Model.BonCommande.Numero
+            </a>
+            <span class="breadcrumb-sep">›</span>
+        }
+        <span class="breadcrumb-item breadcrumb-active">
+            @(Model.ModeCreation ? "Nouvelle facture" : Model.Facture!.Numero)
+        </span>
+    </div>
+}
+
+@if (Model.MessageSucces != null)
+{
+    <div id="fac-toast" class="bc-toast bc-toast-visible">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0;">
+            <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        @Model.MessageSucces
+    </div>
+}
+
+<div class="achats-page">
+
+    @* ── EN-TÊTE ───────────────────────────────────────────────────────────── *@
+    <div class="achats-page-header">
+        <div>
+            <h1 class="achats-page-title">
+                @(Model.ModeCreation ? "Nouvelle facture fournisseur" : Model.Facture!.Numero)
+            </h1>
+            <p class="achats-page-subtitle">
+                @if (Model.ModeCreation)
+                {
+                    <span>Rapprochement avec le BC <strong>@Model.BonCommande!.Numero</strong> — @(Model.BonCommande.Fournisseur?.FullName ?? "—")</span>
+                }
+                else
+                {
+                    <span>Facture de @(Model.Facture!.BonCommande?.Fournisseur?.FullName ?? "—") — reçue le @Model.Facture.DateFacture.ToString("dd/MM/yyyy")</span>
+                }
+            </p>
+        </div>
+        @if (!Model.ModeCreation && Model.Facture!.BonCommande != null)
+        {
+            <a asp-page="/Achats/BonCommande" asp-route-id="@Model.Facture.BonCommande!.Id" class="bc-btn-back">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                    <polyline points="15 18 9 12 15 6"/>
+                </svg>
+                Retour au BC
+            </a>
+        }
+    </div>
+
+    @* ══════════════════════════════════════════════════════════════════════════
+       MODE CRÉATION
+    ══════════════════════════════════════════════════════════════════════════ *@
+    @if (Model.ModeCreation)
+    {
+        var bc = Model.BonCommande!;
+
+        <form method="post" asp-page-handler="Creer" asp-route-bcId="@bc.Id">
+            <div class="bc-form-layout">
+
+                @* ── RAPPROCHEMENT BC ── *@
+                <div class="bc-section-card">
+                    <div class="bc-section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Rapprochement avec le bon de commande
+                    </div>
+                    <div class="bc-form-grid" style="padding:20px;">
+                        <div class="bc-field">
+                            <span class="bc-field-label">Bon de commande</span>
+                            <div class="bc-input-readonly">
+                                <strong>@bc.Numero</strong>&nbsp;&nbsp;—&nbsp;&nbsp;@(bc.Fournisseur?.FullName ?? "—")
+                            </div>
+                        </div>
+                        <div class="bc-field">
+                            <span class="bc-field-label">Montant HT du BC (référence)</span>
+                            <div class="bc-input-readonly" style="color:#22c55e;font-weight:700;">
+                                @bc.TotalHT.ToString("N2") DZD
+                            </div>
+                        </div>
+                        @if (Model.BonsReception.Any())
+                        {
+                            <div class="bc-field">
+                                <label class="bc-field-label" for="br-select">Bon de réception associé (optionnel)</label>
+                                <select id="br-select" name="BonReceptionId" class="bc-select">
+                                    <option value="">— Aucun —</option>
+                                    @foreach (var br in Model.BonsReception)
+                                    {
+                                        <option value="@br.Id">@br.Numero — @br.DateReception.ToString("dd/MM/yyyy")</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* ── DONNÉES DE LA FACTURE ── *@
+                <div class="bc-section-card">
+                    <div class="bc-section-title">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        Données de la facture fournisseur
+                    </div>
+                    <div class="bc-form-grid" style="padding:20px;">
+                        <div class="bc-field">
+                            <label class="bc-field-label" for="num-fournisseur">N° facture fournisseur</label>
+                            <input type="text" id="num-fournisseur" name="NumeroFournisseur"
+                                   class="bc-input" placeholder="Ex : F-2025-4821"
+                                   value="@Model.NumeroFournisseur" />
+                        </div>
+                        <div class="bc-field">
+                            <label class="bc-field-label" for="date-facture">Date de la facture <span style="color:#ef4444;">*</span></label>
+                            <input type="date" id="date-facture" name="DateFactureStr"
+                                   class="bc-input" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                        </div>
+                        <div class="bc-field bc-field-full">
+                            <label class="bc-field-label" for="montant-ht">Montant HT (facture papier) <span style="color:#ef4444;">*</span></label>
+                            <div style="position:relative;">
+                                <input type="number" id="montant-ht" name="MontantHTStr"
+                                       class="bc-input" step="0.01" min="0"
+                                       value="@bc.TotalHT.ToString("0.##")"
+                                       oninput="calculerEcart(this.value)"
+                                       style="padding-right:60px;" />
+                                <span style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text-muted-2);pointer-events:none;">DZD HT</span>
+                            </div>
+                            @* Indicateur d'écart en temps réel *@
+                            <div id="ecart-indicateur" style="display:none;margin-top:6px;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;"></div>
+                        </div>
+                        <div class="bc-field bc-field-full">
+                            <span class="bc-field-label">Calcul automatique TVA 19%</span>
+                            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px;">
+                                <div class="fac-calcul-box">
+                                    <span class="fac-calcul-lbl">Total HT</span>
+                                    <span class="fac-calcul-val" id="calc-ht">@bc.TotalHT.ToString("N2") DZD</span>
+                                </div>
+                                <div class="fac-calcul-box">
+                                    <span class="fac-calcul-lbl">TVA (19 %)</span>
+                                    <span class="fac-calcul-val" id="calc-tva">@((bc.TotalHT * 0.19m).ToString("N2")) DZD</span>
+                                </div>
+                                <div class="fac-calcul-box fac-calcul-ttc">
+                                    <span class="fac-calcul-lbl">Total TTC</span>
+                                    <span class="fac-calcul-val" id="calc-ttc">@((bc.TotalHT * 1.19m).ToString("N2")) DZD</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bc-field bc-field-full">
+                            <label class="bc-field-label" for="notes-fac">Notes (optionnel)</label>
+                            <textarea id="notes-fac" name="Notes" class="bc-textarea" rows="2"
+                                      placeholder="Ex : Facture reçue par courrier, en attente de tampon comptable…"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                @* ── ACTIONS ── *@
+                <div class="bc-form-actions">
+                    <a asp-page="/Achats/BonCommande" asp-route-id="@bc.Id" class="bc-btn-secondary">Annuler</a>
+                    <button type="submit" class="btn-primary">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:15px;height:15px;">
+                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        Enregistrer la facture
+                    </button>
+                </div>
+            </div>
+        </form>
+    }
+
+    @* ══════════════════════════════════════════════════════════════════════════
+       MODE DÉTAIL
+    ══════════════════════════════════════════════════════════════════════════ *@
+    else
+    {
+        var fac = Model.Facture!;
+        var (sBg, sColor, sLabel) = FactureModel.GetStatutStyle(fac.Statut);
+
+        @* Badge statut + alerte écart *@
+        <div class="bc-detail-header" style="margin-bottom:24px;">
+            <div class="bc-detail-meta">
+                <h2 class="bc-detail-num">@fac.Numero</h2>
+                <span class="bc-statut-badge" style="background:@sBg;color:@sColor;border:1px solid @sColor;">
+                    @sLabel
+                </span>
+            </div>
+        </div>
+
+        @* Alerte écart de prix *@
+        @if (fac.AlerteEcartPrix)
+        {
+            <div class="bc-alert-warning" style="margin-bottom:20px;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;flex-shrink:0;">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                <div>
+                    <strong>Écart de prix détecté : @fac.EcartPourcentage.ToString("N1") %</strong><br/>
+                    <span style="font-size:12px;opacity:0.85;">
+                        Le montant HT de cette facture (@fac.MontantHT.ToString("N2") DZD) diffère du total HT du BC
+                        (@(fac.BonCommande?.TotalHT.ToString("N2") ?? "?") DZD) de plus de 2%.
+                        Vérifiez avec votre comptable avant de valider.
+                    </span>
+                </div>
+            </div>
+        }
+
+        @* Grille d'infos *@
+        <div class="bc-info-grid" style="margin-bottom:24px;">
+            <div class="bc-info-item">
+                <span class="bc-info-label">N° fournisseur</span>
+                <span class="bc-info-val">@(fac.NumeroFournisseur ?? "—")</span>
+            </div>
+            <div class="bc-info-item">
+                <span class="bc-info-label">Date de la facture</span>
+                <span class="bc-info-val">@fac.DateFacture.ToString("dd/MM/yyyy")</span>
+            </div>
+            <div class="bc-info-item">
+                <span class="bc-info-label">Bon de commande</span>
+                <a asp-page="/Achats/BonCommande" asp-route-id="@fac.BonCommandeId" class="bc-info-val bc-link">
+                    @(fac.BonCommande?.Numero ?? "—")
+                </a>
+            </div>
+            @if (fac.BonReceptionId.HasValue)
+            {
+                <div class="bc-info-item">
+                    <span class="bc-info-label">Bon de réception</span>
+                    <a asp-page="/Achats/BonReception" asp-route-id="@fac.BonReceptionId" class="bc-info-val bc-link">
+                        @(fac.BonReception?.Numero ?? "—")
+                    </a>
+                </div>
+            }
+            <div class="bc-info-item">
+                <span class="bc-info-label">Fournisseur</span>
+                <span class="bc-info-val">@(fac.BonCommande?.Fournisseur?.FullName ?? "—")</span>
+            </div>
+            @if (!string.IsNullOrEmpty(fac.Notes))
+            {
+                <div class="bc-info-item bc-info-full">
+                    <span class="bc-info-label">Notes</span>
+                    <span class="bc-info-val">@fac.Notes</span>
+                </div>
+            }
+        </div>
+
+        @* Montants *@
+        <div class="bc-section-card" style="max-width:520px;">
+            <div class="bc-section-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                    <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                </svg>
+                Montants
+            </div>
+            <div style="padding:20px;display:flex;flex-direction:column;gap:10px;">
+                <div class="bc-total-row" style="justify-content:space-between;">
+                    <span style="color:var(--text-muted);">Montant HT (facture)</span>
+                    <span style="font-weight:700;">@fac.MontantHT.ToString("N2") DZD</span>
+                </div>
+                <div class="bc-total-row" style="justify-content:space-between;">
+                    <span style="color:var(--text-muted);">TVA (19%)</span>
+                    <span style="font-weight:600;">@fac.MontantTVA.ToString("N2") DZD</span>
+                </div>
+                @if (fac.AlerteEcartPrix)
+                {
+                    <div class="bc-total-row" style="justify-content:space-between;">
+                        <span style="color:var(--text-muted);">Total HT du BC (référence)</span>
+                        <span style="font-weight:600;color:#a4a7c8;">@(fac.BonCommande?.TotalHT.ToString("N2") ?? "?") DZD</span>
+                    </div>
+                    <div class="bc-total-row" style="justify-content:space-between;padding:8px 0;border-top:1px solid rgba(251,191,36,0.2);">
+                        <span style="color:#fbbf24;font-weight:600;">Écart</span>
+                        <span style="color:#fbbf24;font-weight:700;">@fac.EcartPourcentage.ToString("N2") %</span>
+                    </div>
+                }
+                <div style="padding-top:10px;border-top:1px solid rgba(255,255,255,0.07);display:flex;justify-content:space-between;align-items:center;">
+                    <span style="color:var(--text-muted);font-size:15px;font-weight:700;">Total TTC</span>
+                    <span style="font-size:20px;font-weight:800;color:var(--accent);">@fac.MontantTTC.ToString("N2") DZD</span>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<script>
+const bcTotalHT = @(Model.BonCommande?.TotalHT.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) ?? "0");
+
+function calculerEcart(val) {
+    const ht  = parseFloat(val) || 0;
+    const tva = Math.round(ht * 0.19 * 100) / 100;
+    const ttc = Math.round((ht + tva) * 100) / 100;
+
+    document.getElementById('calc-ht').textContent  = formatDZD(ht)  + ' DZD';
+    document.getElementById('calc-tva').textContent = formatDZD(tva) + ' DZD';
+    document.getElementById('calc-ttc').textContent = formatDZD(ttc) + ' DZD';
+
+    // Indicateur d'écart
+    const ind = document.getElementById('ecart-indicateur');
+    if (bcTotalHT > 0) {
+        const ecart = Math.abs((ht - bcTotalHT) / bcTotalHT * 100);
+        if (ecart > 2) {
+            ind.style.display = 'block';
+            ind.style.background = 'rgba(251,191,36,0.08)';
+            ind.style.border = '1px solid rgba(251,191,36,0.25)';
+            ind.style.color = '#fbbf24';
+            ind.textContent = `⚠ Écart de ${ecart.toFixed(1)}% par rapport au BC (${formatDZD(bcTotalHT)} DZD HT). Une alerte sera générée.`;
+        } else if (ht > 0) {
+            ind.style.display = 'block';
+            ind.style.background = 'rgba(34,197,94,0.08)';
+            ind.style.border = '1px solid rgba(34,197,94,0.25)';
+            ind.style.color = '#22c55e';
+            ind.textContent = `✓ Montant conforme au BC (écart < 2%)`;
+        } else {
+            ind.style.display = 'none';
+        }
+    }
+}
+
+function formatDZD(n) {
+    return n.toLocaleString('fr-DZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Toast auto-hide
+const toast = document.getElementById('fac-toast');
+if (toast) setTimeout(() => toast.classList.remove('bc-toast-visible'), 5000);
+
+// Init écart au chargement
+const initialHT = document.getElementById('montant-ht')?.value;
+if (initialHT) calculerEcart(initialHT);
+</script>
+}

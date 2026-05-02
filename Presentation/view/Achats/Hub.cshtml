@@ -1,0 +1,340 @@
+@page
+@model erp_pfc_20252026.Pages.Achats.HubModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    ViewData["Title"] = "Module Achats";
+    Layout = "~/Presentation/view/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/Achats.css" asp-append-version="true" />
+    <style>
+        .hub-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        .hub-card {
+            background: linear-gradient(135deg, rgba(8,11,32,0.96), rgba(18,22,54,0.96));
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: transform 200ms cubic-bezier(.4,0,.2,1), box-shadow 200ms, border-color 200ms;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .hub-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 48px rgba(123,94,255,0.2);
+            border-color: rgba(123,94,255,0.35);
+        }
+
+        .hub-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .hub-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .hub-card-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .hub-card-kpi {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .hub-card-kpi-label {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .hub-card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+            margin: 0;
+        }
+
+        .hub-card-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            flex: 1;
+        }
+
+        .hub-card-footer {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .hub-status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 6px #22c55e;
+            flex-shrink: 0;
+        }
+
+        .hub-status-dot-yellow {
+            background: #fbbf24;
+            box-shadow: 0 0 6px #fbbf24;
+        }
+
+        .hub-status-text {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            flex: 1;
+        }
+
+        .hub-action-btn {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--accent);
+            background: rgba(123,94,255,0.12);
+            border: 1px solid rgba(123,94,255,0.25);
+            border-radius: 8px;
+            padding: 5px 14px;
+            cursor: pointer;
+            transition: background 150ms;
+            text-decoration: none;
+        }
+
+        .hub-action-btn:hover {
+            background: rgba(123,94,255,0.22);
+        }
+
+        /* Bannière "non configuré" */
+        .hub-warning-banner {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 22px;
+            background: rgba(251,191,36,0.06);
+            border: 1px solid rgba(251,191,36,0.25);
+            border-radius: 14px;
+            margin-bottom: 24px;
+        }
+
+        .hub-warning-text {
+            font-size: 13px;
+            color: var(--text-muted);
+            flex: 1;
+        }
+    </style>
+}
+
+@section HeaderLeft {
+    <div class="breadcrumb">
+        <span class="breadcrumb-item breadcrumb-active">Achats</span>
+    </div>
+}
+
+<section class="erp-content">
+
+    @* ── Titre ─────────────────────────────────────────────────────────────── *@
+    <div class="section-header" style="margin-bottom:24px;">
+        <div>
+            <h2 style="margin:0;font-size:1.4rem;">Module Achats</h2>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin:4px 0 0;">
+                Gérez vos commandes, réceptions et factures fournisseurs.
+            </p>
+        </div>
+        @if (Model.EstConfigure)
+        {
+            <a asp-page="/Achats/BonCommande" class="btn-primary" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;font-size:0.82rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Nouveau BC
+            </a>
+        }
+    </div>
+
+    @* ── Bannière si non configuré ─────────────────────────────────────────── *@
+    @if (!Model.EstConfigure)
+    {
+        <div class="hub-warning-banner">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" style="width:20px;height:20px;flex-shrink:0;">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span class="hub-warning-text">
+                Le module Achats n'est pas encore configuré. Certaines fonctionnalités sont désactivées.
+            </span>
+            <a asp-page="/Achats/Config" class="hub-action-btn">Configurer →</a>
+        </div>
+    }
+
+    @* ── Grille des sous-modules ───────────────────────────────────────────── *@
+    <div class="hub-grid">
+
+        @* ── Bons de commande ──────────────────────────────────────────────── *@
+        <a asp-page="/Achats/Index" class="hub-card" style="border-color:rgba(123,94,255,0.2);">
+            <div class="hub-card-header">
+                <div class="hub-card-icon" style="background:rgba(123,94,255,0.15);border:1px solid rgba(123,94,255,0.3);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#9C8CFF" stroke-width="2" style="width:22px;height:22px;">
+                        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <path d="M16 10a4 4 0 01-8 0"/>
+                    </svg>
+                </div>
+                <span class="hub-card-badge" style="background:rgba(123,94,255,0.15);color:#9C8CFF;">Achats</span>
+            </div>
+            <h3 class="hub-card-title">Bons de commande</h3>
+            <p class="hub-card-desc">Créez et suivez vos commandes fournisseurs. Envoi automatique avec lien de confirmation pour le fournisseur.</p>
+            @if (Model.EstConfigure)
+            {
+                <div style="display:flex;gap:16px;">
+                    <div>
+                        <div class="hub-card-kpi" style="color:#9C8CFF;">@Model.NbBCTotal</div>
+                        <div class="hub-card-kpi-label">Total</div>
+                    </div>
+                    <div>
+                        <div class="hub-card-kpi" style="color:#fbbf24;">@Model.NbBCEnAttente</div>
+                        <div class="hub-card-kpi-label">En attente</div>
+                    </div>
+                </div>
+            }
+            <div class="hub-card-footer">
+                <span class="hub-status-dot @(Model.EstConfigure ? "" : "hub-status-dot-yellow")"></span>
+                <span class="hub-status-text">@(Model.EstConfigure ? "Actif" : "Configuration requise")</span>
+                <span class="hub-action-btn">Ouvrir</span>
+            </div>
+        </a>
+
+        @* ── Bons de réception ─────────────────────────────────────────────── *@
+        <a asp-page="/Achats/Index" asp-route-filtre="receptions" class="hub-card" style="border-color:rgba(56,189,248,0.2);">
+            <div class="hub-card-header">
+                <div class="hub-card-icon" style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.25);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" style="width:22px;height:22px;">
+                        <path d="M5 12h14M12 5l7 7-7 7"/>
+                        <rect x="2" y="3" width="20" height="18" rx="2" ry="2" stroke-opacity=".4"/>
+                    </svg>
+                </div>
+                <span class="hub-card-badge" style="background:rgba(56,189,248,0.12);color:#38bdf8;">Réception</span>
+            </div>
+            <h3 class="hub-card-title">Bons de réception</h3>
+            <p class="hub-card-desc">Enregistrez la réception des marchandises. Contrôlez les quantités et l'état de chaque article reçu.</p>
+            @if (Model.EstConfigure)
+            {
+                <div>
+                    <div class="hub-card-kpi" style="color:#38bdf8;">@Model.NbBRTotal</div>
+                    <div class="hub-card-kpi-label">Réceptions enregistrées</div>
+                </div>
+            }
+            <div class="hub-card-footer">
+                <span class="hub-status-dot @(Model.EstConfigure ? "" : "hub-status-dot-yellow")"></span>
+                <span class="hub-status-text">Accessible depuis un BC confirmé</span>
+                <span class="hub-action-btn">Voir BC →</span>
+            </div>
+        </a>
+
+        @* ── Factures fournisseurs ─────────────────────────────────────────── *@
+        <a asp-page="/Achats/Index" asp-route-filtre="factures" class="hub-card" style="border-color:rgba(192,132,252,0.2);">
+            <div class="hub-card-header">
+                <div class="hub-card-icon" style="background:rgba(192,132,252,0.12);border:1px solid rgba(192,132,252,0.25);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" style="width:22px;height:22px;">
+                        <rect x="2" y="3" width="20" height="18" rx="2"/>
+                        <line x1="7" y1="8" x2="17" y2="8"/>
+                        <line x1="7" y1="12" x2="17" y2="12"/>
+                        <line x1="7" y1="16" x2="13" y2="16"/>
+                    </svg>
+                </div>
+                <span class="hub-card-badge" style="background:rgba(192,132,252,0.12);color:#c084fc;">Facturation</span>
+            </div>
+            <h3 class="hub-card-title">Factures fournisseurs</h3>
+            <p class="hub-card-desc">Rapprochez les factures fournisseurs avec vos bons de commande. Détection automatique des écarts de prix.</p>
+            @if (Model.EstConfigure)
+            {
+                <div>
+                    <div class="hub-card-kpi" style="color:#c084fc;">@Model.NbFactures</div>
+                    <div class="hub-card-kpi-label">Factures enregistrées</div>
+                </div>
+            }
+            <div class="hub-card-footer">
+                <span class="hub-status-dot @(Model.EstConfigure ? "" : "hub-status-dot-yellow")"></span>
+                <span class="hub-status-text">Accessible depuis un BC reçu</span>
+                <span class="hub-action-btn">Voir BC →</span>
+            </div>
+        </a>
+
+        @* ── Analyse des prix ──────────────────────────────────────────────── *@
+        <a asp-page="/Achats/AnalysePrix" class="hub-card" style="border-color:rgba(34,197,94,0.2);">
+            <div class="hub-card-header">
+                <div class="hub-card-icon" style="background:rgba(34,197,94,0.12);border:1px solid rgba(34,197,94,0.25);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" style="width:22px;height:22px;">
+                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                    </svg>
+                </div>
+                <span class="hub-card-badge" style="background:rgba(34,197,94,0.12);color:#22c55e;">IA · Innovation</span>
+            </div>
+            <h3 class="hub-card-title">Analyse des prix</h3>
+            <p class="hub-card-desc">Visualisez l'historique des prix par fournisseur, simulez des hausses et anticipez les variations via le scoring intelligent.</p>
+            <div class="hub-card-footer">
+                <span class="hub-status-dot"></span>
+                <span class="hub-status-text">Graphiques & simulateur de hausses</span>
+                <span class="hub-action-btn">Analyser</span>
+            </div>
+        </a>
+
+        @* ── Configuration ─────────────────────────────────────────────────── *@
+        <a asp-page="/Achats/Config" class="hub-card" style="border-color:rgba(255,255,255,0.1);">
+            <div class="hub-card-header">
+                <div class="hub-card-icon" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#a4a7c8" stroke-width="2" style="width:22px;height:22px;">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                    </svg>
+                </div>
+                <span class="hub-card-badge" style="background:rgba(255,255,255,0.07);color:#a4a7c8;">Paramètres</span>
+            </div>
+            <h3 class="hub-card-title">Configuration</h3>
+            <p class="hub-card-desc">
+                @if (Model.EstConfigure)
+                {
+                    <text>Module configuré. Modifiez les paramètres SMTP, la devise, le préfixe des numéros et les approbations.</text>
+                }
+                else
+                {
+                    <text>Configurez le module : société, SMTP, devise, préfixe des numéros et règles d'approbation.</text>
+                }
+            </p>
+            <div class="hub-card-footer">
+                <span class="hub-status-dot @(Model.EstConfigure ? "" : "hub-status-dot-yellow")"></span>
+                <span class="hub-status-text">@(Model.EstConfigure ? "Configuré" : "Non configuré")</span>
+                <span class="hub-action-btn">@(Model.EstConfigure ? "Modifier" : "Configurer →")</span>
+            </div>
+        </a>
+
+    </div>
+
+</section>

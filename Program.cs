@@ -10,6 +10,9 @@ using System.Diagnostics;
 using WkHtmlToPdfDotNet;
 using WkHtmlToPdfDotNet.Contracts;
 
+// Fix Npgsql 6+ : accepter DateTime.UtcNow pour les colonnes TIMESTAMP WITHOUT TIME ZONE
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 var builder = WebApplication.CreateBuilder(args);
 
 // URL d'écoute : Lecture depuis appsettings.json ou appsettings.Production.json

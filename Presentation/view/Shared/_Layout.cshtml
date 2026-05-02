@@ -110,8 +110,17 @@
                                 </svg>
                             </button>
                             <div class="nav-sub nav-sub-nested" id="nav-sub-achats">
-                                <a asp-page="/Achats/Index" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString()?.StartsWith("/Achats") == true ? "nav-sub-link-active" : "")">
+                                <a asp-page="/Achats/Hub" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Achats/Hub" ? "nav-sub-link-active" : "")">
+                                    <span class="nav-dot"></span> Vue d'ensemble
+                                </a>
+                                <a asp-page="/Achats/Index" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Achats/Index" ? "nav-sub-link-active" : "")">
                                     <span class="nav-dot"></span> Bons de commande
+                                </a>
+                                <a asp-page="/Achats/AnalysePrix" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Achats/AnalysePrix" ? "nav-sub-link-active" : "")">
+                                    <span class="nav-dot"></span> Analyse des prix
+                                </a>
+                                <a asp-page="/Achats/Config" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Achats/Config" ? "nav-sub-link-active" : "")">
+                                    <span class="nav-dot"></span> Configuration
                                 </a>
                             </div>
                         </div>

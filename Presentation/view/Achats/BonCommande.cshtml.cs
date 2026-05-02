@@ -30,6 +30,7 @@ namespace erp_pfc_20252026.Pages.Achats
         public AchatBonCommande? BonCommande { get; set; }
         public List<Contact> Fournisseurs { get; set; } = new();
         public List<ProduitLigne> Produits { get; set; } = new();
+        public List<AchatFactureFournisseur> Factures { get; set; } = new();
         public bool ModeCreation => BonCommande == null;
 
         // Message de succès/info transmis depuis une action POST
@@ -43,6 +44,15 @@ namespace erp_pfc_20252026.Pages.Achats
             public string Reference { get; set; } = string.Empty;
             public decimal CoutAchat { get; set; }
             public bool EstMatierePremiere { get; set; }
+            public TypeTechniqueProduit TypeTechnique { get; set; }
+            public string TypeLabel => TypeTechnique switch
+            {
+                TypeTechniqueProduit.MatierePremiere => "Matière 1ère",
+                TypeTechniqueProduit.SemiFini        => "Semi-fini",
+                TypeTechniqueProduit.Fini            => "Fini",
+                TypeTechniqueProduit.SemiFiniEtFini  => "Semi-fini & Fini",
+                _                                    => "Produit"
+            };
         }
 
         // ─── Champs du formulaire de création ─────────────────────────────────
@@ -68,6 +78,9 @@ namespace erp_pfc_20252026.Pages.Achats
                 // Construire le lien de confirmation si token présent
                 if (!string.IsNullOrEmpty(BonCommande.TokenConfirmation))
                     LienConfirmation = $"{Request.Scheme}://{Request.Host}/Achats/Confirmer?token={BonCommande.TokenConfirmation}";
+
+                // Charger les factures liées à ce BC
+                Factures = await _achatsService.GetFacturesParBCAsync(id.Value);
             }
 
             if (TempData["Succes"] is string msg) MessageSucces = msg;
@@ -175,7 +188,8 @@ namespace erp_pfc_20252026.Pages.Achats
                     Nom               = p.Nom,
                     Reference         = p.Reference,
                     CoutAchat         = p.CoutAchat,
-                    EstMatierePremiere = p.TypeTechnique == TypeTechniqueProduit.MatierePremiere
+                    EstMatierePremiere = p.TypeTechnique == TypeTechniqueProduit.MatierePremiere,
+                    TypeTechnique      = p.TypeTechnique
                 })
                 .ToListAsync();
         }
@@ -200,6 +214,14 @@ namespace erp_pfc_20252026.Pages.Achats
             StatutBonCommande.Facture          => ("rgba(192,132,252,0.12)", "#c084fc",  "Facturé"),
             StatutBonCommande.Refuse           => ("rgba(239,68,68,0.12)",   "#ef4444",  "Refusé"),
             _                                  => ("rgba(255,255,255,0.08)", "#a4a7c8",  statut)
+        };
+
+        public static (string bg, string color, string label) GetFactureStatutStyle(string statut) => statut switch
+        {
+            StatutFactureFournisseur.Recue         => ("rgba(56,189,248,0.10)",  "#38bdf8", "Reçue"),
+            StatutFactureFournisseur.Verifiee      => ("rgba(34,197,94,0.10)",   "#22c55e", "Vérifiée"),
+            StatutFactureFournisseur.Comptabilisee => ("rgba(192,132,252,0.10)", "#c084fc", "Comptabilisée"),
+            _                                      => ("rgba(255,255,255,0.06)", "#a4a7c8", statut)
         };
     }
 }

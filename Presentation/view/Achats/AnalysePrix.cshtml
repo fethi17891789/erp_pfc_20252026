@@ -1,0 +1,528 @@
+@page
+@model erp_pfc_20252026.Pages.Achats.AnalysePrixModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using global::Donnees.Achats
+
+@{
+    ViewData["Title"] = $"Analyse prix — {Model.Produit?.Nom}";
+    Layout = "~/Presentation/view/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/Achats.css" asp-append-version="true" />
+    <style>
+        .ap-grid { display: grid; grid-template-columns: 1fr 380px; gap: 20px; max-width: 1200px; }
+        @@media (max-width: 960px) { .ap-grid { grid-template-columns: 1fr; } }
+
+        .ap-chart-card {
+            background: var(--bg-glass);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            overflow: hidden;
+        }
+        .ap-chart-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ap-chart-title {
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ap-chart-title svg { color: var(--accent); }
+        .ap-chart-legend {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+        .ap-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+        }
+        .ap-legend-dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .ap-legend-dash {
+            width: 18px; height: 2px;
+            border-top: 2px dashed;
+            flex-shrink: 0;
+        }
+        .ap-chart-body { padding: 20px; }
+        canvas#prix-chart { width: 100% !important; }
+
+        /* Score fournisseur */
+        .ap-score-card {
+            background: var(--bg-glass);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            overflow: hidden;
+            height: fit-content;
+        }
+        .ap-score-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ap-score-header svg { color: var(--accent); }
+        .ap-score-empty {
+            padding: 24px 20px;
+            font-size: 13px;
+            color: var(--text-muted-2);
+            text-align: center;
+        }
+        .ap-fournisseur-item {
+            padding: 14px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ap-fournisseur-item:last-child { border-bottom: none; }
+        .ap-fournisseur-name { font-size: 13px; font-weight: 700; }
+        .ap-score-bar-wrap {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .ap-score-track {
+            flex: 1;
+            height: 6px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+        .ap-score-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .ap-score-num { font-size: 12px; font-weight: 700; min-width: 30px; text-align: right; }
+        .ap-score-details {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+            color: var(--text-muted-2);
+        }
+        .ap-score-detail-item { display: flex; flex-direction: column; gap: 2px; }
+        .ap-score-detail-item span:first-child { font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; }
+
+        /* Simulateur Et si */
+        .ap-sim-card {
+            background: var(--bg-glass);
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 14px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        .ap-sim-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-size: 13px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ap-sim-header svg { color: #f97316; }
+        .ap-sim-body { padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+        .ap-sim-slider-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .ap-sim-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            outline: none;
+            cursor: pointer;
+        }
+        .ap-sim-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: #f97316;
+            cursor: pointer;
+            box-shadow: 0 0 0 3px rgba(249,115,22,0.2);
+        }
+        .ap-sim-pct {
+            min-width: 48px;
+            text-align: center;
+            font-size: 16px;
+            font-weight: 800;
+            color: #f97316;
+        }
+        .ap-sim-table-wrap { overflow-x: auto; }
+        .ap-sim-table { width: 100%; border-collapse: collapse; }
+        .ap-sim-table th {
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted-2);
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .ap-sim-table td {
+            padding: 10px 10px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .ap-sim-table tbody tr:last-child td { border-bottom: none; }
+        .ap-sim-empty { padding: 20px; font-size: 13px; color: var(--text-muted-2); text-align: center; }
+    </style>
+}
+
+@section HeaderLeft {
+    <div class="breadcrumb">
+        <a class="breadcrumb-item" asp-page="/Achats/Index">Achats</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-item breadcrumb-active">Analyse prix — @Model.Produit?.Nom</span>
+    </div>
+}
+
+<div class="achats-page">
+
+    @* ── EN-TÊTE ───────────────────────────────────────────────────────────── *@
+    <div class="achats-page-header">
+        <div>
+            <h1 class="achats-page-title">Analyse des prix</h1>
+            <p class="achats-page-subtitle">
+                <strong>@Model.Produit?.Nom</strong>
+                @if (!string.IsNullOrEmpty(Model.Produit?.Reference))
+                {
+                    <span style="color:var(--text-muted-2);"> · Réf. @Model.Produit.Reference</span>
+                }
+                <span style="color:var(--text-muted-2);"> · Prix actuel BOM : </span>
+                <span style="color:var(--accent);font-weight:700;">@Model.Produit?.CoutAchat.ToString("N2") DZD HT</span>
+            </p>
+        </div>
+        <span class="bc-badge-innovation">🚀 Fonctionnalité SKYRA exclusive</span>
+    </div>
+
+    @if (!Model.Graphe.Series.Any())
+    {
+        @* État vide — aucun historique *@
+        <div class="bc-empty-state">
+            <div class="bc-empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:36px;height:36px;color:var(--accent);">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+            </div>
+            <h3>Aucun historique de prix</h3>
+            <p>Les données apparaîtront après votre première réception de commande pour ce produit.</p>
+        </div>
+    }
+    else
+    {
+        <div class="ap-grid">
+
+            @* ── COLONNE GAUCHE : Graphique ── *@
+            <div>
+                <div class="ap-chart-card">
+                    <div class="ap-chart-header">
+                        <div class="ap-chart-title">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            </svg>
+                            Historique des prix — 12 derniers mois
+                        </div>
+                        <div class="ap-chart-legend" id="ap-legend"></div>
+                    </div>
+                    <div class="ap-chart-body">
+                        <canvas id="prix-chart" height="260"></canvas>
+                    </div>
+                </div>
+
+                @* ── Simulateur Et si ? ── *@
+                <div class="ap-sim-card">
+                    <div class="ap-sim-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+                            <polyline points="8 12 12 16 16 12"/>
+                        </svg>
+                        Simulateur « Et si ? » — Impact sur les nomenclatures
+                    </div>
+                    <div class="ap-sim-body">
+                        <div>
+                            <div style="font-size:12px;color:var(--text-muted-2);margin-bottom:10px;font-weight:600;">
+                                Si le prix de <strong style="color:var(--text);">@Model.Produit?.Nom</strong> augmente de :
+                            </div>
+                            <div class="ap-sim-slider-row">
+                                <input type="range" class="ap-sim-slider" id="sim-slider"
+                                       min="1" max="50" value="10" step="1"
+                                       oninput="lancerSimulation(this.value)" />
+                                <div class="ap-sim-pct" id="sim-pct">+10%</div>
+                            </div>
+                        </div>
+                        <div class="ap-sim-table-wrap">
+                            <div id="sim-loading" style="display:none;text-align:center;padding:12px;color:var(--text-muted-2);font-size:13px;">
+                                Calcul en cours…
+                            </div>
+                            <div id="sim-empty" class="ap-sim-empty" style="display:none;">
+                                Ce produit n'est utilisé dans aucune nomenclature.
+                            </div>
+                            <table class="ap-sim-table" id="sim-table">
+                                <thead>
+                                    <tr>
+                                        <th>Produit fini</th>
+                                        <th style="text-align:right;">Coût actuel</th>
+                                        <th style="text-align:right;">Delta</th>
+                                        <th style="text-align:right;">Nouveau coût</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sim-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            @* ── COLONNE DROITE : Scores fournisseurs ── *@
+            <div>
+                <div class="ap-score-card" id="scores-panel">
+                    <div class="ap-score-header">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                        Fiabilité fournisseurs
+                    </div>
+                    <div id="scores-body">
+                        <div class="ap-score-empty">Chargement des scores…</div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    }
+
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── Données injectées depuis le serveur ──────────────────────────────────
+const grapheData   = @Html.Raw(Model.GrapheJson);
+const simInitData  = @Html.Raw(Model.SimBaseJson);
+const produitId    = @(Model.Produit?.Id ?? 0);
+
+// ── Palette de couleurs pour les séries fournisseurs ────────────────────
+const PALETTE = ['#7B5EFF','#22c55e','#f97316','#38bdf8','#e879f9','#fbbf24','#4ade80','#fb7185'];
+
+// ── GRAPHIQUE CHART.JS ───────────────────────────────────────────────────
+function buildChart() {
+    const ctx = document.getElementById('prix-chart');
+    if (!ctx || !grapheData.series?.length) return;
+
+    const datasets = grapheData.series.map((serie, i) => ({
+        label: serie.nomFournisseur,
+        data: serie.points.map(p => ({
+            x: new Date(p.date).toLocaleDateString('fr-DZ', { month: 'short', year: '2-digit' }),
+            y: p.prixHT
+        })),
+        borderColor: PALETTE[i % PALETTE.length],
+        backgroundColor: PALETTE[i % PALETTE.length] + '20',
+        tension: 0.35,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        borderWidth: 2,
+        fill: false
+    }));
+
+    // Ligne horizontale pointillée = prix BOM actuel
+    if (grapheData.prixBomActuel > 0 && datasets.length > 0) {
+        const allLabels = [...new Set(datasets.flatMap(d => d.data.map(p => p.x)))].sort();
+        datasets.push({
+            label: 'Prix BOM actuel',
+            data: allLabels.map(x => ({ x, y: grapheData.prixBomActuel })),
+            borderColor: '#a4a7c8',
+            borderDash: [6, 4],
+            borderWidth: 1.5,
+            pointRadius: 0,
+            tension: 0,
+            fill: false
+        });
+    }
+
+    // Légende custom
+    const legend = document.getElementById('ap-legend');
+    if (legend) {
+        grapheData.series.forEach((s, i) => {
+            const item = document.createElement('div');
+            item.className = 'ap-legend-item';
+            item.innerHTML = `<span class="ap-legend-dot" style="background:${PALETTE[i % PALETTE.length]}"></span>${s.nomFournisseur}`;
+            legend.appendChild(item);
+        });
+        const bomItem = document.createElement('div');
+        bomItem.className = 'ap-legend-item';
+        bomItem.innerHTML = `<span class="ap-legend-dash" style="border-color:#a4a7c8"></span>Prix BOM`;
+        legend.appendChild(bomItem);
+    }
+
+    new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            parsing: { xAxisKey: 'x', yAxisKey: 'y' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString('fr-DZ', { minimumFractionDigits: 2 })} DZD HT`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'category',
+                    ticks: { color: '#7F83A5', font: { family: 'Plus Jakarta Sans', size: 11 } },
+                    grid: { color: 'rgba(255,255,255,0.04)' }
+                },
+                y: {
+                    ticks: {
+                        color: '#7F83A5',
+                        font: { family: 'Plus Jakarta Sans', size: 11 },
+                        callback: v => v.toLocaleString('fr-DZ') + ' DZD'
+                    },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                }
+            }
+        }
+    });
+}
+
+// ── SIMULATEUR ET SI ? ──────────────────────────────────────────────────
+let simTimeout = null;
+
+function lancerSimulation(pct) {
+    document.getElementById('sim-pct').textContent = '+' + pct + '%';
+    clearTimeout(simTimeout);
+    simTimeout = setTimeout(() => fetchSimulation(pct), 300);
+}
+
+async function fetchSimulation(pct) {
+    document.getElementById('sim-loading').style.display = 'block';
+    document.getElementById('sim-table').style.display = 'none';
+    document.getElementById('sim-empty').style.display = 'none';
+    try {
+        const r = await fetch(`/Achats/AnalysePrix?handler=Simuler&produitId=${produitId}&hausse=${pct}`);
+        const data = await r.json();
+        afficherSimulation(data);
+    } catch(e) {
+        document.getElementById('sim-loading').textContent = 'Erreur de calcul.';
+    }
+}
+
+function afficherSimulation(data) {
+    document.getElementById('sim-loading').style.display = 'none';
+
+    if (!data || data.length === 0) {
+        document.getElementById('sim-empty').style.display = 'block';
+        document.getElementById('sim-table').style.display = 'none';
+        return;
+    }
+
+    const tbody = document.getElementById('sim-tbody');
+    tbody.innerHTML = '';
+    data.forEach(row => {
+        const pctDelta = row.coutActuel > 0
+            ? ((row.deltaCout / row.coutActuel) * 100).toFixed(1)
+            : '—';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="font-weight:600;">${row.nomProduitFini}</td>
+            <td style="text-align:right;color:var(--text-muted);">${fmt(row.coutActuel)} DZD</td>
+            <td style="text-align:right;color:#f97316;font-weight:700;">+${fmt(row.deltaCout)} DZD <small style="opacity:0.7;">(${pctDelta}%)</small></td>
+            <td style="text-align:right;font-weight:800;color:var(--accent);">${fmt(row.nouveauCoutEstime)} DZD</td>
+        `;
+        tbody.appendChild(tr);
+    });
+    document.getElementById('sim-table').style.display = 'table';
+}
+
+function fmt(n) {
+    return parseFloat(n).toLocaleString('fr-DZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ── SCORES FOURNISSEURS (chargés en AJAX) ───────────────────────────────
+async function chargerScores() {
+    const body = document.getElementById('scores-body');
+    if (!body || !grapheData.series?.length) return;
+
+    const fournisseurIds = [...new Set(grapheData.series.map(s => s.fournisseurId))];
+    body.innerHTML = '';
+
+    for (const fId of fournisseurIds) {
+        try {
+            const r = await fetch(`/Achats/Score?fournisseurId=${fId}`);
+            const s = await r.json();
+            const couleur = s.score >= 75 ? '#22c55e' : s.score >= 50 ? '#fbbf24' : '#ef4444';
+            const fSerie = grapheData.series.find(x => x.fournisseurId === fId);
+            const nom = fSerie?.nomFournisseur ?? `Fournisseur #${fId}`;
+
+            const item = document.createElement('div');
+            item.className = 'ap-fournisseur-item';
+            item.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <span class="ap-fournisseur-name">${nom}</span>
+                    <span style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:${couleur}20;color:${couleur};border:1px solid ${couleur};">
+                        ${s.niveau}
+                    </span>
+                </div>
+                <div class="ap-score-bar-wrap">
+                    <div class="ap-score-track">
+                        <div class="ap-score-fill" style="width:${Math.max(0,s.score)}%;background:${couleur};"></div>
+                    </div>
+                    <span class="ap-score-num" style="color:${couleur};">${s.score < 0 ? '—' : s.score + '/100'}</span>
+                </div>
+                ${s.score >= 0 ? `
+                <div class="ap-score-details">
+                    <div class="ap-score-detail-item">
+                        <span>Délais</span>
+                        <span style="font-size:13px;font-weight:700;color:var(--text);">${s.scoreDelais}%</span>
+                    </div>
+                    <div class="ap-score-detail-item">
+                        <span>Stabilité prix</span>
+                        <span style="font-size:13px;font-weight:700;color:var(--text);">${s.scoreStabilite}%</span>
+                    </div>
+                    <div class="ap-score-detail-item">
+                        <span>Qualité</span>
+                        <span style="font-size:13px;font-weight:700;color:var(--text);">${s.scoreQualite}%</span>
+                    </div>
+                </div>
+                ` : '<div style="font-size:12px;color:var(--text-muted-2);">Pas assez de données</div>'}
+            `;
+            body.appendChild(item);
+        } catch(e) { /* silencieux */ }
+    }
+
+    if (!body.children.length) {
+        body.innerHTML = '<div class="ap-score-empty">Données insuffisantes.</div>';
+    }
+}
+
+// ── INITIALISATION ──────────────────────────────────────────────────────
+buildChart();
+afficherSimulation(simInitData);
+chargerScores();
+</script>
+}

@@ -28,13 +28,43 @@ namespace erp_pfc_20252026.Pages.Achats
         public int NbBCFactures   { get; set; }
         public string? MessageSucces { get; set; }
 
+        // Filtre optionnel transmis depuis le Hub : "receptions" ou "factures"
+        [BindProperty(SupportsGet = true)]
+        public string? Filtre { get; set; }
+
+        public string TitreFiltre     { get; set; } = "Bons de commande";
+        public string SousTitreFiltre { get; set; } = "Gérez vos commandes fournisseurs de A à Z";
+
         public async Task<IActionResult> OnGetAsync()
         {
             var config = await _achatsService.GetConfigAsync();
             if (config?.EstConfigure != true)
                 return RedirectToPage("/Achats/Config");
 
-            BonCommandes = await _achatsService.GetBonCommandesAsync();
+            var query = _db.AchatBonCommandes
+                .Include(b => b.Fournisseur)
+                .Include(b => b.Lignes).ThenInclude(l => l.Produit)
+                .AsQueryable();
+
+            if (Filtre == "receptions")
+            {
+                query = query.Where(b =>
+                    b.Statut == StatutBonCommande.Confirme ||
+                    b.Statut == StatutBonCommande.PartiellemtRecu ||
+                    b.Statut == StatutBonCommande.Recu);
+                TitreFiltre     = "Bons de réception";
+                SousTitreFiltre = "BCs confirmés ou en cours de réception";
+            }
+            else if (Filtre == "factures")
+            {
+                query = query.Where(b =>
+                    b.Statut == StatutBonCommande.Recu ||
+                    b.Statut == StatutBonCommande.Facture);
+                TitreFiltre     = "Factures fournisseurs";
+                SousTitreFiltre = "BCs reçus — prêts à être facturés ou déjà facturés";
+            }
+
+            BonCommandes = await query.OrderByDescending(b => b.DateCreation).ToListAsync();
 
             NbBCEnCours   = await _achatsService.CompterBCEnCoursAsync();
             NbBCRefuses   = await _achatsService.CompterBCRefusesAsync();
