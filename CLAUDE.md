@@ -308,6 +308,22 @@ erp pfc 20252026/
 
 ---
 
+## ❌ Patterns INTERDITS
+
+- Ne jamais utiliser `alert()` ou `confirm()` natif
+- Ne jamais mettre `overflow: visible` sur body
+- Ne jamais hardcoder de nom de modèle Gemini
+- Ne jamais créer de migration EF Core (SQL brut dans Program.cs uniquement)
+- Ne jamais ajouter de fond blanc (#fff, white, #ffffff)
+
+## ✅ Patterns OBLIGATOIRES
+
+- Toast animé via la fonction `showToast()` existante pour tout feedback
+- `CREATE TABLE IF NOT EXISTS` pour toute nouvelle table
+- Session via `Session.GetInt32("CurrentUserId")`
+
+---
+
 ## ⚠️ CONTRAINTES CRITIQUES DE DÉVELOPPEMENT
 
 ### 1. 🆓 ZÉRO COÛT — Outils Gratuits UNIQUEMENT
@@ -363,7 +379,23 @@ erp pfc 20252026/
 
 Les modules suivants sont mentionnés mais pas encore implémentés :
 - **Ventes** (facturation, devis, commandes clients)
-- **Achats** (commandes fournisseurs, réception)
+- **Achats** (commandes fournisseurs, réception) — voir `.claude/specs/achat.md` pour le cahier des charges complet
+
+  **Décisions de conception validées :**
+  - Workflow : BESOIN (MRP/OA) → Bon de Commande → Proforma fournisseur → Confirmation BC → Bon de Réception → Facture fournisseur
+  - Documents : BC, Proforma (stocké), BR, Facture fournisseur (pas de Demande d'achat en V1)
+  - **Politique de prix configurable au premier lancement du module** (choix entre deux options) :
+    - Option A — Dernier prix d'achat (par défaut recommandé) : le prix BOM se met à jour avec le dernier achat réel
+    - Option B — Prix moyen pondéré : plus stable mais peut être décalé de la réalité
+    - ⚠️ Risque Option A : une commande urgente à prix majoré peut temporairement fausser la BOM — mitiger en stockant un "prix de référence fournisseur principal" séparé
+  - Prix de référence fournisseur principal conservé indépendamment du prix BOM
+  - Alerte visuelle non bloquante si prix > seuil historique (bannière orange, pas de blocage)
+  - Graphique évolution prix 12 mois par fournisseur (courbes colorées) + ligne pointillée prix BOM actuel
+  - Score de fiabilité fournisseur automatique (délais, stabilité prix, qualité)
+  - Simulateur "Et si ?" pour impact d'une hausse de prix sur les BOMs
+  - Interface email fournisseur : confirmation/refus BC sans avoir l'ERP
+  - KPI cards sur le Home : OA non répondus + OA acceptés non amorcés
+  - Annuaire : filtre strict type "fournisseur" uniquement
 - **Stock / Inventaire** (mouvements, alertes de stock)
 - **RH** (gestion des employés, présence, congés)
 - **Comptabilité** (journal, bilan, grand livre)
