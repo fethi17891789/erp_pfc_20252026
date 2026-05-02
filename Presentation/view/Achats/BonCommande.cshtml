@@ -1,0 +1,643 @@
+@page
+@model erp_pfc_20252026.Pages.Achats.BonCommandeModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using global::Donnees.Achats
+
+@{
+    ViewData["Title"] = Model.ModeCreation ? "Nouveau BC" : $"BC {Model.BonCommande!.Numero}";
+    Layout = "~/Presentation/view/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/Achats.css" asp-append-version="true" />
+}
+
+@section HeaderLeft {
+    <div class="breadcrumb">
+        <a asp-page="/Achats/Index" class="breadcrumb-item breadcrumb-link">Achats</a>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-item breadcrumb-active">
+            @(Model.ModeCreation ? "Nouveau bon de commande" : Model.BonCommande!.Numero)
+        </span>
+    </div>
+}
+
+@* ── TOAST SUCCÈS ───────────────────────────────────────────────────────────── *@
+@if (Model.MessageSucces != null)
+{
+    <div id="bc-toast" class="bc-toast bc-toast-visible">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0;">
+            <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        @Model.MessageSucces
+    </div>
+}
+
+<div class="bc-page">
+
+    @* ═══════════════════════════════════════════════════════════════
+       MODE DÉTAIL
+    ════════════════════════════════════════════════════════════════ *@
+    @if (!Model.ModeCreation)
+    {
+        var bc = Model.BonCommande!;
+        var (statBg, statColor, statLabel) = BonCommandeModel.GetStatutStyle(bc.Statut);
+
+        @* ── HEADER DÉTAIL ─────────────────────────────────────────────── *@
+        <div class="bc-detail-header">
+            <div class="bc-detail-meta">
+                <h2 class="bc-detail-num">@bc.Numero</h2>
+                <span class="bc-statut-badge" style="background:@statBg; color:@statColor; border:1px solid @statColor;">
+                    @statLabel
+                </span>
+            </div>
+            <div class="bc-detail-actions">
+                @if (bc.Statut == StatutBonCommande.Brouillon)
+                {
+                    <form method="post" asp-page-handler="Envoyer" style="display:inline;">
+                        <input type="hidden" name="id" value="@bc.Id" />
+                        <button type="submit" class="btn-primary bc-btn-send">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
+                                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                            </svg>
+                            Envoyer au fournisseur
+                        </button>
+                    </form>
+                    <form method="post" asp-page-handler="Supprimer" style="display:inline;" onsubmit="return confirmSuppression()">
+                        <input type="hidden" name="id" value="@bc.Id" />
+                        <button type="submit" class="bc-btn-danger">Supprimer</button>
+                    </form>
+                }
+            </div>
+        </div>
+
+        @* ── TIMELINE STATUT ───────────────────────────────────────────── *@
+        var etapes = new[] {
+            (StatutBonCommande.Brouillon,       "Brouillon"),
+            (StatutBonCommande.Envoye,          "Envoyé"),
+            (StatutBonCommande.Confirme,        "Confirmé"),
+            (StatutBonCommande.Recu,            "Reçu"),
+            (StatutBonCommande.Facture,         "Facturé")
+        };
+        var ordreStatut = new Dictionary<string,int> {
+            [StatutBonCommande.Brouillon]=0, [StatutBonCommande.Envoye]=1,
+            [StatutBonCommande.Confirme]=2,  [StatutBonCommande.PartiellemtRecu]=2,
+            [StatutBonCommande.Recu]=3,      [StatutBonCommande.Facture]=4,
+            [StatutBonCommande.Refuse]=-1
+        };
+        int indexActuel = ordreStatut.GetValueOrDefault(bc.Statut, 0);
+
+        @if (bc.Statut != StatutBonCommande.Refuse)
+        {
+            <div class="bc-timeline">
+                @for (int i = 0; i < etapes.Length; i++)
+                {
+                    bool fait = i < indexActuel;
+                    bool actif = i == indexActuel;
+                    <div class="bc-timeline-step @(fait ? "bc-step-done" : actif ? "bc-step-active" : "bc-step-pending")">
+                        <div class="bc-step-dot">
+                            @if (fait)
+                            {
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="width:10px;height:10px;">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                            }
+                        </div>
+                        <span class="bc-step-label">@etapes[i].Item2</span>
+                    </div>
+                    @if (i < etapes.Length - 1)
+                    {
+                        <div class="bc-timeline-line @(fait ? "bc-line-done" : "")"></div>
+                    }
+                }
+            </div>
+        }
+        else
+        {
+            <div class="bc-refused-banner">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
+                    <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                </svg>
+                Ce bon de commande a été refusé par le fournisseur.
+                @if (!string.IsNullOrEmpty(bc.RepondeurMessage))
+                {
+                    <span>— "@bc.RepondeurMessage"</span>
+                }
+            </div>
+        }
+
+        @* ── LIEN CONFIRMATION (test localhost) ────────────────────────── *@
+        @if (!string.IsNullOrEmpty(Model.LienConfirmation))
+        {
+            <div class="bc-link-box">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:#7B5EFF;flex-shrink:0;">
+                    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+                </svg>
+                <span class="bc-link-label">Lien fournisseur :</span>
+                <span class="bc-link-url" id="lien-confirm">@Model.LienConfirmation</span>
+                <button type="button" class="bc-link-copy" onclick="copierLien()">Copier</button>
+            </div>
+        }
+
+        @* ── INFOS BC ──────────────────────────────────────────────────── *@
+        <div class="bc-info-grid">
+            <div class="bc-info-card">
+                <span class="bc-info-label">Fournisseur</span>
+                <span class="bc-info-value">@bc.Fournisseur?.FullName</span>
+                @if (!string.IsNullOrEmpty(bc.Fournisseur?.Email))
+                {
+                    <span class="bc-info-sub">@bc.Fournisseur.Email</span>
+                }
+            </div>
+            <div class="bc-info-card">
+                <span class="bc-info-label">Date de commande</span>
+                <span class="bc-info-value">@bc.DateCommande.ToString("dd/MM/yyyy")</span>
+            </div>
+            <div class="bc-info-card">
+                <span class="bc-info-label">Livraison souhaitée</span>
+                <span class="bc-info-value">
+                    @(bc.DateLivraisonSouhaitee.HasValue ? bc.DateLivraisonSouhaitee.Value.ToString("dd/MM/yyyy") : "—")
+                </span>
+            </div>
+            @if (bc.DateLivraisonProposee.HasValue)
+            {
+                <div class="bc-info-card bc-info-card-alt">
+                    <span class="bc-info-label">Livraison proposée par le fournisseur</span>
+                    <span class="bc-info-value">@bc.DateLivraisonProposee.Value.ToString("dd/MM/yyyy")</span>
+                </div>
+            }
+            @if (!string.IsNullOrEmpty(bc.Notes))
+            {
+                <div class="bc-info-card bc-info-card-full">
+                    <span class="bc-info-label">Notes</span>
+                    <span class="bc-info-value">@bc.Notes</span>
+                </div>
+            }
+        </div>
+
+        @* ── TABLEAU DES LIGNES ────────────────────────────────────────── *@
+        <div class="bc-table-card">
+            <div class="bc-table-header">
+                <span class="bc-table-title">Lignes de commande</span>
+            </div>
+            <table class="bc-table">
+                <thead>
+                    <tr>
+                        <th>Composant</th>
+                        <th>Référence</th>
+                        <th style="text-align:center;">Sous-traitance</th>
+                        <th style="text-align:right;">Quantité</th>
+                        <th style="text-align:right;">Prix unitaire HT</th>
+                        <th style="text-align:right;">Total HT</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var ligne in bc.Lignes)
+                    {
+                        <tr>
+                            <td class="bc-td-nom">@ligne.Produit?.Nom</td>
+                            <td class="bc-td-ref">@ligne.Produit?.Reference</td>
+                            <td style="text-align:center;">
+                                @if (ligne.EstSousTraitance)
+                                {
+                                    <span class="bc-badge-st">Sous-traitance</span>
+                                }
+                                else { <span style="color:var(--text-muted-2);">—</span> }
+                            </td>
+                            <td style="text-align:right; font-weight:600;">@ligne.Quantite.ToString("N2")</td>
+                            <td style="text-align:right;">@ligne.PrixUnitaireHT.ToString("N2") DZD</td>
+                            <td style="text-align:right; font-weight:700; color:var(--accent-light);">@ligne.TotalHT.ToString("N2") DZD</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+
+            @* ── TOTAUX ────────────────────────────────────────────────── *@
+            <div class="bc-totaux">
+                <div class="bc-total-row">
+                    <span>Total HT</span>
+                    <span>@bc.TotalHT.ToString("N2") DZD</span>
+                </div>
+                <div class="bc-total-row">
+                    <span>TVA (19%)</span>
+                    <span>@bc.MontantTVA.ToString("N2") DZD</span>
+                </div>
+                <div class="bc-total-row bc-total-ttc">
+                    <span>Total TTC</span>
+                    <span>@bc.TotalTTC.ToString("N2") DZD</span>
+                </div>
+            </div>
+        </div>
+    }
+
+    @* ═══════════════════════════════════════════════════════════════
+       MODE CRÉATION
+    ════════════════════════════════════════════════════════════════ *@
+    else
+    {
+        <div class="bc-create-header">
+            <h2 class="bc-detail-num">Nouveau bon de commande</h2>
+        </div>
+
+        <form method="post" asp-page-handler="Creer" id="form-bc">
+            <input type="hidden" name="LignesJson" id="lignes-json" value="[]" />
+
+            <div class="bc-form-grid">
+
+                @* ── COLONNE GAUCHE ─────────────────────────────────────── *@
+                <div class="bc-form-main">
+
+                    @* Fournisseur *@
+                    <div class="bc-field-group">
+                        <label class="bc-label" for="fournisseur-select">
+                            Fournisseur <span class="bc-required">*</span>
+                        </label>
+                        @if (!Model.Fournisseurs.Any())
+                        {
+                            <div class="bc-empty-warning">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                                </svg>
+                                Aucun fournisseur dans votre annuaire.
+                                <a asp-page="/AnnuaireNew" style="color:var(--accent);">Ajouter un contact fournisseur →</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <select name="FournisseurId" id="fournisseur-select" class="bc-select" required>
+                                <option value="">— Choisir un fournisseur —</option>
+                                @foreach (var f in Model.Fournisseurs)
+                                {
+                                    <option value="@f.Id"
+                                            data-email="@f.Email"
+                                            data-phone="@f.Phone">
+                                        @f.FullName
+                                        @if (!string.IsNullOrEmpty(f.Email)) { <text> (@f.Email)</text> }
+                                    </option>
+                                }
+                            </select>
+                        }
+                    </div>
+
+                    @* Date livraison *@
+                    <div class="bc-field-group">
+                        <label class="bc-label" for="date-livraison">Date de livraison souhaitée</label>
+                        <input type="date"
+                               name="DateLivraisonSouhaitee"
+                               id="date-livraison"
+                               class="bc-input"
+                               min="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                    </div>
+
+                    @* Notes *@
+                    <div class="bc-field-group">
+                        <label class="bc-label" for="notes">Notes / Conditions</label>
+                        <textarea name="Notes" id="notes" class="bc-textarea" rows="3"
+                                  placeholder="Ex: Livraison en palette, référencer le n° BC sur la facture..."></textarea>
+                    </div>
+
+                    @* ── LIGNES DE COMMANDE ──────────────────────────── *@
+                    <div class="bc-lignes-section">
+                        <div class="bc-lignes-header">
+                            <span class="bc-table-title">Lignes de commande</span>
+                            <button type="button" class="bc-btn-add-ligne" onclick="ouvrirAjoutLigne()">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;">
+                                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                                </svg>
+                                Ajouter un composant
+                            </button>
+                        </div>
+
+                        <div id="lignes-container">
+                            @* Lignes ajoutées dynamiquement par JS *@
+                            <div id="lignes-empty" class="bc-lignes-empty">
+                                Aucune ligne pour l'instant. Cliquez sur "Ajouter un composant".
+                            </div>
+                        </div>
+
+                        @* Totaux live *@
+                        <div class="bc-totaux" id="totaux-section" style="display:none;">
+                            <div class="bc-total-row">
+                                <span>Total HT</span>
+                                <span id="total-ht">0,00 DZD</span>
+                            </div>
+                            <div class="bc-total-row">
+                                <span>TVA (19%)</span>
+                                <span id="total-tva">0,00 DZD</span>
+                            </div>
+                            <div class="bc-total-row bc-total-ttc">
+                                <span>Total TTC</span>
+                                <span id="total-ttc">0,00 DZD</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @* ── COLONNE DROITE : aide ────────────────────────────── *@
+                <div class="bc-form-aside">
+                    <div class="bc-aside-card">
+                        <div class="bc-aside-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:20px;height:20px;">
+                                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                            </svg>
+                        </div>
+                        <h4>Comment ça marche</h4>
+                        <ol class="bc-aside-steps">
+                            <li>Choisissez un fournisseur</li>
+                            <li>Ajoutez les composants à commander</li>
+                            <li>Enregistrez le bon de commande</li>
+                            <li>Envoyez-le au fournisseur par email</li>
+                            <li>Le fournisseur confirme ou refuse via le lien reçu</li>
+                        </ol>
+                    </div>
+                    <div class="bc-aside-card bc-aside-warning">
+                        <strong>Sous-traitance</strong>
+                        <p>Si vous commandez un composant qui n'est pas une matière première, SKYRA vous demandera une confirmation — c'est un achat de sous-traitance.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            @* Actions *@
+            <div class="bc-form-actions">
+                <a asp-page="/Achats/Index" class="btn-secondary-outline">Annuler</a>
+                <button type="submit" class="btn-primary" id="btn-submit-bc">
+                    Enregistrer le bon de commande
+                </button>
+            </div>
+        </form>
+    }
+</div>
+
+@* ═══════════════════════════════════════════════════════════════════════════
+   MODAL : Ajouter une ligne
+════════════════════════════════════════════════════════════════════════════ *@
+@if (Model.ModeCreation)
+{
+    <div id="modal-ligne" class="bc-modal-overlay" style="display:none;" onclick="fermerModalSiDehors(event)">
+        <div class="bc-modal">
+            <div class="bc-modal-header">
+                <h3>Ajouter un composant</h3>
+                <button type="button" class="bc-modal-close" onclick="fermerModalLigne()">✕</button>
+            </div>
+            <div class="bc-modal-body">
+                <div class="bc-field-group">
+                    <label class="bc-label">Composant <span class="bc-required">*</span></label>
+                    <input type="text" id="search-produit" class="bc-input"
+                           placeholder="Rechercher un composant..."
+                           oninput="filtrerProduits(this.value)" autocomplete="off" />
+                    <div id="produit-results" class="bc-produit-results"></div>
+                    <input type="hidden" id="selected-produit-id" />
+                    <input type="hidden" id="selected-produit-nom" />
+                    <input type="hidden" id="selected-produit-est-mp" />
+                </div>
+                <div class="bc-field-group">
+                    <label class="bc-label">Quantité <span class="bc-required">*</span></label>
+                    <input type="number" id="input-qte" class="bc-input" value="1" min="0.001" step="0.001" />
+                </div>
+                <div class="bc-field-group">
+                    <label class="bc-label">Prix unitaire HT (DZD)</label>
+                    <input type="number" id="input-prix" class="bc-input" step="0.01" min="0"
+                           placeholder="Laissez vide pour utiliser le coût d'achat" />
+                    <span class="bc-field-hint" id="hint-cout-achat"></span>
+                </div>
+            </div>
+            <div class="bc-modal-footer">
+                <button type="button" class="btn-secondary-outline" onclick="fermerModalLigne()">Annuler</button>
+                <button type="button" class="btn-primary" onclick="validerLigne()">Ajouter</button>
+            </div>
+        </div>
+    </div>
+
+    @* MODAL SOUS-TRAITANCE *@
+    <div id="modal-sst" class="bc-modal-overlay" style="display:none;">
+        <div class="bc-modal bc-modal-warning">
+            <div class="bc-modal-header">
+                <h3>⚠️ Composant en sous-traitance</h3>
+            </div>
+            <div class="bc-modal-body">
+                <p style="color:var(--text-muted);line-height:1.7;">
+                    Le composant <strong id="sst-nom" style="color:var(--text);"></strong> n'est pas classifié comme matière première.
+                    Le commander implique un achat de <strong>sous-traitance</strong>.
+                </p>
+                <p style="color:var(--text-muted);font-size:13px;">Confirmez-vous vouloir l'inclure dans ce bon de commande ?</p>
+            </div>
+            <div class="bc-modal-footer">
+                <button type="button" class="btn-secondary-outline" onclick="annulerSousTraitance()">Annuler</button>
+                <button type="button" class="btn-primary" onclick="confirmerSousTraitance()" style="background:linear-gradient(135deg,#f97316,#ea580c);">
+                    Oui, inclure en sous-traitance
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@* ═══════════════════════════════════════════════════════════════════════════
+   DONNÉES PRODUITS (JSON pour JS)
+════════════════════════════════════════════════════════════════════════════ *@
+@if (Model.ModeCreation)
+{
+    <script id="produits-data" type="application/json">
+        @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Produits))
+    </script>
+}
+
+@section Scripts {
+<script>
+// ─── Données produits ────────────────────────────────────────────────────
+const produits = JSON.parse(document.getElementById('produits-data')?.textContent || '[]');
+let lignes = [];
+let ligneEnCours = null; // Pour gérer le flow sous-traitance
+
+// ─── Toast ───────────────────────────────────────────────────────────────
+const toast = document.getElementById('bc-toast');
+if (toast) setTimeout(() => toast.classList.remove('bc-toast-visible'), 4000);
+
+// ─── Modal ligne ─────────────────────────────────────────────────────────
+function ouvrirAjoutLigne() {
+    document.getElementById('search-produit').value = '';
+    document.getElementById('selected-produit-id').value = '';
+    document.getElementById('selected-produit-nom').value = '';
+    document.getElementById('selected-produit-est-mp').value = '';
+    document.getElementById('input-qte').value = '1';
+    document.getElementById('input-prix').value = '';
+    document.getElementById('hint-cout-achat').textContent = '';
+    document.getElementById('produit-results').innerHTML = '';
+    document.getElementById('modal-ligne').style.display = 'flex';
+    setTimeout(() => document.getElementById('search-produit').focus(), 50);
+}
+
+function fermerModalLigne() {
+    document.getElementById('modal-ligne').style.display = 'none';
+}
+
+function fermerModalSiDehors(e) {
+    if (e.target.id === 'modal-ligne') fermerModalLigne();
+}
+
+// ─── Recherche produits ──────────────────────────────────────────────────
+function filtrerProduits(q) {
+    const container = document.getElementById('produit-results');
+    const query = q.toLowerCase().trim();
+    if (!query) { container.innerHTML = ''; return; }
+
+    const matches = produits.filter(p =>
+        p.nom.toLowerCase().includes(query) ||
+        p.reference.toLowerCase().includes(query)
+    ).slice(0, 8);
+
+    container.innerHTML = matches.length === 0
+        ? '<div class="bc-produit-none">Aucun composant trouvé</div>'
+        : matches.map(p => `
+            <div class="bc-produit-item" onclick="selectionnerProduit(${p.id}, '${p.nom.replace(/'/g,"\\'")}', ${p.coutAchat}, ${p.estMatierePremiere})">
+                <span class="bc-produit-nom">${p.nom}</span>
+                <span class="bc-produit-meta">
+                    ${p.reference ? p.reference + ' · ' : ''}
+                    ${p.estMatierePremiere ? '<span class="bc-tag-mp">MP</span>' : '<span class="bc-tag-st">Sous-trait.</span>'}
+                    · ${Number(p.coutAchat).toLocaleString('fr-FR', {minimumFractionDigits:2})} DZD
+                </span>
+            </div>`).join('');
+}
+
+function selectionnerProduit(id, nom, coutAchat, estMP) {
+    document.getElementById('selected-produit-id').value = id;
+    document.getElementById('selected-produit-nom').value = nom;
+    document.getElementById('selected-produit-est-mp').value = estMP;
+    document.getElementById('search-produit').value = nom;
+    document.getElementById('produit-results').innerHTML = '';
+
+    if (coutAchat > 0) {
+        document.getElementById('input-prix').value = coutAchat.toFixed(2);
+        document.getElementById('hint-cout-achat').textContent =
+            `Prix pré-rempli depuis le dernier coût d'achat : ${Number(coutAchat).toLocaleString('fr-FR',{minimumFractionDigits:2})} DZD`;
+    } else {
+        document.getElementById('input-prix').value = '';
+        document.getElementById('hint-cout-achat').textContent = 'Aucun coût d\'achat enregistré pour ce composant.';
+    }
+}
+
+// ─── Valider la ligne (avec flow sous-traitance) ─────────────────────────
+function validerLigne() {
+    const produitId = parseInt(document.getElementById('selected-produit-id').value);
+    const nom       = document.getElementById('selected-produit-nom').value;
+    const estMP     = document.getElementById('selected-produit-est-mp').value === 'true';
+    const qte       = parseFloat(document.getElementById('input-qte').value);
+    const prix      = parseFloat(document.getElementById('input-prix').value) || 0;
+
+    if (!produitId || !nom) { alert('Veuillez sélectionner un composant.'); return; }
+    if (!qte || qte <= 0)   { alert('La quantité doit être supérieure à 0.'); return; }
+
+    ligneEnCours = { produitId, nom, estSousTraitance: false, quantite: qte, prixHT: prix };
+
+    if (!estMP) {
+        // Afficher modal sous-traitance
+        fermerModalLigne();
+        document.getElementById('sst-nom').textContent = nom;
+        document.getElementById('modal-sst').style.display = 'flex';
+    } else {
+        ajouterLigneListe(ligneEnCours);
+        fermerModalLigne();
+    }
+}
+
+function confirmerSousTraitance() {
+    if (!ligneEnCours) return;
+    ligneEnCours.estSousTraitance = true;
+    ajouterLigneListe(ligneEnCours);
+    document.getElementById('modal-sst').style.display = 'none';
+    ligneEnCours = null;
+}
+
+function annulerSousTraitance() {
+    document.getElementById('modal-sst').style.display = 'none';
+    ligneEnCours = null;
+}
+
+// ─── Ajouter une ligne à la liste ────────────────────────────────────────
+function ajouterLigneListe(ligne) {
+    lignes.push(ligne);
+    mettreAJourAffichage();
+}
+
+function supprimerLigne(index) {
+    lignes.splice(index, 1);
+    mettreAJourAffichage();
+}
+
+function mettreAJourAffichage() {
+    const container = document.getElementById('lignes-container');
+    const empty = document.getElementById('lignes-empty');
+    const totauxSection = document.getElementById('totaux-section');
+
+    if (lignes.length === 0) {
+        container.innerHTML = '';
+        container.appendChild(empty);
+        empty.style.display = 'block';
+        totauxSection.style.display = 'none';
+    } else {
+        empty.style.display = 'none';
+        totauxSection.style.display = 'block';
+
+        container.innerHTML = `
+            <table class="bc-table">
+                <thead><tr>
+                    <th>Composant</th>
+                    <th style="text-align:center;">Type</th>
+                    <th style="text-align:right;">Quantité</th>
+                    <th style="text-align:right;">Prix HT</th>
+                    <th style="text-align:right;">Total HT</th>
+                    <th></th>
+                </tr></thead>
+                <tbody>
+                    ${lignes.map((l, i) => `
+                        <tr>
+                            <td class="bc-td-nom">${l.nom}</td>
+                            <td style="text-align:center;">
+                                ${l.estSousTraitance
+                                    ? '<span class="bc-badge-st">Sous-traitance</span>'
+                                    : '<span class="bc-tag-mp">Matière première</span>'}
+                            </td>
+                            <td style="text-align:right;font-weight:600;">${l.quantite.toLocaleString('fr-FR',{minimumFractionDigits:3})}</td>
+                            <td style="text-align:right;">${Number(l.prixHT).toLocaleString('fr-FR',{minimumFractionDigits:2})} DZD</td>
+                            <td style="text-align:right;font-weight:700;color:var(--accent-light);">
+                                ${(l.quantite * l.prixHT).toLocaleString('fr-FR',{minimumFractionDigits:2})} DZD
+                            </td>
+                            <td style="text-align:center;">
+                                <button type="button" class="bc-btn-remove" onclick="supprimerLigne(${i})">✕</button>
+                            </td>
+                        </tr>`).join('')}
+                </tbody>
+            </table>`;
+        container.appendChild(totauxSection);
+    }
+
+    // Calcul totaux
+    const totalHT = lignes.reduce((s, l) => s + l.quantite * l.prixHT, 0);
+    const tva     = totalHT * 0.19;
+    const ttc     = totalHT + tva;
+    document.getElementById('total-ht').textContent  = totalHT.toLocaleString('fr-FR',{minimumFractionDigits:2}) + ' DZD';
+    document.getElementById('total-tva').textContent = tva.toLocaleString('fr-FR',{minimumFractionDigits:2})     + ' DZD';
+    document.getElementById('total-ttc').textContent = ttc.toLocaleString('fr-FR',{minimumFractionDigits:2})     + ' DZD';
+
+    // Mettre à jour le champ caché
+    document.getElementById('lignes-json').value = JSON.stringify(lignes);
+}
+
+// ─── Confirmation suppression BC ─────────────────────────────────────────
+function confirmSuppression() {
+    return window.confirm('Supprimer définitivement ce bon de commande ?');
+}
+
+// ─── Copier le lien de confirmation ──────────────────────────────────────
+function copierLien() {
+    const lien = document.getElementById('lien-confirm')?.textContent;
+    if (lien) {
+        navigator.clipboard.writeText(lien).then(() => {
+            const btn = document.querySelector('.bc-link-copy');
+            if (btn) { btn.textContent = '✓ Copié !'; setTimeout(() => btn.textContent = 'Copier', 2000); }
+        });
+    }
+}
+</script>
+}

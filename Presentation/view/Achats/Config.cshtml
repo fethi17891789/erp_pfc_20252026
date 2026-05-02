@@ -1,0 +1,169 @@
+@page
+@model erp_pfc_20252026.Pages.Achats.ConfigModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@using global::Donnees.Achats
+
+@{
+    ViewData["Title"] = "Configuration Achats";
+    Layout = "~/Presentation/view/Shared/_Layout.cshtml";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/Achats.css" asp-append-version="true" />
+}
+
+@section HeaderLeft {
+    <div class="breadcrumb">
+        <span class="breadcrumb-item">Achats</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-item breadcrumb-active">Configuration</span>
+    </div>
+}
+
+<div class="achats-config-wrapper">
+
+    <div class="achats-config-hero">
+        <div class="achats-config-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <path d="M16 10a4 4 0 01-8 0"/>
+            </svg>
+        </div>
+        <h1 class="achats-config-title">
+            @if (Model.EstReconfiguration)
+            {
+                <span>Modifier la politique de prix</span>
+            }
+            else
+            {
+                <span>Bienvenue dans le module Achats</span>
+            }
+        </h1>
+        <p class="achats-config-subtitle">
+            Choisissez comment SKYRA doit mettre à jour le coût d'un composant
+            après chaque livraison fournisseur. Cette valeur sera utilisée
+            pour calculer les coûts de fabrication dans vos nomenclatures (BOM).
+        </p>
+        @if (!Model.EstReconfiguration)
+        {
+            <p class="achats-config-note">
+                💡 Vous pourrez modifier ce choix à tout moment depuis les Paramètres du module.
+            </p>
+        }
+    </div>
+
+    <form method="post" class="achats-config-form">
+        <div class="politique-grid">
+
+            <!-- OPTION A : Dernier prix -->
+            <label class="politique-card @(Model.PolitiqueChoisie == PolitiquePrixAchat.DernierPrix ? "politique-card-selected" : "")"
+                   for="politique-a">
+                <div class="politique-card-header">
+                    <div class="politique-badge politique-badge-recommended">Recommandé</div>
+                    <input type="radio"
+                           id="politique-a"
+                           name="PolitiqueChoisie"
+                           value="@((int)PolitiquePrixAchat.DernierPrix)"
+                           @(Model.PolitiqueChoisie == PolitiquePrixAchat.DernierPrix ? "checked" : "")
+                           class="politique-radio" />
+                </div>
+                <div class="politique-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+                        <polyline points="17 6 23 6 23 12"/>
+                    </svg>
+                </div>
+                <h3 class="politique-title">Dernier prix d'achat</h3>
+                <p class="politique-desc">
+                    Après chaque livraison, le coût du composant est mis à jour
+                    avec le prix de cette commande. Simple, direct, toujours à jour.
+                </p>
+                <div class="politique-exemple">
+                    <span class="politique-exemple-label">Exemple</span>
+                    <span>Tu achètes une vis à 2,50 DZD → son coût dans tes BOM devient 2,50 DZD immédiatement.</span>
+                </div>
+                <div class="politique-checkmark">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </div>
+            </label>
+
+            <!-- OPTION B : Moyenne pondérée -->
+            <label class="politique-card @(Model.PolitiqueChoisie == PolitiquePrixAchat.MoyennePonderee ? "politique-card-selected" : "")"
+                   for="politique-b">
+                <div class="politique-card-header">
+                    <div class="politique-badge politique-badge-advanced">Avancé</div>
+                    <input type="radio"
+                           id="politique-b"
+                           name="PolitiqueChoisie"
+                           value="@((int)PolitiquePrixAchat.MoyennePonderee)"
+                           @(Model.PolitiqueChoisie == PolitiquePrixAchat.MoyennePonderee ? "checked" : "")
+                           class="politique-radio" />
+                </div>
+                <div class="politique-icon politique-icon-alt">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <line x1="18" y1="20" x2="18" y2="10"/>
+                        <line x1="12" y1="20" x2="12" y2="4"/>
+                        <line x1="6" y1="20" x2="6" y2="14"/>
+                    </svg>
+                </div>
+                <h3 class="politique-title">Moyenne pondérée</h3>
+                <p class="politique-desc">
+                    Le coût est recalculé en tenant compte de toutes les commandes passées,
+                    pondérées par les quantités. Plus stable face aux variations ponctuelles.
+                </p>
+                <div class="politique-exemple">
+                    <span class="politique-exemple-label">Exemple</span>
+                    <span>100 vis à 2,00 DZD + 50 vis à 2,50 DZD → coût moyen = 2,17 DZD.</span>
+                </div>
+                <div class="politique-checkmark">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </div>
+            </label>
+
+        </div>
+
+        <!-- Avertissement commun aux deux options -->
+        <div class="politique-warning">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;margin-top:2px;">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span>Dans les deux cas, SKYRA conserve toujours un <strong>prix de référence fournisseur</strong> séparé
+            pour que vous puissiez détecter les commandes urgentes à prix majoré.</span>
+        </div>
+
+        <div class="politique-actions">
+            @if (Model.EstReconfiguration)
+            {
+                <a asp-page="/Achats/Index" class="btn-secondary-outline">Annuler</a>
+            }
+            <button type="submit" class="btn-primary politique-btn-submit">
+                @if (Model.EstReconfiguration)
+                {
+                    <span>Enregistrer</span>
+                }
+                else
+                {
+                    <span>Démarrer le module Achats →</span>
+                }
+            </button>
+        </div>
+    </form>
+
+</div>
+
+@section Scripts {
+    <script>
+        // Sélection visuelle au clic sur les cartes
+        document.querySelectorAll('.politique-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.politique-card').forEach(c => c.classList.remove('politique-card-selected'));
+                card.classList.add('politique-card-selected');
+            });
+        });
+    </script>
+}

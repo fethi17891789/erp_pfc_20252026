@@ -1,6 +1,7 @@
 // Fichier : Donnees/ErpDbContext.cs
 using erp_pfc_20252026.Data.Entities;
 using Donnees.Logistique;
+using Donnees.Achats;
 using Microsoft.EntityFrameworkCore;
 
 namespace Donnees
@@ -52,6 +53,16 @@ namespace Donnees
 
         // BLOCKCHAIN
         public DbSet<BlockchainAncrage> BlockchainAncrages { get; set; }
+
+        // ACHATS
+        public DbSet<AchatConfigModule> AchatConfigModules { get; set; }
+        public DbSet<AchatBonCommande> AchatBonCommandes { get; set; }
+        public DbSet<AchatBonCommandeLigne> AchatBonCommandeLignes { get; set; }
+        public DbSet<AchatProforma> AchatProformas { get; set; }
+        public DbSet<AchatBonReception> AchatBonReceptions { get; set; }
+        public DbSet<AchatBonReceptionLigne> AchatBonReceptionLignes { get; set; }
+        public DbSet<AchatFactureFournisseur> AchatFacturesFournisseur { get; set; }
+        public DbSet<AchatHistoriquePrix> AchatHistoriquesPrix { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -393,6 +404,112 @@ namespace Donnees
                 entity.HasKey(t => t.Id);
                 entity.Property(t => t.Origine).HasMaxLength(255);
                 entity.Property(t => t.Destination).HasMaxLength(255);
+            });
+
+            // --- CONFIG ACHATS ---
+            modelBuilder.Entity<AchatConfigModule>(entity =>
+            {
+                entity.ToTable("AchatConfigModules");
+                entity.HasKey(c => c.Id);
+                entity.Property(c => c.DateCreation).HasColumnType("timestamp without time zone");
+            });
+
+            modelBuilder.Entity<AchatBonCommande>(entity =>
+            {
+                entity.ToTable("AchatBonCommandes");
+                entity.HasKey(b => b.Id);
+                entity.Property(b => b.Numero).IsRequired().HasMaxLength(20);
+                entity.Property(b => b.Statut).IsRequired().HasMaxLength(30).HasDefaultValue("Brouillon");
+                entity.Property(b => b.TotalHT).HasColumnType("decimal(18,2)");
+                entity.Property(b => b.MontantTVA).HasColumnType("decimal(18,2)");
+                entity.Property(b => b.TotalTTC).HasColumnType("decimal(18,2)");
+                entity.Property(b => b.DateCommande).HasColumnType("timestamp without time zone");
+                entity.Property(b => b.DateCreation).HasColumnType("timestamp without time zone");
+                entity.Property(b => b.DateEnvoiMail).HasColumnType("timestamp without time zone");
+                entity.Property(b => b.DateReponse).HasColumnType("timestamp without time zone");
+                entity.Property(b => b.DateLivraisonSouhaitee).HasColumnType("timestamp without time zone");
+                entity.Property(b => b.DateLivraisonProposee).HasColumnType("timestamp without time zone");
+                entity.HasOne(b => b.Fournisseur).WithMany().HasForeignKey(b => b.FournisseurId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(b => b.Lignes).WithOne(l => l.BonCommande).HasForeignKey(l => l.BonCommandeId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(b => b.Proformas).WithOne(p => p.BonCommande).HasForeignKey(p => p.BonCommandeId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasMany(b => b.BonsReception).WithOne(r => r.BonCommande).HasForeignKey(r => r.BonCommandeId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(b => b.Numero).IsUnique().HasDatabaseName("UQ_AchatBonCommandes_Numero");
+                entity.HasIndex(b => b.TokenConfirmation).HasDatabaseName("IX_AchatBonCommandes_Token");
+            });
+
+            modelBuilder.Entity<AchatBonCommandeLigne>(entity =>
+            {
+                entity.ToTable("AchatBonCommandeLignes");
+                entity.HasKey(l => l.Id);
+                entity.Property(l => l.Quantite).HasColumnType("decimal(18,4)");
+                entity.Property(l => l.PrixUnitaireHT).HasColumnType("decimal(18,2)");
+                entity.Property(l => l.TotalHT).HasColumnType("decimal(18,2)");
+                entity.HasOne(l => l.Produit).WithMany().HasForeignKey(l => l.ProduitId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(l => l.BonCommandeId).HasDatabaseName("IX_AchatBCLignes_BonCommandeId");
+            });
+
+            modelBuilder.Entity<AchatProforma>(entity =>
+            {
+                entity.ToTable("AchatProformas");
+                entity.HasKey(p => p.Id);
+                entity.Property(p => p.MontantHT).HasColumnType("decimal(18,2)");
+                entity.Property(p => p.DateReception).HasColumnType("timestamp without time zone");
+                entity.Property(p => p.DateCreation).HasColumnType("timestamp without time zone");
+                entity.HasIndex(p => p.BonCommandeId).HasDatabaseName("IX_AchatProformas_BonCommandeId");
+            });
+
+            modelBuilder.Entity<AchatBonReception>(entity =>
+            {
+                entity.ToTable("AchatBonReceptions");
+                entity.HasKey(r => r.Id);
+                entity.Property(r => r.Numero).IsRequired().HasMaxLength(20);
+                entity.Property(r => r.Statut).IsRequired().HasMaxLength(30).HasDefaultValue("EnCours");
+                entity.Property(r => r.DateReception).HasColumnType("timestamp without time zone");
+                entity.Property(r => r.DateCreation).HasColumnType("timestamp without time zone");
+                entity.HasMany(r => r.Lignes).WithOne(l => l.BonReception).HasForeignKey(l => l.BonReceptionId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasIndex(r => r.Numero).IsUnique().HasDatabaseName("UQ_AchatBonReceptions_Numero");
+                entity.HasIndex(r => r.BonCommandeId).HasDatabaseName("IX_AchatBonReceptions_BonCommandeId");
+            });
+
+            modelBuilder.Entity<AchatBonReceptionLigne>(entity =>
+            {
+                entity.ToTable("AchatBonReceptionLignes");
+                entity.HasKey(l => l.Id);
+                entity.Property(l => l.QuantiteCommandee).HasColumnType("decimal(18,4)");
+                entity.Property(l => l.QuantiteRecue).HasColumnType("decimal(18,4)");
+                entity.Property(l => l.Etat).IsRequired().HasMaxLength(20).HasDefaultValue("Conforme");
+                entity.HasOne(l => l.Produit).WithMany().HasForeignKey(l => l.ProduitId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(l => l.BonReceptionId).HasDatabaseName("IX_AchatBRLignes_BonReceptionId");
+            });
+
+            modelBuilder.Entity<AchatFactureFournisseur>(entity =>
+            {
+                entity.ToTable("AchatFacturesFournisseur");
+                entity.HasKey(f => f.Id);
+                entity.Property(f => f.Numero).IsRequired().HasMaxLength(20);
+                entity.Property(f => f.Statut).IsRequired().HasMaxLength(30).HasDefaultValue("Recue");
+                entity.Property(f => f.MontantHT).HasColumnType("decimal(18,2)");
+                entity.Property(f => f.MontantTVA).HasColumnType("decimal(18,2)");
+                entity.Property(f => f.MontantTTC).HasColumnType("decimal(18,2)");
+                entity.Property(f => f.EcartPourcentage).HasColumnType("decimal(5,2)");
+                entity.Property(f => f.DateFacture).HasColumnType("timestamp without time zone");
+                entity.Property(f => f.DateCreation).HasColumnType("timestamp without time zone");
+                entity.HasOne(f => f.BonCommande).WithMany().HasForeignKey(f => f.BonCommandeId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(f => f.BonReception).WithMany().HasForeignKey(f => f.BonReceptionId).OnDelete(DeleteBehavior.SetNull);
+                entity.HasIndex(f => f.Numero).IsUnique().HasDatabaseName("UQ_AchatFactures_Numero");
+                entity.HasIndex(f => f.BonCommandeId).HasDatabaseName("IX_AchatFactures_BonCommandeId");
+            });
+
+            modelBuilder.Entity<AchatHistoriquePrix>(entity =>
+            {
+                entity.ToTable("AchatHistoriquesPrix");
+                entity.HasKey(h => h.Id);
+                entity.Property(h => h.PrixUnitaireHT).HasColumnType("decimal(18,2)");
+                entity.Property(h => h.Quantite).HasColumnType("decimal(18,4)");
+                entity.Property(h => h.DateAchat).HasColumnType("timestamp without time zone");
+                entity.HasOne(h => h.Produit).WithMany().HasForeignKey(h => h.ProduitId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(h => h.Fournisseur).WithMany().HasForeignKey(h => h.FournisseurId).OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(h => new { h.ProduitId, h.FournisseurId, h.DateAchat }).HasDatabaseName("IX_AchatHistPrix_ProdFournDate");
             });
 
             // --- CONFIG BLOCKCHAIN ---

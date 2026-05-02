@@ -73,6 +73,11 @@ builder.Services.AddHttpClient<Metier.IAService>(client =>
 builder.Services.AddScoped<Metier.CRM.ValidationService>();
 builder.Services.AddScoped<Metier.CRM.AnnuaireService>();
 
+// ACHATS
+builder.Services.AddScoped<Metier.Achats.AchatsService>();
+builder.Services.AddScoped<Metier.Achats.AchatsPrixService>();
+builder.Services.AddScoped<Metier.Achats.AchatsMailService>();
+
 // BLOCKCHAIN
 builder.Services.AddScoped<Metier.BlockchainService>();
 
@@ -1015,7 +1020,172 @@ using (var scope9 = app.Services.CreateScope())
 // --------------------------------------------------------------------
 
 
-// ---------- 10. CREATION AUTOMATIQUE TABLE BLOCKCHAIN ----------
+// ---------- 10. CREATION AUTOMATIQUE TABLES ACHATS ----------
+using (var scopeAchats = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scopeAchats.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string createAchatsSql = @"
+                CREATE TABLE IF NOT EXISTS ""AchatConfigModules"" (
+                    ""Id""               SERIAL PRIMARY KEY,
+                    ""PolitiquePrix""    INT NOT NULL DEFAULT 0,
+                    ""EstConfigure""     BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""DateCreation""     TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreeParUserId""    INT NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS ""AchatBonCommandes"" (
+                    ""Id""                      SERIAL PRIMARY KEY,
+                    ""Numero""                  VARCHAR(20) NOT NULL UNIQUE,
+                    ""FournisseurId""            INT NOT NULL,
+                    ""DateCommande""             TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""DateLivraisonSouhaitee""   TIMESTAMP WITHOUT TIME ZONE NULL,
+                    ""Statut""                   VARCHAR(30) NOT NULL DEFAULT 'Brouillon',
+                    ""Notes""                    VARCHAR(1000) NULL,
+                    ""TokenConfirmation""         VARCHAR(100) NULL,
+                    ""PdfBlob""                  BYTEA NULL,
+                    ""DateEnvoiMail""             TIMESTAMP WITHOUT TIME ZONE NULL,
+                    ""RepondeurMessage""          VARCHAR(500) NULL,
+                    ""DateReponse""              TIMESTAMP WITHOUT TIME ZONE NULL,
+                    ""DateLivraisonProposee""    TIMESTAMP WITHOUT TIME ZONE NULL,
+                    ""TotalHT""                  NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""MontantTVA""               NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""TotalTTC""                 NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""DateCreation""             TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreeParUserId""            INT NULL,
+                    CONSTRAINT ""FK_AchatBC_Fournisseur""
+                        FOREIGN KEY (""FournisseurId"") REFERENCES ""Contacts""(""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatBonCommandes_Token""
+                    ON ""AchatBonCommandes""(""TokenConfirmation"");
+
+                CREATE TABLE IF NOT EXISTS ""AchatBonCommandeLignes"" (
+                    ""Id""               SERIAL PRIMARY KEY,
+                    ""BonCommandeId""    INT NOT NULL,
+                    ""ProduitId""        INT NOT NULL,
+                    ""EstSousTraitance"" BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""Quantite""         NUMERIC(18,4) NOT NULL DEFAULT 1,
+                    ""PrixUnitaireHT""   NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""TotalHT""          NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    CONSTRAINT ""FK_AchatBCLigne_BC""
+                        FOREIGN KEY (""BonCommandeId"") REFERENCES ""AchatBonCommandes""(""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_AchatBCLigne_Produit""
+                        FOREIGN KEY (""ProduitId"") REFERENCES ""Produits""(""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatBCLignes_BonCommandeId""
+                    ON ""AchatBonCommandeLignes""(""BonCommandeId"");
+
+                CREATE TABLE IF NOT EXISTS ""AchatProformas"" (
+                    ""Id""               SERIAL PRIMARY KEY,
+                    ""BonCommandeId""    INT NOT NULL,
+                    ""DateReception""    TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""MontantHT""        NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""Notes""            VARCHAR(500) NULL,
+                    ""FichierNom""       VARCHAR(255) NULL,
+                    ""FichierBlob""      BYTEA NULL,
+                    ""DateCreation""     TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreeParUserId""    INT NULL,
+                    CONSTRAINT ""FK_AchatProforma_BC""
+                        FOREIGN KEY (""BonCommandeId"") REFERENCES ""AchatBonCommandes""(""Id"") ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatProformas_BonCommandeId""
+                    ON ""AchatProformas""(""BonCommandeId"");
+
+                CREATE TABLE IF NOT EXISTS ""AchatBonReceptions"" (
+                    ""Id""               SERIAL PRIMARY KEY,
+                    ""Numero""           VARCHAR(20) NOT NULL UNIQUE,
+                    ""BonCommandeId""    INT NOT NULL,
+                    ""DateReception""    TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""Statut""           VARCHAR(30) NOT NULL DEFAULT 'EnCours',
+                    ""Notes""            VARCHAR(500) NULL,
+                    ""DateCreation""     TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreeParUserId""    INT NULL,
+                    CONSTRAINT ""FK_AchatBR_BC""
+                        FOREIGN KEY (""BonCommandeId"") REFERENCES ""AchatBonCommandes""(""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatBonReceptions_BonCommandeId""
+                    ON ""AchatBonReceptions""(""BonCommandeId"");
+
+                CREATE TABLE IF NOT EXISTS ""AchatBonReceptionLignes"" (
+                    ""Id""                  SERIAL PRIMARY KEY,
+                    ""BonReceptionId""      INT NOT NULL,
+                    ""ProduitId""           INT NOT NULL,
+                    ""QuantiteCommandee""   NUMERIC(18,4) NOT NULL DEFAULT 0,
+                    ""QuantiteRecue""       NUMERIC(18,4) NOT NULL DEFAULT 0,
+                    ""Etat""               VARCHAR(20) NOT NULL DEFAULT 'Conforme',
+                    CONSTRAINT ""FK_AchatBRLigne_BR""
+                        FOREIGN KEY (""BonReceptionId"") REFERENCES ""AchatBonReceptions""(""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_AchatBRLigne_Produit""
+                        FOREIGN KEY (""ProduitId"") REFERENCES ""Produits""(""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatBRLignes_BonReceptionId""
+                    ON ""AchatBonReceptionLignes""(""BonReceptionId"");
+
+                CREATE TABLE IF NOT EXISTS ""AchatFacturesFournisseur"" (
+                    ""Id""                   SERIAL PRIMARY KEY,
+                    ""Numero""               VARCHAR(20) NOT NULL UNIQUE,
+                    ""NumeroFournisseur""     VARCHAR(100) NULL,
+                    ""BonCommandeId""        INT NOT NULL,
+                    ""BonReceptionId""       INT NULL,
+                    ""DateFacture""          TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""MontantHT""            NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""MontantTVA""           NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""MontantTTC""           NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""AlerteEcartPrix""      BOOLEAN NOT NULL DEFAULT FALSE,
+                    ""EcartPourcentage""     NUMERIC(5,2) NOT NULL DEFAULT 0,
+                    ""Statut""               VARCHAR(30) NOT NULL DEFAULT 'Recue',
+                    ""Notes""                VARCHAR(500) NULL,
+                    ""DateCreation""         TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""CreeParUserId""        INT NULL,
+                    CONSTRAINT ""FK_AchatFacture_BC""
+                        FOREIGN KEY (""BonCommandeId"") REFERENCES ""AchatBonCommandes""(""Id"") ON DELETE RESTRICT,
+                    CONSTRAINT ""FK_AchatFacture_BR""
+                        FOREIGN KEY (""BonReceptionId"") REFERENCES ""AchatBonReceptions""(""Id"") ON DELETE SET NULL
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatFactures_BonCommandeId""
+                    ON ""AchatFacturesFournisseur""(""BonCommandeId"");
+
+                CREATE TABLE IF NOT EXISTS ""AchatHistoriquesPrix"" (
+                    ""Id""               SERIAL PRIMARY KEY,
+                    ""ProduitId""        INT NOT NULL,
+                    ""FournisseurId""    INT NOT NULL,
+                    ""PrixUnitaireHT""   NUMERIC(18,2) NOT NULL DEFAULT 0,
+                    ""Quantite""         NUMERIC(18,4) NOT NULL DEFAULT 0,
+                    ""DateAchat""        TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""BonCommandeId""    INT NOT NULL,
+                    CONSTRAINT ""FK_AchatHistPrix_Produit""
+                        FOREIGN KEY (""ProduitId"") REFERENCES ""Produits""(""Id"") ON DELETE RESTRICT,
+                    CONSTRAINT ""FK_AchatHistPrix_Fournisseur""
+                        FOREIGN KEY (""FournisseurId"") REFERENCES ""Contacts""(""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatHistPrix_ProdFournDate""
+                    ON ""AchatHistoriquesPrix""(""ProduitId"", ""FournisseurId"", ""DateAchat"");
+            ";
+
+            using (var cmd = new NpgsqlCommand(createAchatsSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Vérification / Création des tables Achats...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Tables Achats prêtes.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors de la création auto des tables Achats : {ex}");
+    }
+}
+// --------------------------------------------------------------------
+
+// ---------- 11. CREATION AUTOMATIQUE TABLE BLOCKCHAIN ----------
 using (var scope10 = app.Services.CreateScope())
 {
     try
@@ -1155,7 +1325,8 @@ app.Use(async (ctx, next) =>
                     || path.StartsWith("/uploads/")
                     || path.StartsWith("/chathub")
                     || path.StartsWith("/logistiquehub")
-                    || path.StartsWith("/logistique/tracking"); // Accessible sans session (téléphone chauffeur)
+                    || path.StartsWith("/logistique/tracking")  // Accessible sans session (téléphone chauffeur)
+                    || path.StartsWith("/achats/confirmer");   // Page confirmation fournisseur (sans login)
 
     if (!estPublique && ctx.Session.GetInt32("CurrentUserId") == null)
     {

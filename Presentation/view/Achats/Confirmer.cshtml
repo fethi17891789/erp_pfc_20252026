@@ -1,0 +1,560 @@
+@page
+@model erp_pfc_20252026.Pages.Achats.ConfirmerModel
+@using global::Donnees.Achats
+@{
+    Layout = null;
+    ViewData["Title"] = "Confirmation de commande";
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] — SKYRA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #02030A;
+            --bg-card: #0D0E1F;
+            --border: rgba(255,255,255,0.08);
+            --accent: #7B5EFF;
+            --accent-hover: #8B6FFF;
+            --text: #FFFFFF;
+            --text-muted: #A4A7C8;
+            --text-muted-2: #7F83A5;
+            --green: #22c55e;
+            --green-bg: rgba(34,197,94,0.10);
+            --red: #ef4444;
+            --red-bg: rgba(239,68,68,0.10);
+            --yellow: #fbbf24;
+            --yellow-bg: rgba(251,191,36,0.10);
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 16px 60px;
+        }
+
+        /* HEADER MARQUE */
+        .conf-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 40px;
+        }
+        .conf-logo-ring {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--accent), #a78bfa);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .conf-logo-ring svg { width: 18px; height: 18px; color: #fff; }
+        .conf-brand { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+        .conf-brand-sub { font-size: 12px; color: var(--text-muted-2); margin-left: 4px; }
+
+        /* CARTE PRINCIPALE */
+        .conf-card {
+            width: 100%;
+            max-width: 720px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .conf-card-header {
+            padding: 28px 32px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .conf-bc-num { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+        .conf-bc-num span { color: var(--accent); }
+        .conf-bc-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+        .conf-badge {
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid var(--yellow);
+            background: var(--yellow-bg);
+            color: var(--yellow);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* INFOS */
+        .conf-infos {
+            padding: 20px 32px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .conf-info-item { display: flex; flex-direction: column; gap: 4px; }
+        .conf-info-label {
+            font-size: 11px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            color: var(--text-muted-2);
+        }
+        .conf-info-val { font-size: 14px; font-weight: 600; }
+
+        /* TABLEAU LIGNES */
+        .conf-table-wrap { padding: 20px 32px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+        .conf-table-title {
+            font-size: 12px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            color: var(--text-muted-2); margin-bottom: 12px;
+        }
+        .conf-table { width: 100%; border-collapse: collapse; }
+        .conf-table th {
+            padding: 10px 12px;
+            font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            color: var(--text-muted-2); text-align: left;
+            background: rgba(255,255,255,0.02);
+            border-bottom: 1px solid var(--border);
+        }
+        .conf-table th:last-child { text-align: right; }
+        .conf-table td {
+            padding: 12px; font-size: 13px;
+            border-bottom: 1px solid var(--border); color: var(--text);
+        }
+        .conf-table td:last-child { text-align: right; font-weight: 600; }
+        .conf-table tbody tr:last-child td { border-bottom: none; }
+        .conf-table-ref { font-size: 11px; color: var(--text-muted-2); margin-top: 2px; }
+        .conf-st-badge {
+            display: inline-block; padding: 2px 8px; border-radius: 999px;
+            font-size: 10px; font-weight: 600;
+            background: rgba(168,85,247,0.12); color: #a855f7;
+            border: 1px solid #a855f7; margin-left: 6px;
+        }
+
+        /* TOTAUX */
+        .conf-totaux {
+            padding: 20px 32px; border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+        }
+        .conf-total-row { display: flex; gap: 40px; font-size: 13px; }
+        .conf-total-row .lbl { color: var(--text-muted); }
+        .conf-total-row .val { font-weight: 600; min-width: 130px; text-align: right; }
+        .conf-total-ttc {
+            display: flex; gap: 40px; font-size: 17px; font-weight: 800;
+            margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border);
+        }
+        .conf-total-ttc .lbl { color: var(--text-muted); }
+        .conf-total-ttc .val { color: var(--accent); min-width: 130px; text-align: right; }
+
+        /* NOTES */
+        .conf-notes { padding: 16px 32px; border-bottom: 1px solid var(--border); }
+        .conf-notes-lbl {
+            font-size: 11px; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            color: var(--text-muted-2); margin-bottom: 6px;
+        }
+        .conf-notes-val { font-size: 13px; color: var(--text-muted); font-style: italic; line-height: 1.5; }
+
+        /* FORMULAIRE REPONSE */
+        .conf-form { padding: 24px 32px; }
+        .conf-form-title { font-size: 15px; font-weight: 700; margin-bottom: 20px; }
+        .conf-form-title span { color: var(--accent); }
+        .conf-actions { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+
+        .conf-btn {
+            display: flex; align-items: center; gap: 8px;
+            padding: 12px 22px; border-radius: 10px;
+            font-family: inherit; font-size: 14px; font-weight: 700;
+            cursor: pointer; border: 1px solid transparent;
+            transition: all 0.18s ease; flex: 1;
+            justify-content: center; min-width: 130px;
+        }
+        .conf-btn-confirmer { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+        .conf-btn-confirmer:hover { background: rgba(34,197,94,0.20); }
+        .conf-btn-confirmer.active { background: var(--green); color: #000; }
+        .conf-btn-refuser { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+        .conf-btn-refuser:hover { background: rgba(239,68,68,0.20); }
+        .conf-btn-refuser.active { background: var(--red); color: #fff; }
+        .conf-btn-date { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow); }
+        .conf-btn-date:hover { background: rgba(251,191,36,0.20); }
+        .conf-btn-date.active { background: var(--yellow); color: #000; }
+
+        /* Champs complementaires */
+        .conf-extra { display: none; flex-direction: column; gap: 14px; }
+        @@keyframes cfIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+        .conf-extra.visible { display: flex; animation: cfIn 0.2s ease; }
+
+        .conf-field-lbl {
+            display: block; font-size: 12px; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px;
+            color: var(--text-muted-2); margin-bottom: 6px;
+        }
+        .conf-textarea, .conf-date-input {
+            width: 100%; background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 12px 14px; font-family: inherit; font-size: 14px;
+            color: var(--text); outline: none;
+            transition: border-color 0.18s; resize: vertical;
+        }
+        .conf-textarea::placeholder, .conf-date-input::placeholder { color: var(--text-muted-2); }
+        .conf-textarea:focus, .conf-date-input:focus { border-color: var(--accent); }
+        .conf-date-input { color-scheme: dark; }
+
+        .conf-submit {
+            margin-top: 20px; padding: 13px 28px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+            color: #fff; border: none; border-radius: 10px;
+            font-family: inherit; font-size: 14px; font-weight: 700;
+            cursor: pointer; transition: opacity 0.18s, transform 0.18s; display: none;
+        }
+        .conf-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+        .conf-submit.visible { display: block; }
+
+        /* RESULTAT */
+        .conf-result {
+            padding: 40px 32px; text-align: center;
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+        }
+        .conf-result-icon {
+            width: 64px; height: 64px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; margin-bottom: 4px;
+        }
+        .conf-result-icon.success { background: var(--green-bg); border: 1px solid var(--green); }
+        .conf-result-icon.error   { background: var(--red-bg);   border: 1px solid var(--red); }
+        .conf-result-title { font-size: 22px; font-weight: 800; }
+        .conf-result-sub { font-size: 14px; color: var(--text-muted); max-width: 440px; line-height: 1.6; }
+
+        /* TOKEN INVALIDE */
+        .conf-invalid {
+            padding: 56px 32px; text-align: center;
+            display: flex; flex-direction: column; align-items: center; gap: 16px;
+        }
+        .conf-invalid-icon {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: var(--yellow-bg); border: 1px solid var(--yellow);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .conf-invalid-title { font-size: 20px; font-weight: 800; }
+        .conf-invalid-sub { font-size: 14px; color: var(--text-muted); max-width: 400px; line-height: 1.6; }
+
+        /* FOOTER */
+        .conf-footer { margin-top: 32px; font-size: 12px; color: var(--text-muted-2); text-align: center; }
+
+        @@media (max-width: 600px) {
+            .conf-card-header { flex-direction: column; align-items: flex-start; }
+            .conf-infos { grid-template-columns: 1fr 1fr; }
+            .conf-actions { flex-direction: column; }
+            .conf-btn { flex: none; width: 100%; }
+            .conf-card-header, .conf-infos, .conf-table-wrap,
+            .conf-totaux, .conf-notes, .conf-form { padding-left: 20px; padding-right: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    @* LOGO *@
+    <div class="conf-header">
+        <div class="conf-logo-ring">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+        </div>
+        <div>
+            <span class="conf-brand">SKYRA ERP</span>
+            <span class="conf-brand-sub">— Portail fournisseur</span>
+        </div>
+    </div>
+
+    @if (Model.ReponseEnregistree)
+    {
+        @* ECRAN RESULTAT *@
+        <div class="conf-card">
+            <div class="conf-result">
+                @if (!Model.TokenValide)
+                {
+                    <div class="conf-result-icon error">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" style="width:28px;height:28px;">
+                            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                    </div>
+                    <div class="conf-result-title">Lien invalide</div>
+                    <div class="conf-result-sub">@Model.MessageResultat</div>
+                }
+                else if (Model.EstConfirme)
+                {
+                    <div class="conf-result-icon success">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" style="width:28px;height:28px;">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                    </div>
+                    <div class="conf-result-title" style="color:#22c55e;">Commande confirmée</div>
+                    <div class="conf-result-sub">@Model.MessageResultat Vous pouvez fermer cette fenêtre.</div>
+                }
+                else
+                {
+                    <div class="conf-result-icon error">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5" style="width:28px;height:28px;">
+                            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                        </svg>
+                    </div>
+                    <div class="conf-result-title" style="color:#ef4444;">Commande refusée</div>
+                    <div class="conf-result-sub">@Model.MessageResultat Vous pouvez fermer cette fenêtre.</div>
+                }
+            </div>
+        </div>
+    }
+    else if (!Model.TokenValide)
+    {
+        @* TOKEN INVALIDE *@
+        <div class="conf-card">
+            <div class="conf-invalid">
+                <div class="conf-invalid-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" style="width:28px;height:28px;">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" y1="8" x2="12" y2="12"/>
+                        <line x1="12" y1="16" x2="12.01" y2="16"/>
+                    </svg>
+                </div>
+                <div class="conf-invalid-title">Lien invalide ou expiré</div>
+                <div class="conf-invalid-sub">
+                    Ce lien de confirmation est introuvable ou a déjà été utilisé.
+                    Si vous pensez qu'il s'agit d'une erreur, contactez votre acheteur.
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @* PAGE PRINCIPALE *@
+        var bc = Model.BonCommande!;
+
+        <div class="conf-card">
+
+            @* EN-TETE *@
+            <div class="conf-card-header">
+                <div>
+                    <div class="conf-bc-num">
+                        Bon de commande <span>@bc.Numero</span>
+                    </div>
+                    <div class="conf-bc-sub">
+                        Emis le @bc.DateCommande.ToString("dd MMMM yyyy") — En attente de votre réponse
+                    </div>
+                </div>
+                <span class="conf-badge">En attente</span>
+            </div>
+
+            @* INFOS *@
+            <div class="conf-infos">
+                <div class="conf-info-item">
+                    <span class="conf-info-label">Fournisseur</span>
+                    <span class="conf-info-val">@(bc.Fournisseur?.FullName ?? "—")</span>
+                </div>
+                <div class="conf-info-item">
+                    <span class="conf-info-label">Date de commande</span>
+                    <span class="conf-info-val">@bc.DateCommande.ToString("dd/MM/yyyy")</span>
+                </div>
+                @if (bc.DateLivraisonSouhaitee.HasValue)
+                {
+                    <div class="conf-info-item">
+                        <span class="conf-info-label">Livraison souhaitée</span>
+                        <span class="conf-info-val">@bc.DateLivraisonSouhaitee.Value.ToString("dd/MM/yyyy")</span>
+                    </div>
+                }
+                <div class="conf-info-item">
+                    <span class="conf-info-label">Nombre d'articles</span>
+                    <span class="conf-info-val">@bc.Lignes.Count ligne@(bc.Lignes.Count > 1 ? "s" : "")</span>
+                </div>
+            </div>
+
+            @* LIGNES *@
+            <div class="conf-table-wrap">
+                <div class="conf-table-title">Détail de la commande</div>
+                <table class="conf-table">
+                    <thead>
+                        <tr>
+                            <th>Produit / Service</th>
+                            <th style="text-align:right;">Qté</th>
+                            <th style="text-align:right;">Prix unit. HT</th>
+                            <th>Total HT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var ligne in bc.Lignes)
+                        {
+                            <tr>
+                                <td>
+                                    <div>
+                                        @(ligne.Produit?.Nom ?? "—")
+                                        @if (ligne.EstSousTraitance)
+                                        {
+                                            <span class="conf-st-badge">Sous-traitance</span>
+                                        }
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(ligne.Produit?.Reference))
+                                    {
+                                        <div class="conf-table-ref">Réf. @ligne.Produit.Reference</div>
+                                    }
+                                </td>
+                                <td style="text-align:right;">@ligne.Quantite.ToString("N2")</td>
+                                <td style="text-align:right;">@ligne.PrixUnitaireHT.ToString("N2") DZD</td>
+                                <td>@ligne.TotalHT.ToString("N2") DZD</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @* TOTAUX *@
+            <div class="conf-totaux">
+                <div class="conf-total-row">
+                    <span class="lbl">Total HT</span>
+                    <span class="val">@bc.TotalHT.ToString("N2") DZD</span>
+                </div>
+                <div class="conf-total-row">
+                    <span class="lbl">TVA (19 %)</span>
+                    <span class="val">@bc.MontantTVA.ToString("N2") DZD</span>
+                </div>
+                <div class="conf-total-ttc">
+                    <span class="lbl">Total TTC</span>
+                    <span class="val">@bc.TotalTTC.ToString("N2") DZD</span>
+                </div>
+            </div>
+
+            @* NOTES ACHETEUR *@
+            @if (!string.IsNullOrEmpty(bc.Notes))
+            {
+                <div class="conf-notes">
+                    <div class="conf-notes-lbl">Note de l'acheteur</div>
+                    <div class="conf-notes-val">@bc.Notes</div>
+                </div>
+            }
+
+            @* FORMULAIRE REPONSE *@
+            <form method="post" class="conf-form" id="conf-form">
+                <input type="hidden" name="Token" value="@Model.Token" />
+                <input type="hidden" name="Reponse" id="hidden-reponse" value="" />
+
+                <div class="conf-form-title">
+                    <span>Votre réponse</span> — sélectionnez une action ci-dessous
+                </div>
+
+                <div class="conf-actions">
+                    <button type="button" class="conf-btn conf-btn-confirmer" onclick="choisir('confirmer')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0;">
+                            <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                        Confirmer la commande
+                    </button>
+                    <button type="button" class="conf-btn conf-btn-refuser" onclick="choisir('refuser')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0;">
+                            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                        Refuser la commande
+                    </button>
+                    <button type="button" class="conf-btn conf-btn-date" onclick="choisir('proposer')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0;">
+                            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        Proposer une autre date
+                    </button>
+                </div>
+
+                @* Champ message (confirmer / refuser) *@
+                <div class="conf-extra" id="extra-msg-simple">
+                    <div>
+                        <label class="conf-field-lbl" for="msg-simple">Message optionnel</label>
+                        <textarea id="msg-simple" name="MessageFournisseur" class="conf-textarea"
+                                  rows="3" placeholder="Ex : Délai de 3 jours supplémentaires requis…"></textarea>
+                    </div>
+                </div>
+
+                @* Champs proposer une autre date *@
+                <div class="conf-extra" id="extra-proposer">
+                    <div>
+                        <label class="conf-field-lbl" for="date-prop">Date de livraison proposée</label>
+                        <input type="date" id="date-prop" name="DateLivraisonProposeeStr"
+                               class="conf-date-input" />
+                    </div>
+                    <div>
+                        <label class="conf-field-lbl" for="msg-date">Message (expliquez la contrainte)</label>
+                        <textarea id="msg-date" class="conf-textarea" rows="3"
+                                  placeholder="Ex : Rupture de stock prévue jusqu'au…"
+                                  oninput="syncMsgDate(this.value)"></textarea>
+                    </div>
+                    @* Champ caché pour synchroniser le message du 2ème textarea *@
+                    <input type="hidden" id="msg-date-hidden" name="MessageFournisseur" value="" />
+                </div>
+
+                <button type="submit" class="conf-submit" id="btn-submit">
+                    Envoyer ma réponse
+                </button>
+            </form>
+
+        </div>
+    }
+
+    <div class="conf-footer">
+        Ce lien est à usage unique. Propulsé par <strong>SKYRA ERP</strong>.
+    </div>
+
+<script>
+function choisir(type) {
+    // Reset
+    document.querySelectorAll('.conf-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('extra-msg-simple').classList.remove('visible');
+    document.getElementById('extra-proposer').classList.remove('visible');
+
+    const hiddenRep = document.getElementById('hidden-reponse');
+    const submit    = document.getElementById('btn-submit');
+
+    if (type === 'confirmer') {
+        document.querySelector('.conf-btn-confirmer').classList.add('active');
+        hiddenRep.value = 'confirmer';
+        document.getElementById('extra-msg-simple').classList.add('visible');
+        submit.textContent = 'Confirmer la commande';
+        submit.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)';
+    } else if (type === 'refuser') {
+        document.querySelector('.conf-btn-refuser').classList.add('active');
+        hiddenRep.value = 'refuser';
+        document.getElementById('extra-msg-simple').classList.add('visible');
+        submit.textContent = 'Refuser la commande';
+        submit.style.background = 'linear-gradient(135deg,#b91c1c,#ef4444)';
+    } else if (type === 'proposer') {
+        document.querySelector('.conf-btn-date').classList.add('active');
+        hiddenRep.value = 'confirmer';  // proposer = confirmer avec une autre date
+        document.getElementById('extra-proposer').classList.add('visible');
+        submit.textContent = 'Envoyer ma proposition';
+        submit.style.background = 'linear-gradient(135deg,#d97706,#fbbf24)';
+    }
+
+    submit.classList.add('visible');
+}
+
+function syncMsgDate(val) {
+    document.getElementById('msg-date-hidden').value = val;
+}
+
+// Validation avant soumission
+document.getElementById('conf-form')?.addEventListener('submit', function(e) {
+    const rep = document.getElementById('hidden-reponse').value;
+    if (!rep) {
+        e.preventDefault();
+        // Feedback visuel : secouer les boutons
+        document.querySelector('.conf-actions').style.animation = 'none';
+        void document.querySelector('.conf-actions').offsetWidth;
+        alert('Veuillez sélectionner une action avant d\'envoyer.');
+    }
+});
+</script>
+</body>
+</html>
