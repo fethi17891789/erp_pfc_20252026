@@ -24,15 +24,12 @@ namespace erp_pfc_20252026.Pages.Achats
         /// </summary>
         public bool EstReconfiguration { get; set; } = false;
 
-        public async Task<IActionResult> OnGetAsync(bool reconfiguration = false)
+        public async Task<IActionResult> OnGetAsync()
         {
             var config = await _achatsService.GetConfigAsync();
 
-            // Si déjà configuré et ce n'est pas une reconfiguration explicite → rediriger vers le module
-            if (config?.EstConfigure == true && !reconfiguration)
-                return RedirectToPage("/Achats/Index");
-
-            EstReconfiguration = reconfiguration;
+            // Si déjà configuré → mode reconfiguration (on affiche quand même la page)
+            EstReconfiguration = config?.EstConfigure == true;
 
             // Pré-sélectionner la politique actuelle si elle existe
             if (config != null)

@@ -595,8 +595,8 @@ function ouvrirAjoutLigne() {
     document.getElementById('input-qte').value = '1';
     document.getElementById('input-prix').value = '';
     document.getElementById('hint-cout-achat').textContent = '';
+    document.getElementById('produit-results').innerHTML = '';  // vider les résultats précédents
     document.getElementById('modal-ligne').style.display = 'flex';
-    filtrerProduits(''); // afficher la liste complète dès l'ouverture
     setTimeout(() => document.getElementById('search-produit').focus(), 50);
 }
 

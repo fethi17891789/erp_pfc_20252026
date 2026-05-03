@@ -1010,7 +1010,11 @@
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 20px;
     width: 100%;
-    max-width: 520px;
+    max-width: 460px;
+    /* Hauteur maximale + flex column pour que le body soit scrollable */
+    max-height: calc(100vh - 48px);
+    display: flex;
+    flex-direction: column;
     box-shadow: 0 24px 80px rgba(0,0,0,0.6);
     animation: bcModalIn 0.2s cubic-bezier(0.4,0,0.2,1);
 }
@@ -1026,33 +1030,50 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 24px;
+    padding: 16px 20px;
     border-bottom: 1px solid rgba(255,255,255,0.07);
+    flex-shrink: 0; /* le header ne rétrécit jamais */
 }
 
-.bc-modal-header h3 { font-size: 16px; font-weight: 700; color: var(--text); margin: 0; }
+.bc-modal-header h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 0; }
 
 .bc-modal-close {
     background: rgba(255,255,255,0.06);
     border: none;
     color: var(--text-muted);
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
     transition: all 0.15s;
 }
 
 .bc-modal-close:hover { background: rgba(255,255,255,0.12); color: var(--text); }
 
-.bc-modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+/* Corps scrollable — prend tout l'espace disponible */
+.bc-modal-body {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+/* Scrollbar discrète dans le modal body */
+.bc-modal-body::-webkit-scrollbar { width: 4px; }
+.bc-modal-body::-webkit-scrollbar-track { background: transparent; }
+.bc-modal-body::-webkit-scrollbar-thumb { background: rgba(123,94,255,0.3); border-radius: 999px; }
+
 .bc-modal-footer {
-    padding: 16px 24px;
+    padding: 14px 20px;
     border-top: 1px solid rgba(255,255,255,0.07);
     display: flex;
     justify-content: flex-end;
     gap: 10px;
+    flex-shrink: 0; /* le footer ne rétrécit jamais */
 }
 
 /* ─── RÉSULTATS RECHERCHE PRODUIT ─────────────────────────── */
@@ -1062,7 +1083,7 @@
     border: 1px solid rgba(255,255,255,0.1);
     border-radius: 10px;
     overflow: hidden;
-    max-height: 220px;
+    max-height: 160px;
     overflow-y: auto;
 }
 
