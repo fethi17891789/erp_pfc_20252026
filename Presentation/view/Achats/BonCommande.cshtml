@@ -146,20 +146,6 @@
             </div>
         }
 
-        @* ── LIEN CONFIRMATION (test localhost) ────────────────────────── *@
-        @if (!string.IsNullOrEmpty(Model.LienConfirmation))
-        {
-            <div class="bc-link-box">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;color:#7B5EFF;flex-shrink:0;">
-                    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-                    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-                </svg>
-                <span class="bc-link-label">Lien fournisseur :</span>
-                <span class="bc-link-url" id="lien-confirm">@Model.LienConfirmation</span>
-                <button type="button" class="bc-link-copy" onclick="copierLien()">Copier</button>
-            </div>
-        }
-
         @* ── INFOS BC ──────────────────────────────────────────────────── *@
         <div class="bc-info-grid">
             <div class="bc-info-card">

@@ -81,6 +81,7 @@ builder.Services.AddScoped<Metier.Achats.AchatsService>();
 builder.Services.AddScoped<Metier.Achats.AchatsPrixService>();
 builder.Services.AddScoped<Metier.Achats.AchatsMailService>();
 builder.Services.AddScoped<Metier.Achats.AchatsGmailService>();
+builder.Services.AddHostedService<Metier.Achats.AchatsEmailPollingService>();
 
 // BLOCKCHAIN
 builder.Services.AddScoped<Metier.BlockchainService>();

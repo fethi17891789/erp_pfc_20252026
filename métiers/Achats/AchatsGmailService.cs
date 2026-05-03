@@ -1,7 +1,9 @@
 // Fichier : Metier/Achats/AchatsGmailService.cs
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Donnees;
@@ -21,6 +23,7 @@ namespace Metier.Achats
     /// <summary>
     /// Service d'envoi d'email via Gmail API (OAuth2).
     /// Zéro configuration SMTP pour l'utilisateur — juste un clic "Connecter avec Gmail".
+    /// Gère aussi la détection des réponses fournisseur (CONFIRMER / REFUSER) par polling.
     /// </summary>
     public class AchatsGmailService
     {
@@ -31,8 +34,13 @@ namespace Metier.Achats
         private string ClientId     => _config["GoogleOAuth:ClientId"]     ?? "";
         private string ClientSecret => _config["GoogleOAuth:ClientSecret"] ?? "";
 
-        // gmail.send = envoyer des emails  |  email+openid = récupérer l'adresse sans scope sensible supplémentaire
-        private const string Scope = "https://www.googleapis.com/auth/gmail.send email openid";
+        // gmail.send = envoyer | gmail.modify = marquer lu | email+openid = adresse
+        private const string Scope = "https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.modify email openid";
+
+        // Regex pour extraire le numéro BC et l'action depuis le sujet d'un email
+        private static readonly Regex RegexReponse = new(
+            @"(BC-\d{4}-\d{3})\s+(CONFIRMER|REFUSER)",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public AchatsGmailService(ErpDbContext db, IConfiguration config)
         {
@@ -62,10 +70,8 @@ namespace Metier.Achats
             var flow    = CreerFlow(redirectUri);
             var request = flow.CreateAuthorizationCodeRequest(redirectUri);
 
-            // Définir les paramètres via les propriétés (pas de concaténation manuelle)
             request.State = state;
 
-            // Cast Google-specific pour forcer le prompt de consentement
             if (request is Google.Apis.Auth.OAuth2.Requests.GoogleAuthorizationCodeRequestUrl googleReq)
                 googleReq.Prompt = "consent";
 
@@ -78,14 +84,11 @@ namespace Metier.Achats
             var flow    = CreerFlow(redirectUri);
             var reponse = await flow.ExchangeCodeForTokenAsync("user", code, redirectUri, CancellationToken.None);
 
-            // Récupérer l'adresse email via l'API
             string emailAdresse = await ObtenirEmailAdresseAsync(reponse.AccessToken);
 
-            // Supprimer l'ancien token s'il existe
             var anciens = _db.AchatEmailTokens.Where(t => t.Provider == "gmail");
             _db.AchatEmailTokens.RemoveRange(anciens);
 
-            // Sauvegarder le nouveau
             _db.AchatEmailTokens.Add(new AchatEmailToken
             {
                 Provider     = "gmail",
@@ -107,7 +110,7 @@ namespace Metier.Achats
         }
 
         // ── Envoie le BC via Gmail API ────────────────────────────────────────
-        public async Task EnvoyerBonCommandeAsync(AchatBonCommande bc, string emailDestinataire, string baseUrl)
+        public async Task EnvoyerBonCommandeAsync(AchatBonCommande bc, string emailDestinataire)
         {
             var tokenEntite = await _db.AchatEmailTokens
                 .Where(t => t.Provider == "gmail")
@@ -122,11 +125,9 @@ namespace Metier.Achats
                 ApplicationName       = "SKYRA ERP"
             });
 
-            string lien   = $"{baseUrl}/Achats/Confirmer?token={bc.TokenConfirmation}";
-            string corps  = GenererCorpsEmail(bc, lien);
-            string sujet  = $"Bon de Commande {bc.Numero} — SKYRA ERP";
+            string corps = GenererCorpsEmail(bc, tokenEntite.EmailAdresse);
+            string sujet = $"Bon de Commande {bc.Numero} — SKYRA ERP";
 
-            // Construire le message MIME
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress("SKYRA ERP", tokenEntite.EmailAdresse));
             message.To.Add(MailboxAddress.Parse(emailDestinataire));
@@ -140,6 +141,80 @@ namespace Metier.Achats
 
             await service.Users.Messages.Send(
                 new Google.Apis.Gmail.v1.Data.Message { Raw = raw }, "me").ExecuteAsync();
+        }
+
+        // ── Polling : cherche les réponses non lues CONFIRMER / REFUSER ───────
+        /// <summary>
+        /// Interroge la boîte Gmail et retourne la liste des réponses fournisseur
+        /// (numéro BC + action) qui n'ont pas encore été traitées.
+        /// </summary>
+        public async Task<List<(string NumeroBc, bool Confirme, string MessageId)>> ChercherReponsesAsync()
+        {
+            var tokenEntite = await _db.AchatEmailTokens
+                .Where(t => t.Provider == "gmail")
+                .OrderByDescending(t => t.ConfigureeLe)
+                .FirstOrDefaultAsync();
+
+            if (tokenEntite == null) return new();
+
+            var credential = await ObtenirCredentialAsync(tokenEntite);
+            var service    = new GmailService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = credential,
+                ApplicationName       = "SKYRA ERP"
+            });
+
+            // Cherche les emails non lus dont le sujet contient CONFIRMER ou REFUSER
+            var listReq = service.Users.Messages.List("me");
+            listReq.Q          = "subject:CONFIRMER OR subject:REFUSER is:unread";
+            listReq.MaxResults = 20;
+
+            var listResp = await listReq.ExecuteAsync();
+            var resultats = new List<(string, bool, string)>();
+
+            if (listResp.Messages == null) return resultats;
+
+            foreach (var msg in listResp.Messages)
+            {
+                var fullMsg = await service.Users.Messages.Get("me", msg.Id).ExecuteAsync();
+                var sujet   = fullMsg.Payload?.Headers?
+                    .FirstOrDefault(h => h.Name == "Subject")?.Value ?? "";
+
+                var match = RegexReponse.Match(sujet);
+                if (!match.Success) continue;
+
+                string numeroBc = match.Groups[1].Value.ToUpper();
+                bool   confirme = match.Groups[2].Value.ToUpper() == "CONFIRMER";
+
+                resultats.Add((numeroBc, confirme, msg.Id));
+            }
+
+            return resultats;
+        }
+
+        // ── Marque un email comme lu (supprime le label UNREAD) ───────────────
+        public async Task MarquerLuAsync(string messageId)
+        {
+            var tokenEntite = await _db.AchatEmailTokens
+                .Where(t => t.Provider == "gmail")
+                .OrderByDescending(t => t.ConfigureeLe)
+                .FirstOrDefaultAsync();
+
+            if (tokenEntite == null) return;
+
+            var credential = await ObtenirCredentialAsync(tokenEntite);
+            var service    = new GmailService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = credential,
+                ApplicationName       = "SKYRA ERP"
+            });
+
+            var modifyReq = new ModifyMessageRequest
+            {
+                RemoveLabelIds = new List<string> { "UNREAD" }
+            };
+
+            await service.Users.Messages.Modify(modifyReq, "me", messageId).ExecuteAsync();
         }
 
         // ── Helpers privés ────────────────────────────────────────────────────
@@ -159,22 +234,20 @@ namespace Metier.Achats
 
         private async Task<UserCredential> ObtenirCredentialAsync(AchatEmailToken tokenEntite)
         {
-            var flow       = CreerFlow("");
-            var tokenResp  = new TokenResponse
+            var flow      = CreerFlow("");
+            var tokenResp = new TokenResponse
             {
-                AccessToken  = tokenEntite.AccessToken,
-                RefreshToken = tokenEntite.RefreshToken,
+                AccessToken      = tokenEntite.AccessToken,
+                RefreshToken     = tokenEntite.RefreshToken,
                 ExpiresInSeconds = (long)(tokenEntite.ExpiresAt - DateTime.UtcNow).TotalSeconds
             };
 
             var credential = new UserCredential(flow, "user", tokenResp);
 
-            // Rafraîchir si expiré
             if (tokenEntite.ExpiresAt <= DateTime.UtcNow.AddMinutes(5))
             {
                 await credential.RefreshTokenAsync(CancellationToken.None);
 
-                // Mettre à jour en base
                 tokenEntite.AccessToken = credential.Token.AccessToken;
                 tokenEntite.ExpiresAt   = DateTime.UtcNow.AddSeconds(
                     credential.Token.ExpiresInSeconds ?? 3600);
@@ -186,7 +259,6 @@ namespace Metier.Achats
 
         private async Task<string> ObtenirEmailAdresseAsync(string accessToken)
         {
-            // Utilise l'endpoint userinfo standard OAuth2 — ne nécessite pas de scope Gmail supplémentaire
             using var http = new System.Net.Http.HttpClient();
             http.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
@@ -196,12 +268,21 @@ namespace Metier.Achats
         }
 
         // ── Template email ────────────────────────────────────────────────────
-
-        private string GenererCorpsEmail(AchatBonCommande bc, string lienConfirmation)
+        /// <summary>
+        /// Génère le corps HTML du BC. Les boutons Confirmer/Refuser sont des liens
+        /// mailto: — le fournisseur répond par email, aucune URL publique requise.
+        /// </summary>
+        private string GenererCorpsEmail(AchatBonCommande bc, string emailERP)
         {
             string dateLivraison = bc.DateLivraisonSouhaitee.HasValue
                 ? bc.DateLivraisonSouhaitee.Value.ToString("dd/MM/yyyy")
                 : "À définir";
+
+            // Encode le sujet pour l'URL mailto
+            string sujetConfirmer = Uri.EscapeDataString($"{bc.Numero} CONFIRMER");
+            string sujetRefuser   = Uri.EscapeDataString($"{bc.Numero} REFUSER");
+            string mailtoConfirmer = $"mailto:{emailERP}?subject={sujetConfirmer}";
+            string mailtoRefuser   = $"mailto:{emailERP}?subject={sujetRefuser}";
 
             var lignesHtml = new StringBuilder();
             if (bc.Lignes?.Any() == true)
@@ -256,6 +337,7 @@ namespace Metier.Achats
     .btn{{display:inline-block;text-decoration:none;padding:15px 30px;border-radius:999px;font-weight:700;font-size:15px;margin:6px;}}
     .ok{{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;}}
     .ko{{background:transparent;color:#ef4444;border:1px solid #ef4444;padding:14px 29px;}}
+    .hint{{background:rgba(123,94,255,.08);border:1px solid rgba(123,94,255,.2);border-radius:12px;padding:14px 18px;margin:20px 0;font-size:12px;color:#A4A7C8;line-height:1.6;text-align:center;}}
     .ft{{padding:20px 32px;text-align:center;color:#7F83A5;font-size:12px;border-top:1px solid rgba(255,255,255,.06);}}
   </style>
 </head>
@@ -275,15 +357,15 @@ namespace Metier.Achats
       <div class=""s"">Total HT : {bc.TotalHT:N2} DZD &nbsp;·&nbsp; TVA 19% : {bc.MontantTVA:N2} DZD</div>
     </div>
     <div class=""btns"">
-      <a href=""{lienConfirmation}&reponse=confirmer"" class=""btn ok"">✓&nbsp; Confirmer la commande</a>
-      <a href=""{lienConfirmation}&reponse=refuser"" class=""btn ko"">✗&nbsp; Refuser</a>
+      <a href=""{mailtoConfirmer}"" class=""btn ok"">✓&nbsp; Confirmer la commande</a>
+      <a href=""{mailtoRefuser}"" class=""btn ko"">✗&nbsp; Refuser</a>
     </div>
-    <p style=""text-align:center;color:#7F83A5;font-size:12px;margin:0;"">
-      Ou ouvrez la page de confirmation complète :<br>
-      <a href=""{lienConfirmation}"" style=""color:#9C8CFF;word-break:break-all;"">{lienConfirmation}</a>
-    </p>
+    <div class=""hint"">
+      Cliquez sur un bouton — votre messagerie s'ouvrira avec le sujet pré-rempli.<br>
+      Envoyez simplement l'email. Votre réponse sera enregistrée automatiquement.
+    </div>
   </div>
-  <div class=""ft"">Envoyé automatiquement par <strong style=""color:#9C8CFF;"">SKYRA ERP</strong>. Lien personnel à usage unique.</div>
+  <div class=""ft"">Envoyé automatiquement par <strong style=""color:#9C8CFF;"">SKYRA ERP</strong>.</div>
 </div>
 </body></html>";
         }

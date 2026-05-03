@@ -36,9 +36,8 @@ namespace erp_pfc_20252026.Pages.Achats
         public List<AchatFactureFournisseur> Factures { get; set; } = new();
         public bool ModeCreation => BonCommande == null;
 
-        // Message de succès/info transmis depuis une action POST
+        // Message de succès transmis depuis une action POST
         public string? MessageSucces { get; set; }
-        public string? LienConfirmation { get; set; }
 
         public class ProduitLigne
         {
@@ -78,16 +77,11 @@ namespace erp_pfc_20252026.Pages.Achats
                 BonCommande = await _achatsService.GetBonCommandeAsync(id.Value);
                 if (BonCommande == null) return NotFound();
 
-                // Construire le lien de confirmation si token présent
-                if (!string.IsNullOrEmpty(BonCommande.TokenConfirmation))
-                    LienConfirmation = $"{Request.Scheme}://{Request.Host}/Achats/Confirmer?token={BonCommande.TokenConfirmation}";
-
                 // Charger les factures liées à ce BC
                 Factures = await _achatsService.GetFacturesParBCAsync(id.Value);
             }
 
             if (TempData["Succes"] is string msg) MessageSucces = msg;
-            if (TempData["LienConfirmation"] is string lien) LienConfirmation = lien;
 
             return Page();
         }
@@ -132,13 +126,10 @@ namespace erp_pfc_20252026.Pages.Achats
 
             await _achatsService.MarquerEnvoyeAsync(id);
 
-            // Recharger pour avoir le token
+            // Recharger pour avoir les lignes complètes
             bc = await _achatsService.GetBonCommandeAsync(id);
-            string lien = $"{Request.Scheme}://{Request.Host}/Achats/Confirmer?token={bc!.TokenConfirmation}";
 
-            // Envoi email — Gmail OAuth2 en priorité, SMTP en fallback
-            string? emailFournisseur = bc.Fournisseur?.Email;
-            string  baseUrl          = $"{Request.Scheme}://{Request.Host}";
+            string? emailFournisseur = bc!.Fournisseur?.Email;
 
             if (!string.IsNullOrEmpty(emailFournisseur))
             {
@@ -147,12 +138,14 @@ namespace erp_pfc_20252026.Pages.Achats
                     if (await _gmailService.EstConfigureAsync())
                     {
                         // ── Envoi via Gmail API (OAuth2) ──────────────────────
-                        await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl);
-                        TempData["Succes"] = $"✅ BC {bc.Numero} envoyé à {emailFournisseur} via Gmail.";
+                        await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur);
+                        TempData["Succes"] = $"✅ BC {bc.Numero} envoyé à {emailFournisseur}. " +
+                            $"Le fournisseur peut confirmer/refuser par email — réponse détectée automatiquement.";
                     }
                     else
                     {
                         // ── Fallback SMTP ─────────────────────────────────────
+                        string baseUrl = $"{Request.Scheme}://{Request.Host}";
                         await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl);
                         TempData["Succes"] = $"✅ BC {bc.Numero} envoyé à {emailFournisseur}.";
                     }
@@ -170,7 +163,6 @@ namespace erp_pfc_20252026.Pages.Achats
                     $"Aucun email renseigné pour ce fournisseur.";
             }
 
-            TempData["LienConfirmation"] = lien;
             return RedirectToPage(new { id });
         }
 

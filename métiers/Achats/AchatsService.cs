@@ -206,6 +206,24 @@ namespace Metier.Achats
             return true;
         }
 
+        /// <summary>
+        /// Traite la réponse du fournisseur détectée par polling email (via numéro BC).
+        /// Appelé par AchatsEmailPollingService.
+        /// </summary>
+        public async Task<bool> TraiterReponseEmailAsync(string numeroBc, bool confirme)
+        {
+            var bc = await _db.AchatBonCommandes
+                .FirstOrDefaultAsync(b => b.Numero == numeroBc
+                                       && b.Statut == StatutBonCommande.Envoye);
+            if (bc == null) return false;
+
+            bc.Statut      = confirme ? StatutBonCommande.Confirme : StatutBonCommande.Refuse;
+            bc.DateReponse = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
         private void RecalculerTotaux(AchatBonCommande bc)
         {
             bc.TotalHT    = Math.Round(bc.Lignes.Sum(l => l.TotalHT), 2);
