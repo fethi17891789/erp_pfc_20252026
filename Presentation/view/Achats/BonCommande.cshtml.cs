@@ -15,14 +15,17 @@ namespace erp_pfc_20252026.Pages.Achats
 {
     public class BonCommandeModel : PageModel
     {
-        private readonly AchatsService _achatsService;
-        private readonly AchatsMailService _mailService;
-        private readonly ErpDbContext _db;
+        private readonly AchatsService      _achatsService;
+        private readonly AchatsMailService  _mailService;
+        private readonly AchatsGmailService _gmailService;
+        private readonly ErpDbContext       _db;
 
-        public BonCommandeModel(AchatsService achatsService, AchatsMailService mailService, ErpDbContext db)
+        public BonCommandeModel(AchatsService achatsService, AchatsMailService mailService,
+                                AchatsGmailService gmailService, ErpDbContext db)
         {
             _achatsService = achatsService;
             _mailService   = mailService;
+            _gmailService  = gmailService;
             _db            = db;
         }
 
@@ -133,25 +136,38 @@ namespace erp_pfc_20252026.Pages.Achats
             bc = await _achatsService.GetBonCommandeAsync(id);
             string lien = $"{Request.Scheme}://{Request.Host}/Achats/Confirmer?token={bc!.TokenConfirmation}";
 
-            // Tentative d'envoi email (peut échouer si SMTP non configuré)
+            // Envoi email — Gmail OAuth2 en priorité, SMTP en fallback
             string? emailFournisseur = bc.Fournisseur?.Email;
+            string  baseUrl          = $"{Request.Scheme}://{Request.Host}";
+
             if (!string.IsNullOrEmpty(emailFournisseur))
             {
                 try
                 {
-                    await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur,
-                        $"{Request.Scheme}://{Request.Host}");
-                    TempData["Succes"] = $"BC {bc.Numero} envoyé à {emailFournisseur}.";
+                    if (await _gmailService.EstConfigureAsync())
+                    {
+                        // ── Envoi via Gmail API (OAuth2) ──────────────────────
+                        await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl);
+                        TempData["Succes"] = $"✅ BC {bc.Numero} envoyé à {emailFournisseur} via Gmail.";
+                    }
+                    else
+                    {
+                        // ── Fallback SMTP ─────────────────────────────────────
+                        await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl);
+                        TempData["Succes"] = $"✅ BC {bc.Numero} envoyé à {emailFournisseur}.";
+                    }
                 }
                 catch (Exception ex)
                 {
                     TempData["Succes"] = $"BC {bc.Numero} marqué comme envoyé. " +
-                        $"Envoi email échoué ({ex.Message}) — utilisez le lien ci-dessous pour tester.";
+                        $"Envoi email échoué : {ex.Message} — " +
+                        $"Configurez l'email depuis Paramètres → Email sortant.";
                 }
             }
             else
             {
-                TempData["Succes"] = $"BC {bc.Numero} marqué comme envoyé. Aucun email fournisseur configuré.";
+                TempData["Succes"] = $"BC {bc.Numero} marqué comme envoyé. " +
+                    $"Aucun email renseigné pour ce fournisseur.";
             }
 
             TempData["LienConfirmation"] = lien;

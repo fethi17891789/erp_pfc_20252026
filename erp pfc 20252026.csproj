@@ -13,6 +13,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="DnsClient" Version="1.8.0" />
+		<PackageReference Include="Google.Apis.Gmail.v1" Version="1.73.0.4120" />
 		<PackageReference Include="Haukcode.WkHtmlToPdfDotNet" Version="1.5.95" />
 		<PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
 		<PackageReference Include="Isopoh.Cryptography.Argon2" Version="2.0.0" />
@@ -26,6 +27,7 @@
 		  <PrivateAssets>all</PrivateAssets>
 		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="MimeKit" Version="4.16.0" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
 		<!-- Blockchain Ethereum / Sepolia -->
 		<PackageReference Include="Nethereum.Web3" Version="4.26.0" />

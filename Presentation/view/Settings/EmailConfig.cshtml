@@ -1,0 +1,129 @@
+@page
+@model erp_pfc_20252026.Pages.Settings.EmailConfigModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    ViewData["Title"] = "Configuration email";
+    Layout = "~/Presentation/view/Shared/_Layout.cshtml";
+}
+
+@section HeaderLeft {
+    <div class="breadcrumb">
+        <span class="breadcrumb-item">Paramètres</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-item breadcrumb-active">Email sortant</span>
+    </div>
+}
+
+<section class="erp-content" style="max-width:580px;">
+
+    @* ── Toast ───────────────────────────────────────────────────────────────── *@
+    @if (Model.MessageSucces != null)
+    {
+        <div id="toast-msg" class="bc-toast bc-toast-visible" style="margin-bottom:20px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg>
+            @Model.MessageSucces
+        </div>
+    }
+    @if (Model.MessageErreur != null)
+    {
+        <div class="bc-toast bc-toast-visible" style="margin-bottom:20px;background:rgba(239,68,68,0.12);border-color:rgba(239,68,68,0.3);color:#f87171;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:16px;height:16px;flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            @Model.MessageErreur
+        </div>
+    }
+
+    @* ── Titre ───────────────────────────────────────────────────────────────── *@
+    <div class="section-header" style="margin-bottom:28px;">
+        <div>
+            <h2 style="margin:0;font-size:1.35rem;">Email sortant</h2>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin:4px 0 0;">
+                Configurez le compte depuis lequel SKYRA envoie les bons de commande aux fournisseurs.
+            </p>
+        </div>
+    </div>
+
+    @* ── Carte principale ─────────────────────────────────────────────────────── *@
+    <div style="background:linear-gradient(135deg,rgba(8,11,32,.96),rgba(18,22,54,.96));border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:32px;">
+
+        @if (Model.EstConnecte)
+        {
+            @* ── État : CONNECTÉ ─────────────────────────────────────────────── *@
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:28px;">
+                <div style="width:48px;height:48px;border-radius:14px;background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2" style="width:22px;height:22px;">
+                        <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                </div>
+                <div>
+                    <p style="margin:0;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted-2);">Compte connecté</p>
+                    <p style="margin:4px 0 0;font-size:1rem;font-weight:700;color:var(--text);">@Model.EmailConnecte</p>
+                </div>
+            </div>
+
+            <div style="background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15);border-radius:12px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:var(--text-muted);line-height:1.6;">
+                ✅ SKYRA envoie les emails depuis ce compte Gmail. Les fournisseurs voient votre adresse comme expéditeur.
+            </div>
+
+            <form method="post" asp-page-handler="Deconnecter">
+                <button type="submit" class="bc-btn-danger" style="width:100%;justify-content:center;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
+                        <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                    Déconnecter ce compte Gmail
+                </button>
+            </form>
+        }
+        else
+        {
+            @* ── État : NON CONNECTÉ ─────────────────────────────────────────── *@
+            <div style="text-align:center;padding:8px 0 28px;">
+                <div style="width:64px;height:64px;border-radius:18px;background:rgba(123,94,255,.12);border:1px solid rgba(123,94,255,.25);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#9C8CFF" stroke-width="1.5" style="width:28px;height:28px;">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                        <polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                </div>
+                <h3 style="margin:0 0 8px;font-size:1.1rem;font-weight:700;">Aucun email configuré</h3>
+                <p style="margin:0;font-size:.85rem;color:var(--text-muted);line-height:1.6;max-width:360px;margin:0 auto;">
+                    Connectez votre compte Gmail en un clic. SKYRA enverra les bons de commande directement depuis votre adresse.
+                </p>
+            </div>
+
+            <form method="post" asp-page-handler="ConnecterGmail">
+                <button type="submit" class="btn-primary" style="width:100%;justify-content:center;gap:12px;padding:14px 24px;font-size:.95rem;">
+                    @* Logo Google SVG *@
+                    <svg viewBox="0 0 48 48" style="width:20px;height:20px;flex-shrink:0;">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+                    </svg>
+                    Se connecter avec Gmail
+                </button>
+            </form>
+
+            <p style="text-align:center;margin:16px 0 0;font-size:12px;color:var(--text-muted-2);line-height:1.6;">
+                Compatible avec Gmail et Google Workspace (&#64;votre-domaine.com)<br>
+                Aucun mot de passe SMTP requis
+            </p>
+        }
+    </div>
+
+    @* ── Note explicative ─────────────────────────────────────────────────────── *@
+    <div style="margin-top:16px;padding:16px 20px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:14px;">
+        <p style="margin:0;font-size:12px;color:var(--text-muted-2);line-height:1.7;">
+            <strong style="color:var(--text-muted);">Comment ça fonctionne ?</strong><br>
+            SKYRA utilise l'API officielle Gmail (OAuth2). Votre mot de passe n'est jamais stocké.
+            Vous pouvez révoquer l'accès à tout moment depuis <a href="https://myaccount.google.com/permissions" target="_blank" style="color:var(--accent);">myaccount.google.com</a>.
+        </p>
+    </div>
+
+</section>
+
+@section Scripts {
+<script>
+const toast = document.getElementById('toast-msg');
+if (toast) setTimeout(() => toast.classList.remove('bc-toast-visible'), 4000);
+</script>
+}

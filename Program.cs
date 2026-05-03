@@ -80,6 +80,7 @@ builder.Services.AddScoped<Metier.CRM.AnnuaireService>();
 builder.Services.AddScoped<Metier.Achats.AchatsService>();
 builder.Services.AddScoped<Metier.Achats.AchatsPrixService>();
 builder.Services.AddScoped<Metier.Achats.AchatsMailService>();
+builder.Services.AddScoped<Metier.Achats.AchatsGmailService>();
 
 // BLOCKCHAIN
 builder.Services.AddScoped<Metier.BlockchainService>();
@@ -1171,6 +1172,16 @@ using (var scopeAchats = app.Services.CreateScope())
                 );
                 CREATE INDEX IF NOT EXISTS ""IX_AchatHistPrix_ProdFournDate""
                     ON ""AchatHistoriquesPrix""(""ProduitId"", ""FournisseurId"", ""DateAchat"");
+
+                CREATE TABLE IF NOT EXISTS ""AchatEmailTokens"" (
+                    ""Id""           SERIAL PRIMARY KEY,
+                    ""Provider""     VARCHAR(20)  NOT NULL DEFAULT 'gmail',
+                    ""EmailAdresse"" VARCHAR(255) NOT NULL DEFAULT '',
+                    ""AccessToken""  TEXT         NOT NULL DEFAULT '',
+                    ""RefreshToken"" TEXT         NOT NULL DEFAULT '',
+                    ""ExpiresAt""    TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""ConfigureeLe"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
+                );
             ";
 
             using (var cmd = new NpgsqlCommand(createAchatsSql, conn))

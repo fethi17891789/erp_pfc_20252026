@@ -63,6 +63,7 @@ namespace Donnees
         public DbSet<AchatBonReceptionLigne> AchatBonReceptionLignes { get; set; }
         public DbSet<AchatFactureFournisseur> AchatFacturesFournisseur { get; set; }
         public DbSet<AchatHistoriquePrix> AchatHistoriquesPrix { get; set; }
+        public DbSet<AchatEmailToken>    AchatEmailTokens     { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
