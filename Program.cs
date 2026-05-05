@@ -1309,7 +1309,19 @@ using (var scopeReset = app.Services.CreateScope())
 
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Error");
+    app.UseExceptionHandler(errorApp =>
+    {
+        errorApp.Run(async context =>
+        {
+            context.Response.StatusCode = 500;
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.WriteAsync(
+                "<html><body style='font-family:sans-serif;background:#02030A;color:#fff;padding:40px'>" +
+                "<h2>⚠ Erreur SKYRA</h2><p>Une erreur inattendue est survenue.</p>" +
+                "<a href='/ChooseProfile' style='color:#7B5EFF'>← Retour à l'accueil</a>" +
+                "</body></html>");
+        });
+    });
 }
 
 // app.UseHttpsRedirection();
