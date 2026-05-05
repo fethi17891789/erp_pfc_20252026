@@ -257,7 +257,22 @@ public static class SilentInstaller
             Directory.CreateDirectory(tempExtractPath);
 
             Console.WriteLine("[INSTALL] Extraction temporaire de l'ERP...");
-            System.IO.Compression.ZipFile.ExtractToDirectory(erpZip, tempExtractPath, overwriteFiles: true);
+            using (var archive = System.IO.Compression.ZipFile.OpenRead(erpZip))
+            {
+                foreach (var entry in archive.Entries)
+                {
+                    string destPath = Path.GetFullPath(Path.Combine(tempExtractPath, entry.FullName));
+                    if (string.IsNullOrEmpty(entry.Name))
+                    {
+                        Directory.CreateDirectory(destPath);
+                        continue;
+                    }
+                    string? destDir = Path.GetDirectoryName(destPath);
+                    if (destDir != null) Directory.CreateDirectory(destDir);
+                    try { entry.ExtractToFile(destPath, overwrite: true); }
+                    catch (IOException) { Console.WriteLine($"[AVERTISSEMENT] Fichier ignoré : {entry.FullName}"); }
+                }
+            }
 
             // Trouver le dossier contenant le .exe principal (chercher un .deps.json pour identifier le projet .NET)
             var depsFiles = Directory.GetFiles(tempExtractPath, "*.deps.json", SearchOption.AllDirectories);

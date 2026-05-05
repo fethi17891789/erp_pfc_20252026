@@ -1,5 +1,13 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using ERP.Bootstrapper;
+
+[DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr GetStdHandle(int h);
+[DllImport("kernel32.dll")] static extern bool GetConsoleMode(IntPtr h, out uint mode);
+[DllImport("kernel32.dll")] static extern bool SetConsoleMode(IntPtr h, uint mode);
+var handle = GetStdHandle(-10);
+if (GetConsoleMode(handle, out uint cmode))
+    SetConsoleMode(handle, (cmode & ~0x0040u) | 0x0080u);
 
 // ╔══════════════════════════════════════════════════════════════╗
 // ║   SKYRA ERP — Bootstrapper (Orchestrateur d'installation)   ║
