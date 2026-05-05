@@ -98,11 +98,7 @@ Filename: "sc.exe"; Parameters: "description SKYRA_Watchdog ""Service de surveil
 Filename: "sc.exe"; Parameters: "start SKYRA_Watchdog"; \
   Flags: runhidden; StatusMsg: "Démarrage du service de surveillance..."
 
-; ── Étape 3 : Lancer le Bootstrapper (configure port, DB, Firewall) ──
-Filename: "{#MyInstallDir}\Installer\{#MyBootstrapperExe}"; \
-  Description: "Configurer et lancer {#MyAppName}"; \
-  Flags: postinstall nowait skipifsilent; \
-  StatusMsg: "Finalisation de l'installation SKYRA..."
+; ── Étape 3 : Lancer le Bootstrapper via ShellExec (Pascal Script, voir [Code]) ──
 
 [UninstallRun]
 ; ── Nettoyage propre à la désinstallation ────────────────────
@@ -118,3 +114,14 @@ Type: filesandordirs; Name: "{#MyInstallDir}\*.exe"
 Type: filesandordirs; Name: "{#MyInstallDir}\*.dll"
 Type: filesandordirs; Name: "{#MyInstallDir}\.json"
 
+[Code]
+// Lance le Bootstrapper via ShellExec pour respecter son manifest requireAdministrator.
+// [Run] utilise CreateProcess qui échoue avec le code 740 sur les exes requireAdministrator.
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ResultCode: Integer;
+begin
+  if CurStep = ssDone then
+    ShellExec('', ExpandConstant('{#MyInstallDir}\Installer\{#MyBootstrapperExe}'),
+              '', '', SW_SHOWNORMAL, ewNoWait, ResultCode);
+end;
