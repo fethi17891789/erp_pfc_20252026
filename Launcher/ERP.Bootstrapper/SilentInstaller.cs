@@ -3,18 +3,11 @@ using System.IO.Compression;
 
 namespace ERP.Bootstrapper;
 
-/// <summary>
-/// Handles silent (invisible) installation of missing dependencies.
-/// Extracts bundled portable versions from the Resources folder.
-/// </summary>
 public static class SilentInstaller
 {
     private static readonly string ResourcesPath = Path.Combine(
         AppContext.BaseDirectory, "Resources");
 
-    /// <summary>
-    /// Installs PostgreSQL Portable by extracting from the bundled zip.
-    /// </summary>
     public static bool InstallPostgresPortable(string installDir)
     {
         Console.WriteLine("[INSTALL] Installation de PostgreSQL Portable en cours...");
@@ -41,7 +34,22 @@ public static class SilentInstaller
             {
                 Console.WriteLine($"[INSTALL] Extraction de PostgreSQL vers {pgDir}...");
                 Console.WriteLine("[INSTALL] Cette opération est gourmande en ressources, veuillez patienter...");
-                System.IO.Compression.ZipFile.ExtractToDirectory(pgZip, pgDir, overwriteFiles: true);
+                using (var archive = ZipFile.OpenRead(pgZip))
+                {
+                    foreach (var entry in archive.Entries)
+                    {
+                        string destPath = Path.GetFullPath(Path.Combine(pgDir, entry.FullName));
+                        if (string.IsNullOrEmpty(entry.Name))
+                        {
+                            Directory.CreateDirectory(destPath);
+                            continue;
+                        }
+                        string? destDir = Path.GetDirectoryName(destPath);
+                        if (destDir != null) Directory.CreateDirectory(destDir);
+                        try { entry.ExtractToFile(destPath, overwrite: true); }
+                        catch (IOException) { Console.WriteLine($"[AVERTISSEMENT] Fichier ignoré : {entry.FullName}"); }
+                    }
+                }
                 Console.WriteLine("[INSTALL] ✅ Extraction terminée avec succès.");
             }
             catch (Exception ex)
@@ -50,21 +58,18 @@ public static class SilentInstaller
                 throw;
             }
 
-            // ── RECHERCHE DE initdb.exe ──
             var allFiles = Directory.GetFiles(pgDir, "*.*", SearchOption.AllDirectories);
             Console.WriteLine($"[DEBUG] Nombre de fichiers extraits : {allFiles.Length}");
 
-            // ── RECHERCHE AGRESSIVE DES BINAIRES ──
             string? initdbPath = FindFileInDirectory(pgDir, "initdb.exe");
-            
+
             if (string.IsNullOrEmpty(initdbPath))
             {
-                // Si on ne trouve pas initdb, on cherche n'importe quel binaire postgres pour deviner
                 var postgresExe = FindFileInDirectory(pgDir, "postgres.exe");
                 if (!string.IsNullOrEmpty(postgresExe))
                 {
-                     var binFolder = Path.GetDirectoryName(postgresExe)!;
-                     initdbPath = Path.Combine(binFolder, "initdb.exe");
+                    var binFolder = Path.GetDirectoryName(postgresExe)!;
+                    initdbPath = Path.Combine(binFolder, "initdb.exe");
                 }
             }
 
@@ -72,13 +77,11 @@ public static class SilentInstaller
             {
                 var allExes = Directory.GetFiles(pgDir, "*.exe", SearchOption.AllDirectories);
                 string foundFolders = string.Join("\n", allExes.Select(f => Path.GetDirectoryName(f)!).Distinct().Take(10).Select(d => "- " + Path.GetRelativePath(pgDir, d)));
-                
                 throw new Exception($"ERREUR CRITIQUE : 'initdb.exe' est introuvable.\n"
                     + $"Votre pack PostgreSQL semble incomplet ou mal structuré.\n"
                     + $"Dossiers contenant des exécutables trouvés :\n{foundFolders}");
             }
-            
-            var binDir = Path.GetDirectoryName(initdbPath)!;
+
             var dataDir = Path.Combine(installDir, "Database", "data");
 
             if (!Directory.Exists(dataDir))
@@ -89,7 +92,6 @@ public static class SilentInstaller
                 Console.WriteLine("[INSTALL] Cluster PostgreSQL initialisé avec succès.");
             }
 
-            // Démarrage temporaire pour configuration
             if (StartPostgresPortable(installDir))
             {
                 ConfigureDatabase(installDir);
@@ -98,7 +100,7 @@ public static class SilentInstaller
             {
                 throw new Exception("Impossible de démarrer PostgreSQL pour la configuration initiale.");
             }
-            
+
             return true;
         }
         catch (Exception ex)
@@ -108,9 +110,6 @@ public static class SilentInstaller
         }
     }
 
-    /// <summary>
-    /// Installs wkhtmltopdf silently using the bundled installer.
-    /// </summary>
     public static bool InstallWkhtmltopdf()
     {
         Console.WriteLine("[INSTALL] Installation de wkhtmltopdf en cours...");
@@ -122,7 +121,6 @@ public static class SilentInstaller
             return false;
         }
 
-        // /S = silent mode for wkhtmltopdf installer
         bool success = RunProcess(installer, "/S");
         Console.WriteLine(success
             ? "[INSTALL] wkhtmltopdf installé avec succès."
@@ -130,9 +128,6 @@ public static class SilentInstaller
         return success;
     }
 
-    /// <summary>
-    /// Starts the PostgreSQL service for SKYRA.
-    /// </summary>
     public static bool StartPostgresPortable(string installDir)
     {
         var pgDir = Path.Combine(installDir, "Database", "PostgreSQL");
@@ -140,13 +135,12 @@ public static class SilentInstaller
         var dataDir = Path.Combine(installDir, "Database", "data");
         var logFile = Path.Combine(installDir, "Database", "postgres.log");
 
-        if (string.IsNullOrEmpty(pgCtl)) 
+        if (string.IsNullOrEmpty(pgCtl))
         {
             Console.WriteLine("[ERREUR] pg_ctl.exe introuvable.");
             return false;
         }
 
-        // On vérifie si Postgres tourne déjà
         var processes = Process.GetProcessesByName("postgres");
         if (processes.Length > 0) return true;
 
@@ -154,22 +148,16 @@ public static class SilentInstaller
         return RunProcess(pgCtl, $"start -D \"{dataDir}\" -l \"{logFile}\" -w");
     }
 
-    /// <summary>
-    /// Configures the database (user password and database creation).
-    /// </summary>
     private static void ConfigureDatabase(string installDir)
     {
         var pgDir = Path.Combine(installDir, "Database", "PostgreSQL");
         var psql = FindFileInDirectory(pgDir, "psql.exe");
-        
+
         if (string.IsNullOrEmpty(psql)) return;
 
         Console.WriteLine("[INSTALL] Initialisation du rôle 'openpg'...");
-
-        // On crée l'utilisateur 'openpg' avec le mot de passe attendu par l'ERP
         RunProcess(psql, "-U postgres -d postgres -c \"CREATE ROLE openpg WITH LOGIN SUPERUSER PASSWORD 'openpgpwd';\"");
         RunProcess(psql, "-U postgres -d postgres -c \"CREATE DATABASE fethifethifethi OWNER openpg;\"");
-        
         Console.WriteLine("[INSTALL] Rôle configuré.");
     }
 
@@ -198,13 +186,13 @@ public static class SilentInstaller
             };
             process.Start();
             bool finished = process.WaitForExit(timeoutMs);
-            
-            if (!finished) 
+
+            if (!finished)
             {
                 Console.WriteLine($"[PROCESS] Timeout après {timeoutMs/1000}s pour : {Path.GetFileName(exe)}");
-                return false; 
+                return false;
             }
-            
+
             return process.ExitCode == 0;
         }
         catch (Exception ex)
@@ -214,22 +202,17 @@ public static class SilentInstaller
         }
     }
 
-    /// <summary>
-    /// Installs VC++ Redist silently.
-    /// </summary>
-
     public static bool InstallVCRedist()
     {
         Console.WriteLine("[INSTALL] Installation du Runtime Visual C++ (cela peut prendre 2-3 minutes)... ");
 
         var installer = Path.Combine(ResourcesPath, "vc_redist.x64.exe");
         if (!File.Exists(installer))
-        { 
+        {
             Console.WriteLine("[AVERTISSEMENT] vc_redist.x64.exe introuvable dans Resources. Étape ignorée.");
-            return false; 
+            return false;
         }
 
-        // On donne 5 minutes (300 000 ms) pour cette installation système critique
         return RunProcess(installer, "/install /quiet /norestart", 300_000);
     }
 
@@ -258,7 +241,7 @@ public static class SilentInstaller
             Directory.CreateDirectory(tempExtractPath);
 
             Console.WriteLine("[INSTALL] Extraction temporaire de l'ERP...");
-            using (var archive = System.IO.Compression.ZipFile.OpenRead(erpZip))
+            using (var archive = ZipFile.OpenRead(erpZip))
             {
                 foreach (var entry in archive.Entries)
                 {
@@ -275,11 +258,9 @@ public static class SilentInstaller
                 }
             }
 
-            // Trouver le dossier contenant le .exe principal (chercher un .deps.json pour identifier le projet .NET)
             var depsFiles = Directory.GetFiles(tempExtractPath, "*.deps.json", SearchOption.AllDirectories);
             if (depsFiles.Length == 0) throw new Exception("Aucun projet .NET trouvé dans le ZIP !");
 
-            // Le .deps.json nous donne le vrai nom du projet
             string depsFile = depsFiles[0];
             string sourceDir = Path.GetDirectoryName(depsFile)!;
             string projectName = Path.GetFileNameWithoutExtension(depsFile).Replace(".deps", "");
@@ -289,7 +270,6 @@ public static class SilentInstaller
 
             if (!Directory.Exists(erpTargetDir)) Directory.CreateDirectory(erpTargetDir);
 
-            // Copier TOUS les fichiers tels quels (sans renommer)
             Console.WriteLine($"[INSTALL] Copie des binaires vers : {erpTargetDir}");
             foreach (var file in Directory.GetFiles(sourceDir, "*", SearchOption.AllDirectories))
             {
@@ -300,12 +280,10 @@ public static class SilentInstaller
                 File.Copy(file, destFile, true);
             }
 
-            // Sauvegarder le vrai nom de l'EXE pour que le Bootstrapper et le Watchdog le retrouvent
             string exeNameFile = Path.Combine(installDir, "erp_exe_name.txt");
             File.WriteAllText(exeNameFile, realExeName);
             Console.WriteLine($"[INSTALL] Nom de l'exécutable enregistré : {realExeName}");
 
-            // Nettoyage
             Directory.Delete(tempExtractPath, true);
 
             Console.WriteLine("[INSTALL] ✅ ERP installé avec succès.");
