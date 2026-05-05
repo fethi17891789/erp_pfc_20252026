@@ -32,26 +32,34 @@ namespace erp_pfc_20252026.Pages
 
         public async Task<IActionResult> OnPostAsync()
         {
-            if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+            try
             {
-                ResultMessage = "Email et mot de passe sont obligatoires.";
+                if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+                {
+                    ResultMessage = "Email et mot de passe sont obligatoires.";
+                    return Page();
+                }
+
+                var user = await _db.ErpUsers.FirstOrDefaultAsync(u => u.Email == Email);
+
+                if (user == null || !Argon2.Verify(user.Password, Password))
+                {
+                    ResultMessage = "Identifiants incorrects.";
+                    return Page();
+                }
+
+                // Connexion réussie : on garde l'ID et le login en session
+                HttpContext.Session.SetInt32("CurrentUserId", user.Id);
+                HttpContext.Session.SetString("CurrentUserLogin", user.Login);
+
+                // Redirection vers la page d'accueil ERP
+                return RedirectToPage("/Home");
+            }
+            catch (Exception ex)
+            {
+                ResultMessage = $"Erreur de connexion : {ex.Message}";
                 return Page();
             }
-
-            var user = await _db.ErpUsers.FirstOrDefaultAsync(u => u.Email == Email);
-
-            if (user == null || !Argon2.Verify(user.Password, Password))
-            {
-                ResultMessage = "Identifiants incorrects.";
-                return Page();
-            }
-
-            // Connexion réussie : on garde l'ID et le login en session
-            HttpContext.Session.SetInt32("CurrentUserId", user.Id);
-            HttpContext.Session.SetString("CurrentUserLogin", user.Login);
-
-            // Redirection vers la page d'accueil ERP
-            return RedirectToPage("/Home");
         }
     }
 }

@@ -45,8 +45,8 @@ namespace erp_pfc_20252026.Pages
 
         public async Task OnGetAsync()
         {
-            // Déterminer si aucun utilisateur n'existe encore
-            IsFirstUser = !await _db.ErpUsers.AnyAsync();
+            // Exclure le compte système GEMINI du décompte (seuls les vrais utilisateurs comptent)
+            IsFirstUser = !await _db.ErpUsers.AnyAsync(u => u.Login != "GEMINI");
 
             if (IsFirstUser)
             {
@@ -57,74 +57,83 @@ namespace erp_pfc_20252026.Pages
 
         public async Task<IActionResult> OnPostAsync()
         {
-            // Recalculer l'état "premier utilisateur"
-            IsFirstUser = !await _db.ErpUsers.AnyAsync();
-
-            if (IsFirstUser)
+            try
             {
-                // Premier compte : poste forcé en PDG, on ignore ce qui vient du formulaire
-                SelectedPoste = "PDG";
+                // Recalculer l'état "premier utilisateur" (hors GEMINI)
+                IsFirstUser = !await _db.ErpUsers.AnyAsync(u => u.Login != "GEMINI");
+
+                if (IsFirstUser)
+                {
+                    // Premier compte : poste forcé en PDG, on ignore ce qui vient du formulaire
+                    SelectedPoste = "PDG";
+                }
+
+                // Validation basique
+                if (string.IsNullOrWhiteSpace(Email) ||
+                    string.IsNullOrWhiteSpace(Login) ||
+                    string.IsNullOrWhiteSpace(Password))
+                {
+                    ResultMessage = "Email, login et mot de passe sont obligatoires.";
+                    return Page();
+                }
+
+                // Vérifier si l'email existe déjà
+                var existingEmail = await _db.ErpUsers
+                    .FirstOrDefaultAsync(u => u.Email == Email);
+
+                if (existingEmail != null)
+                {
+                    ResultMessage = "Cet email est déjà utilisé. Veuillez en choisir un autre.";
+                    return Page();
+                }
+
+                // Vérifier si le login existe déjà
+                var existingLogin = await _db.ErpUsers
+                    .FirstOrDefaultAsync(u => u.Login == Login);
+
+                if (existingLogin != null)
+                {
+                    ResultMessage = "Ce login est déjà utilisé. Veuillez en choisir un autre.";
+                    return Page();
+                }
+
+                // Sauvegarde du logo si présent
+                string? logoFileName = null;
+
+                if (LogoFile != null && LogoFile.Length > 0)
+                {
+                    var uploadsRoot = Path.Combine(_env.WebRootPath, "uploads", "logos");
+                    Directory.CreateDirectory(uploadsRoot);
+
+                    logoFileName = Guid.NewGuid().ToString("N") + Path.GetExtension(LogoFile.FileName);
+                    var filePath = Path.Combine(uploadsRoot, logoFileName);
+
+                    await using var stream = new FileStream(filePath, FileMode.Create);
+                    await LogoFile.CopyToAsync(stream);
+                }
+
+                // Création de l'utilisateur
+                var user = new ErpUser
+                {
+                    Email = Email,
+                    Login = Login,
+                    Password = Argon2.Hash(Password),
+                    LogoFileName = logoFileName,
+                    Poste = SelectedPoste
+                };
+
+                _db.ErpUsers.Add(user);
+                await _db.SaveChangesAsync();
+
+                // Rediriger vers la page de connexion avec l'email pré-rempli
+                return RedirectToPage("/Login", new { email = Email });
             }
-
-            // Validation basique
-            if (string.IsNullOrWhiteSpace(Email) ||
-                string.IsNullOrWhiteSpace(Login) ||
-                string.IsNullOrWhiteSpace(Password))
+            catch (Exception ex)
             {
-                ResultMessage = "Email, login et mot de passe sont obligatoires.";
+                ResultMessage = $"Erreur lors de la création du profil : {ex.Message}";
+                IsFirstUser = !await _db.ErpUsers.AnyAsync(u => u.Login != "GEMINI");
                 return Page();
             }
-
-            // Vérifier si l'email existe déjà
-            var existingEmail = await _db.ErpUsers
-                .FirstOrDefaultAsync(u => u.Email == Email);
-
-            if (existingEmail != null)
-            {
-                ResultMessage = "Cet email est déjà utilisé. Veuillez en choisir un autre.";
-                return Page();
-            }
-
-            // Vérifier si le login existe déjà
-            var existingLogin = await _db.ErpUsers
-                .FirstOrDefaultAsync(u => u.Login == Login);
-
-            if (existingLogin != null)
-            {
-                ResultMessage = "Ce login est déjà utilisé. Veuillez en choisir un autre.";
-                return Page();
-            }
-
-            // Sauvegarde du logo si présent
-            string? logoFileName = null;
-
-            if (LogoFile != null && LogoFile.Length > 0)
-            {
-                var uploadsRoot = Path.Combine(_env.WebRootPath, "uploads", "logos");
-                Directory.CreateDirectory(uploadsRoot);
-
-                logoFileName = Guid.NewGuid().ToString("N") + Path.GetExtension(LogoFile.FileName);
-                var filePath = Path.Combine(uploadsRoot, logoFileName);
-
-                await using var stream = new FileStream(filePath, FileMode.Create);
-                await LogoFile.CopyToAsync(stream);
-            }
-
-            // Création de l'utilisateur
-            var user = new ErpUser
-            {
-                Email = Email,
-                Login = Login,
-                Password = Argon2.Hash(Password),
-                LogoFileName = logoFileName,
-                Poste = SelectedPoste
-            };
-
-            _db.ErpUsers.Add(user);
-            await _db.SaveChangesAsync();
-
-            // Rediriger vers la page de connexion avec l'email pré-rempli
-            return RedirectToPage("/Login", new { email = Email });
         }
     }
 }

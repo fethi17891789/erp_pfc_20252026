@@ -1310,7 +1310,6 @@ using (var scopeReset = app.Services.CreateScope())
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    app.UseHsts();
 }
 
 // app.UseHttpsRedirection();
