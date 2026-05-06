@@ -26,6 +26,12 @@ namespace erp_pfc_20252026.Pages.Achats
         public int NbBCRefuses    { get; set; }
         public int NbBCConfirmes  { get; set; }
         public int NbBCFactures   { get; set; }
+
+        // Totaux pour le dropdown filtre (indépendants du filtre courant)
+        public int NbTotalCommandes  { get; set; }
+        public int NbTotalReceptions { get; set; }
+        public int NbTotalFactures   { get; set; }
+
         public string? MessageSucces { get; set; }
 
         // Filtre optionnel transmis depuis le Hub : "receptions" ou "factures"
@@ -72,6 +78,16 @@ namespace erp_pfc_20252026.Pages.Achats
                 .CountAsync(b => b.Statut == StatutBonCommande.Confirme);
             NbBCFactures  = await _db.AchatBonCommandes
                 .CountAsync(b => b.Statut == StatutBonCommande.Facture);
+
+            // Totaux pour le dropdown filtre (basés sur l'ensemble de la table, pas sur le filtre courant)
+            NbTotalCommandes  = await _db.AchatBonCommandes.CountAsync();
+            NbTotalReceptions = await _db.AchatBonCommandes.CountAsync(b =>
+                b.Statut == StatutBonCommande.Confirme ||
+                b.Statut == StatutBonCommande.PartiellemtRecu ||
+                b.Statut == StatutBonCommande.Recu);
+            NbTotalFactures   = await _db.AchatBonCommandes.CountAsync(b =>
+                b.Statut == StatutBonCommande.Recu ||
+                b.Statut == StatutBonCommande.Facture);
 
             if (TempData["Succes"] is string msg) MessageSucces = msg;
 
