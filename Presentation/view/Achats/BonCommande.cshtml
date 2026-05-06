@@ -458,12 +458,10 @@
                             </button>
                         </div>
 
-                        <div id="lignes-container">
-                            @* Lignes ajoutées dynamiquement par JS *@
-                            <div id="lignes-empty" class="bc-lignes-empty">
-                                Aucune ligne pour l'instant. Cliquez sur "Ajouter un composant".
-                            </div>
+                        <div id="lignes-empty" class="bc-lignes-empty">
+                            Aucune ligne pour l'instant. Cliquez sur "Ajouter un composant".
                         </div>
+                        <div id="lignes-container"></div>
 
                         @* Totaux live *@
                         <div class="bc-totaux" id="totaux-section" style="display:none;">
@@ -744,7 +742,6 @@ function mettreAJourAffichage() {
 
     if (lignes.length === 0) {
         container.innerHTML = '';
-        container.appendChild(empty);
         empty.style.display = 'block';
         totauxSection.style.display = 'none';
     } else {
@@ -781,7 +778,6 @@ function mettreAJourAffichage() {
                         </tr>`).join('')}
                 </tbody>
             </table>`;
-        container.appendChild(totauxSection);
     }
 
     // Calcul totaux
