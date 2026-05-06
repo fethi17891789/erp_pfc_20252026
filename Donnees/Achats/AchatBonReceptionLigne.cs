@@ -2,13 +2,6 @@
 
 namespace Donnees.Achats
 {
-    public static class EtatReceptionLigne
-    {
-        public const string Conforme   = "Conforme";
-        public const string Endommage  = "Endommage";
-        public const string Manquant   = "Manquant";
-    }
-
     /// <summary>
     /// Ligne d'un Bon de Réception (quantités réellement reçues par composant).
     /// </summary>
@@ -25,10 +18,10 @@ namespace Donnees.Achats
         /// <summary>Quantité initialement commandée (issue du BC).</summary>
         public decimal QuantiteCommandee { get; set; } = 0m;
 
-        /// <summary>Quantité effectivement reçue (saisie lors de la réception).</summary>
+        /// <summary>Quantité effectivement reçue (y compris endommagée).</summary>
         public decimal QuantiteRecue { get; set; } = 0m;
 
-        /// <summary>État de la réception (voir EtatReceptionLigne).</summary>
-        public string Etat { get; set; } = EtatReceptionLigne.Conforme;
+        /// <summary>Quantité reçue endommagée.</summary>
+        public decimal QuantiteEndommagee { get; set; } = 0m;
     }
 }

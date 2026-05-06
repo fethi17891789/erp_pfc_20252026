@@ -141,7 +141,7 @@ namespace Metier.Achats
             double scoreQualite = 100;
             if (toutesLignes.Any())
             {
-                int conformes = toutesLignes.Count(l => l.Etat == EtatReceptionLigne.Conforme);
+                int conformes = toutesLignes.Count(l => l.QuantiteRecue > l.QuantiteEndommagee);
                 scoreQualite = (double)conformes / toutesLignes.Count * 100;
             }
 

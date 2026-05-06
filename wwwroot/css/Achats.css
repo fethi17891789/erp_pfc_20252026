@@ -1291,6 +1291,39 @@
 .br-etat-select option { background: #0a0b1e; }
 .br-etat-select:focus { border-color: var(--accent); }
 
+.br-reception-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.br-qte-input-sm {
+    width: 70px;
+    padding: 6px 8px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    outline: none;
+    text-align: center;
+    transition: border-color 0.15s;
+    -moz-appearance: textfield;
+}
+.br-qte-input-sm::-webkit-outer-spin-button,
+.br-qte-input-sm::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.br-qte-input-sm:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(123,94,255,0.12); }
+
+.br-dont {
+    font-size: 12px;
+    color: var(--text-muted-2);
+    font-weight: 500;
+}
+
 /* ─── BON DE RÉCEPTION — RÉCAPITULATIF ─────────────────────── */
 
 .br-recap {

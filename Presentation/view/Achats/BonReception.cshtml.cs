@@ -78,12 +78,12 @@ namespace erp_pfc_20252026.Pages.Achats
             int? userId = HttpContext.Session.GetInt32("CurrentUserId");
 
             // Désérialiser les lignes JSON soumises par le formulaire
-            var lignesInput = new List<(int ProduitId, decimal QteCmd, decimal QteRecue, string Etat)>();
+            var lignesInput = new List<(int ProduitId, decimal QteCmd, decimal QteRecue, decimal QteEndommagee)>();
             try
             {
                 var raw = JsonSerializer.Deserialize<List<LigneBrJson>>(LignesJson ?? "[]") ?? new();
                 foreach (var l in raw)
-                    lignesInput.Add((l.produitId, l.quantiteCommandee, l.quantiteRecue, l.etat));
+                    lignesInput.Add((l.produitId, l.quantiteCommandee, l.quantiteRecue, l.quantiteEndommagee));
             }
             catch { /* lignes vides */ }
 
@@ -118,22 +118,13 @@ namespace erp_pfc_20252026.Pages.Achats
             return RedirectToPage(new { id });
         }
 
-        // ─── Helpers vue ──────────────────────────────────────────────────────
-        public static (string bg, string color, string label) GetEtatStyle(string etat) => etat switch
-        {
-            EtatReceptionLigne.Conforme  => ("rgba(34,197,94,0.10)",   "#22c55e", "Conforme"),
-            EtatReceptionLigne.Endommage => ("rgba(251,191,36,0.10)",  "#fbbf24", "Endommagé"),
-            EtatReceptionLigne.Manquant  => ("rgba(239,68,68,0.10)",   "#ef4444", "Manquant"),
-            _                            => ("rgba(255,255,255,0.06)", "#a4a7c8", etat)
-        };
-
         // ─── DTO interne ──────────────────────────────────────────────────────
         private class LigneBrJson
         {
             public int     produitId         { get; set; }
             public decimal quantiteCommandee { get; set; }
             public decimal quantiteRecue     { get; set; }
-            public string  etat              { get; set; } = EtatReceptionLigne.Conforme;
+            public decimal quantiteEndommagee { get; set; }
         }
     }
 }

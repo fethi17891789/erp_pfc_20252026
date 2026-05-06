@@ -418,7 +418,7 @@ namespace Metier.Achats
             int bcId,
             DateTime dateReception,
             string? notes,
-            List<(int ProduitId, decimal QteCommandee, decimal QteRecue, string Etat)> lignes,
+            List<(int ProduitId, decimal QteCommandee, decimal QteRecue, decimal QteEndommagee)> lignes,
             int? userId)
         {
             var numero = await ProchainNumeroBRAsync();
@@ -434,14 +434,14 @@ namespace Metier.Achats
                 CreeParUserId   = userId
             };
 
-            foreach (var (produitId, qteCmd, qteRecue, etat) in lignes)
+            foreach (var (produitId, qteCmd, qteRecue, qteEndommagee) in lignes)
             {
                 br.Lignes.Add(new AchatBonReceptionLigne
                 {
                     ProduitId          = produitId,
                     QuantiteCommandee  = qteCmd,
                     QuantiteRecue      = qteRecue,
-                    Etat               = etat
+                    QuantiteEndommagee = qteEndommagee
                 });
             }
 
@@ -467,13 +467,17 @@ namespace Metier.Achats
             var config = await GetConfigAsync();
             var politique = config?.PolitiquePrix ?? PolitiquePrixAchat.DernierPrix;
 
-            foreach (var ligne in br.Lignes.Where(l => l.QuantiteRecue > 0 && l.Etat == EtatReceptionLigne.Conforme))
+            foreach (var ligne in br.Lignes.Where(l => l.QuantiteRecue > 0))
             {
                 var produit = await _db.Produits.FindAsync(ligne.ProduitId);
                 if (produit == null) continue;
 
+                // Calculer quantité conforme = reçue - endommagée
+                decimal quantiteConforme = ligne.QuantiteRecue - ligne.QuantiteEndommagee;
+                if (quantiteConforme <= 0) continue;
+
                 // Mettre à jour la quantité disponible
-                produit.QuantiteDisponible += ligne.QuantiteRecue;
+                produit.QuantiteDisponible += quantiteConforme;
 
                 // Retrouver le prix unitaire HT depuis le BC
                 var ligneBc = br.BonCommande?.Lignes.FirstOrDefault(l => l.ProduitId == ligne.ProduitId);
@@ -495,8 +499,8 @@ namespace Metier.Achats
                         if (totalExistant > 0)
                         {
                             decimal sommeExistante = produit.CoutAchat * totalExistant;
-                            decimal sommeNouvelle  = prixHT * ligne.QuantiteRecue;
-                            produit.CoutAchat = Math.Round((sommeExistante + sommeNouvelle) / (totalExistant + ligne.QuantiteRecue), 2);
+                            decimal sommeNouvelle  = prixHT * quantiteConforme;
+                            produit.CoutAchat = Math.Round((sommeExistante + sommeNouvelle) / (totalExistant + quantiteConforme), 2);
                         }
                         else
                         {
@@ -504,13 +508,13 @@ namespace Metier.Achats
                         }
                     }
 
-                    // Enregistrer dans l'historique des prix
+                    // Enregistrer dans l'historique des prix (seulement la quantité conforme)
                     _db.AchatHistoriquesPrix.Add(new AchatHistoriquePrix
                     {
                         ProduitId       = ligne.ProduitId,
                         FournisseurId   = br.BonCommande!.FournisseurId,
                         PrixUnitaireHT  = prixHT,
-                        Quantite        = ligne.QuantiteRecue,
+                        Quantite        = quantiteConforme,
                         DateAchat       = DateTime.UtcNow,
                         BonCommandeId   = br.BonCommandeId
                     });

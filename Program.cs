@@ -1127,7 +1127,7 @@ using (var scopeAchats = app.Services.CreateScope())
                     ""ProduitId""           INT NOT NULL,
                     ""QuantiteCommandee""   NUMERIC(18,4) NOT NULL DEFAULT 0,
                     ""QuantiteRecue""       NUMERIC(18,4) NOT NULL DEFAULT 0,
-                    ""Etat""               VARCHAR(20) NOT NULL DEFAULT 'Conforme',
+                    ""QuantiteEndommagee""  NUMERIC(18,4) NOT NULL DEFAULT 0,
                     CONSTRAINT ""FK_AchatBRLigne_BR""
                         FOREIGN KEY (""BonReceptionId"") REFERENCES ""AchatBonReceptions""(""Id"") ON DELETE CASCADE,
                     CONSTRAINT ""FK_AchatBRLigne_Produit""
@@ -1231,7 +1231,44 @@ using (var scopeAchats = app.Services.CreateScope())
         Console.WriteLine($"Erreur lors de la création auto des tables Achats : {ex}");
     }
 }
-// --------------------------------------------------------------------
+
+// ---------- Migrations des tables Achats ----------
+using (var scope10a = app.Services.CreateScope())
+{
+    try
+    {
+        var provider = scope10a.ServiceProvider.GetRequiredService<DynamicConnectionProvider>();
+        var connString = provider.CurrentConnectionString;
+
+        if (!string.IsNullOrWhiteSpace(connString))
+        {
+            using var conn = new NpgsqlConnection(connString);
+            conn.Open();
+
+            const string alterAchatsSql = @"
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'AchatBonReceptionLignes' AND column_name = 'QuantiteEndommagee'
+    ) THEN
+        ALTER TABLE ""AchatBonReceptionLignes"" ADD COLUMN ""QuantiteEndommagee"" NUMERIC(18,4) NOT NULL DEFAULT 0;
+    END IF;
+END $$;";
+
+            using (var cmd = new NpgsqlCommand(alterAchatsSql, conn))
+            {
+                Console.WriteLine("[DEBUG] Migrations tables Achats...");
+                cmd.ExecuteNonQuery();
+                Console.WriteLine("[DEBUG] Migrations Achats complètes.");
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Erreur lors des migrations Achats : {ex}");
+    }
+}
 
 // ---------- 11. CREATION AUTOMATIQUE TABLE BLOCKCHAIN ----------
 using (var scope10 = app.Services.CreateScope())

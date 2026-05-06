@@ -481,7 +481,7 @@ namespace Donnees
                 entity.HasKey(l => l.Id);
                 entity.Property(l => l.QuantiteCommandee).HasColumnType("decimal(18,4)");
                 entity.Property(l => l.QuantiteRecue).HasColumnType("decimal(18,4)");
-                entity.Property(l => l.Etat).IsRequired().HasMaxLength(20).HasDefaultValue("Conforme");
+                entity.Property(l => l.QuantiteEndommagee).HasColumnType("decimal(18,4)");
                 entity.HasOne(l => l.Produit).WithMany().HasForeignKey(l => l.ProduitId).OnDelete(DeleteBehavior.Restrict);
                 entity.HasIndex(l => l.BonReceptionId).HasDatabaseName("IX_AchatBRLignes_BonReceptionId");
             });

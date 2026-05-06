@@ -55,7 +55,6 @@
                 }
                 else
                 {
-                    var (sbg, sc, sl) = BonReceptionModel.GetEtatStyle(Model.BonReception!.Statut == StatutBonReception.Valide ? EtatReceptionLigne.Conforme : EtatReceptionLigne.Manquant);
                     <span>Lié au BC <strong>@Model.BonReception!.BonCommande?.Numero</strong> — @Model.BonReception.DateReception.ToString("dd/MM/yyyy")</span>
                 }
             </p>
@@ -93,7 +92,7 @@
             reference         = l.Produit?.Reference ?? "",
             quantiteCommandee = l.Quantite,
             quantiteRecue     = l.Quantite,   // pré-rempli = commandée
-            etat              = EtatReceptionLigne.Conforme
+            quantiteEndommagee = 0m
         }).ToList();
 
         <form method="post" asp-page-handler="Creer" asp-route-bcId="@bc.Id">
@@ -144,8 +143,7 @@
                             <tr>
                                 <th>Produit</th>
                                 <th style="text-align:center;width:120px;">Qté commandée</th>
-                                <th style="text-align:center;width:140px;">Qté reçue</th>
-                                <th style="width:160px;">État</th>
+                                <th style="text-align:center;width:300px;">Réception</th>
                             </tr>
                         </thead>
                         <tbody id="br-tbody">
@@ -164,20 +162,20 @@
                                         <span class="br-qte-cmd">@ligne.Quantite.ToString("N2")</span>
                                     </td>
                                     <td style="text-align:center;">
-                                        <input type="number" class="br-qte-input"
-                                               value="@ligne.Quantite.ToString("0.##")"
-                                               min="0" step="0.01"
-                                               data-index="@i"
-                                               oninput="mettreAJourLigne(@i, 'quantiteRecue', parseFloat(this.value)||0)" />
-                                    </td>
-                                    <td>
-                                        <select class="br-etat-select"
-                                                data-index="@i"
-                                                onchange="mettreAJourLigne(@i, 'etat', this.value)">
-                                            <option value="Conforme">✓ Conforme</option>
-                                            <option value="Endommage">⚠ Endommagé</option>
-                                            <option value="Manquant">✗ Manquant</option>
-                                        </select>
+                                        <div class="br-reception-inline">
+                                            <input type="number" class="br-qte-input-sm"
+                                                   value="@ligne.Quantite.ToString("0.##")"
+                                                   min="0" step="0.01"
+                                                   data-index="@i"
+                                                   oninput="mettreAJourLigne(@i, 'quantiteRecue', parseFloat(this.value)||0)" />
+                                            <span class="br-dont">reçu dont</span>
+                                            <input type="number" class="br-qte-input-sm"
+                                                   value="0"
+                                                   min="0" step="0.01"
+                                                   data-index="@i"
+                                                   oninput="mettreAJourLigne(@i, 'quantiteEndommagee', parseFloat(this.value)||0)" />
+                                            <span class="br-dont">endommagé</span>
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -186,16 +184,16 @@
 
                     <div class="br-recap" id="br-recap">
                         <div class="br-recap-item">
+                            <span class="br-recap-lbl">Articles reçus</span>
+                            <span class="br-recap-val" id="recap-recus" style="color:#a4a7c8;">—</span>
+                        </div>
+                        <div class="br-recap-item">
                             <span class="br-recap-lbl">Articles conformes</span>
                             <span class="br-recap-val" id="recap-conformes" style="color:#22c55e;">—</span>
                         </div>
                         <div class="br-recap-item">
-                            <span class="br-recap-lbl">Endommagés</span>
+                            <span class="br-recap-lbl">Articles endommagés</span>
                             <span class="br-recap-val" id="recap-endommages" style="color:#fbbf24;">—</span>
-                        </div>
-                        <div class="br-recap-item">
-                            <span class="br-recap-lbl">Manquants</span>
-                            <span class="br-recap-val" id="recap-manquants" style="color:#ef4444;">—</span>
                         </div>
                     </div>
                 </div>
@@ -296,15 +294,15 @@
                     <tr>
                         <th>Produit</th>
                         <th style="text-align:right;">Qté commandée</th>
-                        <th style="text-align:right;">Qté reçue</th>
-                        <th>État</th>
+                        <th style="text-align:center;">Réception</th>
+                        <th style="text-align:right;">Conforme</th>
                         <th style="text-align:right;">Écart</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var ligne in br.Lignes)
                     {
-                        var (eBg, eColor, eLabel) = BonReceptionModel.GetEtatStyle(ligne.Etat);
+                        decimal quantiteConforme = ligne.QuantiteRecue - ligne.QuantiteEndommagee;
                         decimal ecart = ligne.QuantiteRecue - ligne.QuantiteCommandee;
                         <tr>
                             <td>
@@ -315,11 +313,12 @@
                                 }
                             </td>
                             <td style="text-align:right;">@ligne.QuantiteCommandee.ToString("N2")</td>
-                            <td style="text-align:right;font-weight:600;">@ligne.QuantiteRecue.ToString("N2")</td>
-                            <td>
-                                <span class="bc-statut-badge" style="background:@eBg;color:@eColor;border:1px solid @eColor;">
-                                    @eLabel
-                                </span>
+                            <td style="text-align:center;">
+                                <span style="font-weight:600;">@ligne.QuantiteRecue.ToString("N2")</span>
+                                <span style="color:#a4a7c8;font-size:0.9em;">dont @ligne.QuantiteEndommagee.ToString("N2") endom.</span>
+                            </td>
+                            <td style="text-align:right;font-weight:600;color:@(quantiteConforme > 0 ? "#22c55e" : "#ef4444");">
+                                @quantiteConforme.ToString("N2")
                             </td>
                             <td style="text-align:right;font-weight:600;color:@(ecart < 0 ? "#ef4444" : ecart > 0 ? "#22c55e" : "#a4a7c8");">
                                 @(ecart == 0 ? "—" : ecart > 0 ? $"+{ecart:N2}" : ecart.ToString("N2"))
@@ -346,15 +345,24 @@ function mettreAJourLigne(index, champ, valeur) {
 }
 
 function mettreAJourRecap() {
-    const conformes  = lignes.filter(l => l.etat === 'Conforme').length;
-    const endommages = lignes.filter(l => l.etat === 'Endommage').length;
-    const manquants  = lignes.filter(l => l.etat === 'Manquant').length;
+    let recusTotal = 0;
+    let conformesTotal = 0;
+    let endomagesTotal = 0;
+
+    lignes.forEach(l => {
+        const recu = l.quantiteRecue || 0;
+        const endommage = l.quantiteEndommagee || 0;
+        recusTotal += recu;
+        endomagesTotal += endommage;
+        conformesTotal += recu - endommage;
+    });
+
+    const recR = document.getElementById('recap-recus');
     const recC = document.getElementById('recap-conformes');
     const recE = document.getElementById('recap-endommages');
-    const recM = document.getElementById('recap-manquants');
-    if (recC) recC.textContent = conformes + ' ligne' + (conformes !== 1 ? 's' : '');
-    if (recE) recE.textContent = endommages + ' ligne' + (endommages !== 1 ? 's' : '');
-    if (recM) recM.textContent = manquants + ' ligne' + (manquants !== 1 ? 's' : '');
+    if (recR) recR.textContent = recusTotal.toFixed(2);
+    if (recC) recC.textContent = conformesTotal.toFixed(2);
+    if (recE) recE.textContent = endomagesTotal.toFixed(2);
 }
 
 // Toast auto-hide
