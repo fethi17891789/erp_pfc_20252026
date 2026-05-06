@@ -418,6 +418,37 @@ body {
     scrollbar-color: rgba(123, 94, 255, 0.25) transparent;
 }
 
+.erp-sidebar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.erp-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.erp-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(123, 94, 255, 0.25);
+    border-radius: 999px;
+    transition: all 0.3s ease;
+}
+
+.erp-sidebar:hover::-webkit-scrollbar-thumb {
+    background: rgba(123, 94, 255, 0.6);
+    width: 6px;
+}
+
+.erp-sidebar::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #7b5eff, #9c8cff);
+    box-shadow: 0 0 8px rgba(123, 94, 255, 0.6);
+    width: 6px;
+}
+
+/* Firefox */
+.erp-sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(123, 94, 255, 0.25) transparent;
+}
+
 /* HEADER */
 
 .erp-header {
