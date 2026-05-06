@@ -110,7 +110,7 @@ namespace Metier.Achats
         }
 
         // ── Envoie le BC via Gmail API ────────────────────────────────────────
-        public async Task EnvoyerBonCommandeAsync(AchatBonCommande bc, string emailDestinataire)
+        public async Task EnvoyerBonCommandeAsync(AchatBonCommande bc, string emailDestinataire, string? baseUrl = null, string? tentativeToken = null)
         {
             var tokenEntite = await _db.AchatEmailTokens
                 .Where(t => t.Provider == "gmail")
@@ -125,8 +125,41 @@ namespace Metier.Achats
                 ApplicationName       = "SKYRA ERP"
             });
 
-            string corps = GenererCorpsEmail(bc, tokenEntite.EmailAdresse);
+            string corps = GenererCorpsEmail(bc, tokenEntite.EmailAdresse, baseUrl, tentativeToken);
             string sujet = $"Bon de Commande {bc.Numero} — SKYRA ERP";
+
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress("SKYRA ERP", tokenEntite.EmailAdresse));
+            message.To.Add(MailboxAddress.Parse(emailDestinataire));
+            message.Subject = sujet;
+            message.Body    = new TextPart(MimeKit.Text.TextFormat.Html) { Text = corps };
+
+            using var stream = new System.IO.MemoryStream();
+            await message.WriteToAsync(stream);
+            string raw = Convert.ToBase64String(stream.ToArray())
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+            await service.Users.Messages.Send(
+                new Google.Apis.Gmail.v1.Data.Message { Raw = raw }, "me").ExecuteAsync();
+        }
+
+        public async Task EnvoyerAcceptationContrePropositionAsync(AchatBonCommande bc, string emailDestinataire, AchatNegociationTentative? tentative = null)
+        {
+            var tokenEntite = await _db.AchatEmailTokens
+                .Where(t => t.Provider == "gmail")
+                .OrderByDescending(t => t.ConfigureeLe)
+                .FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException("Gmail non configuré.");
+
+            var credential = await ObtenirCredentialAsync(tokenEntite);
+            var service    = new GmailService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = credential,
+                ApplicationName       = "SKYRA ERP"
+            });
+
+            string corps = GenererCorpsEmailAcceptation(bc, tentative);
+            string sujet = $"Acceptation : Bon de Commande {bc.Numero} — SKYRA ERP";
 
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress("SKYRA ERP", tokenEntite.EmailAdresse));
@@ -269,20 +302,23 @@ namespace Metier.Achats
 
         // ── Template email ────────────────────────────────────────────────────
         /// <summary>
-        /// Génère le corps HTML du BC. Les boutons Confirmer/Refuser sont des liens
-        /// mailto: — le fournisseur répond par email, aucune URL publique requise.
+        /// Génère le corps HTML du BC.
         /// </summary>
-        private string GenererCorpsEmail(AchatBonCommande bc, string emailERP)
+        private string GenererCorpsEmail(AchatBonCommande bc, string emailERP, string? baseUrl = null, string? tentativeToken = null)
         {
             string dateLivraison = bc.DateLivraisonSouhaitee.HasValue
                 ? bc.DateLivraisonSouhaitee.Value.ToString("dd/MM/yyyy")
                 : "À définir";
 
-            // Encode le sujet pour l'URL mailto
-            string sujetConfirmer = Uri.EscapeDataString($"{bc.Numero} CONFIRMER");
-            string sujetRefuser   = Uri.EscapeDataString($"{bc.Numero} REFUSER");
-            string mailtoConfirmer = $"mailto:{emailERP}?subject={sujetConfirmer}";
-            string mailtoRefuser   = $"mailto:{emailERP}?subject={sujetRefuser}";
+            // Construire les liens
+            string lienConfirmation = "";
+            if (!string.IsNullOrEmpty(baseUrl) && !string.IsNullOrEmpty(tentativeToken))
+            {
+                lienConfirmation = $"{baseUrl}/Achats/Confirmer?token={tentativeToken}";
+            }
+
+            string mailtoConfirmer = $"mailto:{emailERP}?subject={Uri.EscapeDataString($"{bc.Numero} CONFIRMER")}";
+            string mailtoRefuser = $"mailto:{emailERP}?subject={Uri.EscapeDataString($"{bc.Numero} REFUSER")}";
 
             var lignesHtml = new StringBuilder();
             if (bc.Lignes?.Any() == true)
@@ -357,16 +393,89 @@ namespace Metier.Achats
       <div class=""s"">Total HT : {bc.TotalHT:N2} DZD &nbsp;·&nbsp; TVA 19% : {bc.MontantTVA:N2} DZD</div>
     </div>
     <div class=""btns"">
-      <a href=""{mailtoConfirmer}"" class=""btn ok"">✓&nbsp; Confirmer la commande</a>
-      <a href=""{mailtoRefuser}"" class=""btn ko"">✗&nbsp; Refuser</a>
+      {(string.IsNullOrEmpty(lienConfirmation) ?
+        $@"<a href=""{mailtoConfirmer}"" class=""btn ok"">✓&nbsp; Confirmer la commande</a>
+           <a href=""{mailtoRefuser}"" class=""btn ko"">✗&nbsp; Refuser</a>" :
+        $@"<a href=""{lienConfirmation}&reponse=confirmer"" class=""btn ok"">✓&nbsp; Confirmer la commande</a>
+           <a href=""{lienConfirmation}&reponse=refuser"" class=""btn ko"">✗&nbsp; Refuser</a>")}
     </div>
     <div class=""hint"">
-      Cliquez sur un bouton — votre messagerie s'ouvrira avec le sujet pré-rempli.<br>
-      Envoyez simplement l'email. Votre réponse sera enregistrée automatiquement.
+      {(string.IsNullOrEmpty(lienConfirmation) ?
+        "Cliquez sur un bouton — votre messagerie s'ouvrira avec le sujet pré-rempli.<br>Envoyez simplement l'email. Votre réponse sera enregistrée automatiquement." :
+        "Cliquez sur un bouton pour confirmer ou refuser cette commande.")}
     </div>
+    {(string.IsNullOrEmpty(lienConfirmation) ? "" : $@"
+    <p style=""text-align:center;color:#7F83A5;font-size:12px;margin:0;"">
+      Ou ouvrez la page de confirmation :<br>
+      <a href=""{lienConfirmation}"" style=""color:#9C8CFF;word-break:break-all;"">{lienConfirmation}</a>
+    </p>")}
   </div>
   <div class=""ft"">Envoyé automatiquement par <strong style=""color:#9C8CFF;"">SKYRA ERP</strong>.</div>
 </div>
+</body></html>";
+        }
+
+        private string GenererCorpsEmailAcceptation(AchatBonCommande bc, AchatNegociationTentative? tentative = null)
+        {
+            var lignesHtml = new StringBuilder();
+            if (bc.Lignes?.Any() == true)
+            {
+                lignesHtml.Append(@"
+      <table style=""width:100%;border-collapse:collapse;margin:24px 0;font-size:13px;"">
+        <thead>
+          <tr style=""background:rgba(34,197,94,0.2);"">
+            <th style=""padding:10px 12px;text-align:left;color:#A4A7C8;font-weight:600;"">Composant</th>
+            <th style=""padding:10px 12px;text-align:right;color:#A4A7C8;font-weight:600;"">Quantité</th>
+            <th style=""padding:10px 12px;text-align:right;color:#A4A7C8;font-weight:600;"">Prix HT</th>
+            <th style=""padding:10px 12px;text-align:right;color:#A4A7C8;font-weight:600;"">Total HT</th>
+          </tr>
+        </thead><tbody>");
+                foreach (var l in bc.Lignes.Where(l => !l.EstExclue))
+                {
+                    bool ligneRefusee = tentative?.Lignes?.Any(tl => tl.BonCommandeLigneId == l.Id && tl.EstRefusee) == true;
+                    if (ligneRefusee) continue;
+
+                    lignesHtml.Append($@"
+          <tr style=""border-bottom:1px solid rgba(255,255,255,0.06);"">
+            <td style=""padding:10px 12px;color:#e0e0e0;"">{l.Produit?.Nom ?? "—"}</td>
+            <td style=""padding:10px 12px;text-align:right;color:#e0e0e0;"">{l.Quantite:N3}</td>
+            <td style=""padding:10px 12px;text-align:right;color:#e0e0e0;"">{l.PrixUnitaireHT:N2} DZD</td>
+            <td style=""padding:10px 12px;text-align:right;font-weight:700;color:#22c55e;"">{l.TotalHT:N2} DZD</td>
+          </tr>");
+                }
+                lignesHtml.Append("</tbody></table>");
+            }
+
+            return $@"
+<!DOCTYPE html><html><head><meta charset=""utf-8""><style>
+  body {{ font-family: 'Segoe UI', sans-serif; background: #0d0f1a; margin: 0; padding: 20px; }}
+  .ct {{ max-width: 620px; margin: 0 auto; background: #13152b; border-radius: 20px; overflow: hidden; border: 1px solid rgba(34,197,94,0.2); }}
+  .hd {{ background: linear-gradient(135deg, #22c55e, #16a34a); padding: 36px 32px; text-align: center; }}
+  .hd h1 {{ color: white; margin: 0; font-size: 26px; font-weight: 800; }}
+  .hd p {{ color: rgba(255,255,255,0.75); margin: 6px 0 0; font-size: 14px; }}
+  .bd {{ padding: 32px; color: #e0e0e0; }}
+  .tb {{ background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); border-radius: 14px; padding: 20px; margin: 24px 0; text-align: center; }}
+  .tb .mt {{ font-size: 30px; font-weight: 800; color: #22c55e; }}
+  .tb .lb {{ color: #A4A7C8; font-size: 13px; margin-top: 6px; }}
+  .ft {{ padding: 20px 32px; text-align: center; color: #7F83A5; font-size: 12px; border-top: 1px solid rgba(255,255,255,0.06); }}
+</style></head><body>
+  <div class=""ct"">
+    <div class=""hd"">
+      <h1>✓ ACCEPTATION CONFIRMÉE</h1>
+      <p>Bon de Commande {bc.Numero}</p>
+    </div>
+    <div class=""bd"">
+      <p style=""margin:0 0 20px;font-size:14px;color:#A4A7C8;"">Bonjour,<br><br>
+      Nous confirmons l'acceptation de votre proposition pour le bon de commande ci-dessous.</p>
+      {lignesHtml}
+      <div class=""tb"">
+        <div class=""mt"">{bc.TotalTTC:N2} DZD TTC</div>
+        <div class=""lb"">Total HT : {bc.TotalHT:N2} DZD &nbsp;·&nbsp; TVA 19% : {bc.MontantTVA:N2} DZD</div>
+      </div>
+      <p style=""color:#A4A7C8;font-size:13px;margin:0;line-height:1.6;"">La commande est maintenant confirmée. Merci pour votre collaboration.</p>
+    </div>
+    <div class=""ft"">Cet email a été envoyé automatiquement par <strong style=""color:#22c55e;"">SKYRA ERP</strong>.</div>
+  </div>
 </body></html>";
         }
     }

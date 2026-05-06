@@ -139,7 +139,7 @@ namespace erp_pfc_20252026.Pages.Achats
                     string baseUrl = $"{Request.Scheme}://{Request.Host}";
                     if (await _gmailService.EstConfigureAsync())
                     {
-                        await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur);
+                        await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, tentative.Token);
                         TempData["Succes"] = $"✅ BC {bc.Numero} — tentative n°{tentative.Numero} envoyée à {emailFournisseur}.";
                     }
                     else
@@ -159,6 +159,66 @@ namespace erp_pfc_20252026.Pages.Achats
                 TempData["Succes"] = $"BC {bc.Numero} marqué envoyé (tentative n°{tentative.Numero}). Aucun email fournisseur.";
             }
 
+            return RedirectToPage(new { id });
+        }
+
+        // ─── POST : Accepter la contre-proposition (acheteur — sans modif) ──────
+        public async Task<IActionResult> OnPostAccepterContrePropositionAsync(int id)
+        {
+            var bc = await _achatsService.GetBonCommandeAsync(id);
+            if (bc == null) return NotFound();
+
+            // Récupérer la dernière tentative (contre-proposition du fournisseur)
+            var tentative = await _db.AchatNegociationTentatives
+                .Include(t => t.Lignes)
+                .Where(t => t.BonCommandeId == id && t.Statut == "ContreProposition")
+                .OrderByDescending(t => t.Numero)
+                .FirstOrDefaultAsync();
+
+            if (tentative != null)
+            {
+                // Marquer la tentative comme acceptée (acheteur l'accepte telle quelle)
+                tentative.Statut = "Acceptee";
+                tentative.DateReponse = DateTime.UtcNow;
+                _db.AchatNegociationTentatives.Update(tentative);
+
+                // Mettre à jour les lignes BC avec les prix acceptés
+                foreach (var ligne in tentative.Lignes.Where(l => !l.EstRefusee))
+                {
+                    var bcLigne = bc.Lignes.FirstOrDefault(bl => bl.Id == ligne.BonCommandeLigneId);
+                    if (bcLigne != null && ligne.PrixProposeHT.HasValue)
+                    {
+                        bcLigne.PrixUnitaireHT = ligne.PrixProposeHT.Value;
+                    }
+                }
+
+                // Mettre le BC en statut Confirmé
+                bc.Statut = StatutBonCommande.Confirme;
+                _db.AchatBonCommandes.Update(bc);
+
+                await _db.SaveChangesAsync();
+
+                // Envoyer email d'acceptation au fournisseur
+                string? emailFournisseur = bc!.Fournisseur?.Email;
+                if (!string.IsNullOrEmpty(emailFournisseur))
+                {
+                    try
+                    {
+                        if (await _gmailService.EstConfigureAsync())
+                            await _gmailService.EnvoyerAcceptationContrePropositionAsync(bc, emailFournisseur, tentative);
+                        else
+                            await _mailService.EnvoyerAcceptationContrePropositionAsync(bc, emailFournisseur, tentative);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Acceptation enregistrée mais email échoué
+                        TempData["Succes"] = $"✅ BC {bc.Numero} confirmé. Envoi email échoué : {ex.Message}";
+                        return RedirectToPage(new { id });
+                    }
+                }
+            }
+
+            TempData["Succes"] = $"✅ Contre-proposition acceptée. BC {bc.Numero} confirmé + email envoyé.";
             return RedirectToPage(new { id });
         }
 

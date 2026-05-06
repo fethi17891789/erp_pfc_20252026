@@ -443,9 +443,8 @@
                 {
                     var dernTent = tentatives.First();
                     <div style="border-top:1px solid rgba(255,255,255,0.07); margin-top:4px; padding:20px;">
-                        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:14px; font-weight:600;">
-                            Ajustez votre contre-offre puis envoyez-la au fournisseur.
-                            Les produits refusés sont décochés — cochez pour les réintégrer.
+                        <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:14px; font-weight:600;" id="co-instruction">
+                            Contre-proposition du fournisseur reçue. Acceptez ou ajustez les conditions.
                         </p>
                         <form method="post" asp-page-handler="ContreOffrir" id="form-co">
                             <input type="hidden" name="id" value="@bc.Id" />
@@ -488,7 +487,9 @@
                                                        style="width:130px; padding:5px 8px; font-size:0.82rem; @(!incluse ? "opacity:.35; pointer-events:none;" : "")"
                                                        value="@prixFourn.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
                                                        step="0.01" min="0"
-                                                       id="co-prix-@lig.Id" />
+                                                       id="co-prix-@lig.Id"
+                                                       data-initial="@prixFourn.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
+                                                       onchange="verifierModifications()" />
                                             </td>
                                             <td style="text-align:center;">
                                                 <input type="checkbox"
@@ -496,23 +497,33 @@
                                                        value="@lig.Id"
                                                        @(incluse ? "checked" : "")
                                                        style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;"
-                                                       onchange="toggleLigneCO(@lig.Id, this.checked)" />
+                                                       data-initial="@(incluse ? "checked" : "")"
+                                                       onchange="toggleLigneCO(@lig.Id, this.checked); verifierModifications();" />
                                             </td>
                                         </tr>
                                     }
                                 </tbody>
                             </table>
                             <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                                <button type="submit" form="form-co" class="btn-primary bc-btn-send" style="background:linear-gradient(135deg,#7B5EFF,#5B3EDF);">
+                                <button type="button" id="btn-accepter-co" class="btn-primary bc-btn-send" style="background:linear-gradient(135deg,#22c55e,#16a34a);" onclick="document.getElementById('form-accepter-co').submit()">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                    Accepter la contre-proposition
+                                </button>
+                                <button type="submit" form="form-co" id="btn-envoyer-co" class="btn-primary bc-btn-send" style="display:none; background:linear-gradient(135deg,#7B5EFF,#5B3EDF);">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
                                         <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
                                     </svg>
-                                    Envoyer la contre-offre
+                                    Envoyer la proposition
                                 </button>
                                 <button type="submit" form="form-annuler-bc" class="bc-btn-danger">Annuler le BC</button>
                             </div>
                         </form>
                         <form method="post" asp-page-handler="Annuler" id="form-annuler-bc" style="display:none;">
+                            <input type="hidden" name="id" value="@bc.Id" />
+                        </form>
+                        <form method="post" asp-page-handler="AccepterContreProposition" id="form-accepter-co" style="display:none;">
                             <input type="hidden" name="id" value="@bc.Id" />
                         </form>
                     </div>
@@ -851,6 +862,11 @@ let ligneEnCours = null; // Pour gérer le flow sous-traitance
 const toast = document.getElementById('bc-toast');
 if (toast) setTimeout(() => toast.classList.remove('bc-toast-visible'), 4000);
 
+// ─── Vérifier modifs au chargement ──────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('form-co')) verifierModifications();
+});
+
 function afficherErreurModal(msg) {
     let el = document.getElementById('modal-erreur');
     if (!el) {
@@ -1052,6 +1068,43 @@ function toggleLigneCO(ligneId, inclus) {
         input.style.pointerEvents = inclus ? '' : 'none';
     }
 }
+
+// ─── Vérifier modifications ──────────────────────────────────────────────
+function verifierModifications() {
+    let modified = false;
+
+    // Vérifier prix
+    const prixInputs = document.querySelectorAll('.co-prix-input');
+    prixInputs.forEach(input => {
+        const current = input.value.trim();
+        const initial = input.getAttribute('data-initial');
+        if (current !== initial) {
+            modified = true;
+        }
+    });
+
+    // Vérifier checkboxes
+    const checkboxes = document.querySelectorAll('input[name="LignesIncluses"]');
+    checkboxes.forEach(cb => {
+        const currentState = cb.checked ? 'checked' : '';
+        const initialState = cb.getAttribute('data-initial');
+        if (currentState !== initialState) {
+            modified = true;
+        }
+    });
+
+    const btnAccepter = document.getElementById('btn-accepter-co');
+    const btnEnvoyer = document.getElementById('btn-envoyer-co');
+
+    if (modified) {
+        btnAccepter.style.display = 'none';
+        btnEnvoyer.style.display = 'block';
+    } else {
+        btnAccepter.style.display = 'block';
+        btnEnvoyer.style.display = 'none';
+    }
+}
+
 
 // ─── Copier lien fournisseur ──────────────────────────────────────────────
 function copierLienFournisseur(lien, btn) {
