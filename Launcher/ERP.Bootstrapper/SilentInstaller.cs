@@ -325,6 +325,28 @@ public static class SilentInstaller
         catch (Exception ex)
         {
             Console.WriteLine($"[ERREUR] ÉCHEC DE L'INSTALLATION ERP : {ex.Message}");
+            Console.WriteLine($"[ERREUR] Type : {ex.GetType().FullName}");
+            Console.WriteLine($"[ERREUR] Stack trace :\n{ex}");
+
+            // Supprimer le ZIP pour forcer un re-téléchargement propre au prochain lancement
+            try
+            {
+                if (File.Exists(erpZip))
+                {
+                    File.Delete(erpZip);
+                    Console.WriteLine("[ERREUR] erp_binaries.zip supprimé pour permettre un retry propre.");
+                }
+            }
+            catch { }
+
+            // Nettoyer aussi le dossier d'extraction temporaire s'il est resté
+            try
+            {
+                if (Directory.Exists(tempExtractPath))
+                    Directory.Delete(tempExtractPath, true);
+            }
+            catch { }
+
             return false;
         }
     }

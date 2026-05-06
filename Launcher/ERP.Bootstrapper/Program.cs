@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using ERP.Bootstrapper;
 
@@ -51,11 +52,44 @@ try
     string erpUrl = $"https://github.com/fethi17891789/erp_pfc_20252026/releases/download/{releaseTag}/erp_binaries.zip";
     Console.WriteLine($"[INFO] Version détectée : {version} — téléchargement depuis {releaseTag}");
 
+    // Helper local : valide l'intégrité d'un ZIP, supprime s'il est corrompu
+    static bool IsZipValid(string path)
+    {
+        try
+        {
+            using var archive = ZipFile.OpenRead(path);
+            // Force la lecture du central directory
+            _ = archive.Entries.Count;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    // Détecter et supprimer les ZIPs corrompus (téléchargement précédent interrompu)
+    if (File.Exists(pgZip) && !IsZipValid(pgZip))
+    {
+        Console.WriteLine("[INFO] postgresql_portable.zip corrompu — suppression pour re-téléchargement.");
+        try { File.Delete(pgZip); } catch { }
+    }
+    if (File.Exists(erpZip) && !IsZipValid(erpZip))
+    {
+        Console.WriteLine("[INFO] erp_binaries.zip corrompu — suppression pour re-téléchargement.");
+        try { File.Delete(erpZip); } catch { }
+    }
+
     if (!File.Exists(pgZip))
     {
         Console.WriteLine("[INFO] Ressources PostgreSQL manquantes. Téléchargement...");
         var success = await WebDownloader.DownloadFileAsync(pgUrl, pgZip);
         if (!success) throw new Exception("Impossible de télécharger PostgreSQL.");
+        if (!IsZipValid(pgZip))
+        {
+            try { File.Delete(pgZip); } catch { }
+            throw new Exception("PostgreSQL téléchargé mais l'archive est corrompue.");
+        }
     }
 
     if (!File.Exists(erpZip))
@@ -63,6 +97,11 @@ try
         Console.WriteLine("[INFO] Binaires ERP manquants. Téléchargement...");
         var success = await WebDownloader.DownloadFileAsync(erpUrl, erpZip);
         if (!success) throw new Exception("Impossible de télécharger les binaires ERP.");
+        if (!IsZipValid(erpZip))
+        {
+            try { File.Delete(erpZip); } catch { }
+            throw new Exception("Binaires ERP téléchargés mais l'archive est corrompue.");
+        }
     }
 
     // ── PHASE 1 : Détection du port ───────────────────────────
