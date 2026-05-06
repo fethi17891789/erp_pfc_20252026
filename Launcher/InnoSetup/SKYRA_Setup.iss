@@ -5,7 +5,7 @@
 ; ═══════════════════════════════════════════════════════════════
 
 #define MyAppName "SKYRA ERP"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "Votre Société"
 #define MyAppURL "https://sitevitrineerp.vercel.app/"
 #define MyAppExeName "SkyraERP.exe"
