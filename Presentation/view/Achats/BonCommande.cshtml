@@ -604,6 +604,18 @@ let ligneEnCours = null; // Pour gérer le flow sous-traitance
 const toast = document.getElementById('bc-toast');
 if (toast) setTimeout(() => toast.classList.remove('bc-toast-visible'), 4000);
 
+function afficherErreurModal(msg) {
+    let el = document.getElementById('modal-erreur');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'modal-erreur';
+        el.style.cssText = 'color:#ef4444;font-size:12.5px;padding:6px 10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-top:-6px;';
+        document.querySelector('.bc-modal-footer').before(el);
+    }
+    el.textContent = msg;
+    setTimeout(() => { if (el) el.textContent = ''; }, 3000);
+}
+
 // ─── Modal ligne ─────────────────────────────────────────────────────────
 function ouvrirAjoutLigne() {
     document.getElementById('search-produit').value = '';
@@ -613,7 +625,7 @@ function ouvrirAjoutLigne() {
     document.getElementById('input-qte').value = '1';
     document.getElementById('input-prix').value = '';
     document.getElementById('hint-cout-achat').textContent = '';
-    document.getElementById('produit-results').innerHTML = '';  // vider les résultats précédents
+    filtrerProduits(''); // afficher les produits dès l'ouverture
     document.getElementById('modal-ligne').style.display = 'flex';
     setTimeout(() => document.getElementById('search-produit').focus(), 50);
 }
@@ -685,8 +697,8 @@ function validerLigne() {
     const qte       = parseFloat(document.getElementById('input-qte').value);
     const prix      = parseFloat(document.getElementById('input-prix').value) || 0;
 
-    if (!produitId || !nom) { alert('Veuillez sélectionner un composant.'); return; }
-    if (!qte || qte <= 0)   { alert('La quantité doit être supérieure à 0.'); return; }
+    if (!produitId || !nom) { afficherErreurModal('Veuillez sélectionner un composant dans la liste.'); return; }
+    if (!qte || qte <= 0)   { afficherErreurModal('La quantité doit être supérieure à 0.'); return; }
 
     ligneEnCours = { produitId, nom, estSousTraitance: false, quantite: qte, prixHT: prix };
 
