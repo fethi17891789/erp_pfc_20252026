@@ -56,7 +56,7 @@ RestartIfNeededByRun=no
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Raccourcis:"; Flags: unchecked
+; Raccourci créé automatiquement par le Bootstrapper après installation
 
 [Files]
 ; ── ERP ASP.NET Core (maintenu léger, binaires téléchargés au boot) ──
@@ -75,12 +75,7 @@ Source: "..\..\publish\Resources\*"; Excludes: "*.zip"; DestDir: "{#MyInstallDir
 Source: "Assets\version.txt"; DestDir: "{#MyInstallDir}"; Flags: ignoreversion
 
 [Icons]
-; Raccourci Bureau → ouvre l'ERP dans le navigateur
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{#MyInstallDir}\ERP\{#MyAppExeName}"; \
-  Tasks: desktopicon; IconFilename: "{#MyInstallDir}\ERP\{#MyAppExeName}"
-
-; Raccourci Menu Démarrer
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{#MyInstallDir}\ERP\{#MyAppExeName}"
+; Raccourcis créés par le Bootstrapper après installation (SkyraERP.exe n'existe pas encore ici)
 
 [Run]
 ; ── Étape 1 : Enregistrer le Watchdog comme Service Windows ──
@@ -112,7 +107,7 @@ Type: filesandordirs; Name: "{#MyInstallDir}\Installer"
 Type: filesandordirs; Name: "{#MyInstallDir}\Watchdog"
 Type: filesandordirs; Name: "{#MyInstallDir}\*.exe"
 Type: filesandordirs; Name: "{#MyInstallDir}\*.dll"
-Type: filesandordirs; Name: "{#MyInstallDir}\.json"
+Type: files; Name: "{#MyInstallDir}\*.json"
 
 [Code]
 // Lance le Bootstrapper via ShellExec pour respecter son manifest requireAdministrator.

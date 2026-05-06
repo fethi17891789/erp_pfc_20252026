@@ -43,9 +43,13 @@ try
     string pgZip = Path.Combine(dbDir, "postgresql_portable.zip");
     string erpZip = Path.Combine(dbDir, "erp_binaries.zip");
 
-    // URLs à mettre à jour par l'utilisateur (Final)
-    string pgUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.2.0/postgresql_portable.zip";
-    string erpUrl = "https://github.com/fethi17891789/erp_pfc_20252026/releases/download/V1.2.0/erp_binaries.zip";
+    // Version lue depuis version.txt (installé par Inno Setup dans C:\SKYRA\)
+    string versionFile = Path.Combine(InstallDir, "version.txt");
+    string version = File.Exists(versionFile) ? File.ReadAllText(versionFile).Trim() : "1.0.0";
+    string releaseTag = "V" + version;
+    string pgUrl = $"https://github.com/fethi17891789/erp_pfc_20252026/releases/download/{releaseTag}/postgresql_portable.zip";
+    string erpUrl = $"https://github.com/fethi17891789/erp_pfc_20252026/releases/download/{releaseTag}/erp_binaries.zip";
+    Console.WriteLine($"[INFO] Version détectée : {version} — téléchargement depuis {releaseTag}");
 
     if (!File.Exists(pgZip))
     {
@@ -87,6 +91,12 @@ try
         if (!SilentInstaller.InstallPostgresPortable(InstallDir))
             throw new Exception("Échec de l'installation de PostgreSQL.");
     }
+    else
+    {
+        // PostgreSQL système détecté — configurer quand même le rôle et la base SKYRA
+        SilentInstaller.StartPostgresPortable(InstallDir);
+        SilentInstaller.ConfigureDatabase(InstallDir);
+    }
 
     // ── Étape 1.5 : Préparation des binaires de l'ERP ──
     if (!SilentInstaller.InstallErpBinaries(InstallDir))
@@ -95,8 +105,9 @@ try
     if (!DependencyChecker.IsWkhtmltopdfInstalled())
         SilentInstaller.InstallWkhtmltopdf();
 
-    // Démarrage de PostgreSQL portable
+    // Démarrage de PostgreSQL portable + attente qu'il soit prêt
     SilentInstaller.StartPostgresPortable(InstallDir);
+    await SilentInstaller.WaitForPostgresReadyAsync(60);
 
     // ── PHASE 3 : Configuration du pare-feu ─────────────────────────
     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -181,6 +192,20 @@ try
         Console.WriteLine("╚═══════════════════════════════════════════════════╝");
         Console.ResetColor();
 
+        // Créer/mettre à jour le raccourci Bureau maintenant que l'EXE existe
+        try
+        {
+            string exeNameFile2 = Path.Combine(InstallDir, "erp_exe_name.txt");
+            string erpExeName2 = File.Exists(exeNameFile2) ? File.ReadAllText(exeNameFile2).Trim() : "SkyraERP.exe";
+            string erpExePath = Path.Combine(InstallDir, "ERP", erpExeName2);
+            string desktopShortcut = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
+                "SKYRA ERP.lnk");
+            CreateShortcut(desktopShortcut, erpExePath, Path.Combine(InstallDir, "ERP"));
+            Console.WriteLine("[CONFIG] Raccourci Bureau créé.");
+        }
+        catch (Exception ex) { Console.WriteLine($"[AVERTISSEMENT] Raccourci non créé : {ex.Message}"); }
+
         // Ouvrir le navigateur par défaut sur l'ERP
         Process.Start(new ProcessStartInfo
         {
@@ -231,4 +256,25 @@ catch (Exception ex)
         System.Threading.Thread.Sleep(100);
     }
     Console.ReadKey(true);
+}
+
+static void CreateShortcut(string shortcutPath, string targetPath, string workingDir)
+{
+    // Crée un raccourci .lnk via un script PowerShell (pas besoin de COM interop)
+    string ps = $@"
+$ws = New-Object -ComObject WScript.Shell
+$s = $ws.CreateShortcut('{shortcutPath.Replace("'", "''")}')
+$s.TargetPath = '{targetPath.Replace("'", "''")}'
+$s.WorkingDirectory = '{workingDir.Replace("'", "''")}'
+$s.Save()
+";
+    var psi = new System.Diagnostics.ProcessStartInfo
+    {
+        FileName = "powershell.exe",
+        Arguments = $"-NoProfile -NonInteractive -Command \"{ps.Replace("\"", "\\\"")}\"",
+        UseShellExecute = false,
+        CreateNoWindow = true
+    };
+    var proc = System.Diagnostics.Process.Start(psi);
+    proc?.WaitForExit(10_000);
 }

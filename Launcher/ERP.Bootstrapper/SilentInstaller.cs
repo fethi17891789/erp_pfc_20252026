@@ -148,17 +148,50 @@ public static class SilentInstaller
         return RunProcess(pgCtl, $"start -D \"{dataDir}\" -l \"{logFile}\" -w");
     }
 
-    private static void ConfigureDatabase(string installDir)
+    public static void ConfigureDatabase(string installDir)
     {
         var pgDir = Path.Combine(installDir, "Database", "PostgreSQL");
         var psql = FindFileInDirectory(pgDir, "psql.exe");
 
-        if (string.IsNullOrEmpty(psql)) return;
+        // Fallback : chercher psql dans le PATH système (PostgreSQL installé globalement)
+        if (string.IsNullOrEmpty(psql))
+        {
+            var pathVar = Environment.GetEnvironmentVariable("PATH") ?? "";
+            foreach (var dir in pathVar.Split(Path.PathSeparator))
+            {
+                var candidate = Path.Combine(dir, "psql.exe");
+                if (File.Exists(candidate)) { psql = candidate; break; }
+            }
+        }
+
+        if (string.IsNullOrEmpty(psql))
+        {
+            Console.WriteLine("[INSTALL] psql.exe introuvable — configuration DB ignorée.");
+            return;
+        }
 
         Console.WriteLine("[INSTALL] Initialisation du rôle 'openpg'...");
         RunProcess(psql, "-U postgres -d postgres -c \"CREATE ROLE openpg WITH LOGIN SUPERUSER PASSWORD 'openpgpwd';\"");
         RunProcess(psql, "-U postgres -d postgres -c \"CREATE DATABASE fethifethifethi OWNER openpg;\"");
         Console.WriteLine("[INSTALL] Rôle configuré.");
+    }
+
+    public static async Task WaitForPostgresReadyAsync(int timeoutSeconds = 60)
+    {
+        Console.WriteLine("[INSTALL] Attente que PostgreSQL soit prêt...");
+        var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                using var client = new System.Net.Sockets.TcpClient();
+                await client.ConnectAsync("127.0.0.1", 5432);
+                Console.WriteLine("[INSTALL] PostgreSQL est prêt.");
+                return;
+            }
+            catch { await Task.Delay(1000); }
+        }
+        Console.WriteLine("[INSTALL] Avertissement : PostgreSQL n'a pas répondu dans le délai imparti.");
     }
 
     private static string? FindFileInDirectory(string dir, string fileName)
@@ -168,7 +201,7 @@ public static class SilentInstaller
         return files.Length > 0 ? files[0] : null;
     }
 
-    private static bool RunProcess(string exe, string args, int timeoutMs = 60_000)
+    private static bool RunProcess(string exe, string args, int timeoutMs = 180_000)
     {
         try
         {

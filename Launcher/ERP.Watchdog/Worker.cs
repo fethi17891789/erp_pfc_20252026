@@ -16,10 +16,12 @@ public class WatchdogWorker : BackgroundService
     private readonly ILogger<WatchdogWorker> _logger;
     private readonly HttpClient _http;
 
-    private const string InstallDir = @"C:\SKYRA";
+    // Le Watchdog est dans C:\SKYRA\Watchdog\ — on remonte d'un niveau pour obtenir C:\SKYRA\
+    private static readonly string InstallDir = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, ".."));
     private const string VersionUrl = "https://raw.githubusercontent.com/fethi17891789/erp_pfc_20252026/refs/heads/master/version.json";
-    private const string CurrentVersionFile = @"C:\SKYRA\version.txt";
-    private const string ExeNameFile = @"C:\SKYRA\erp_exe_name.txt";
+    private static readonly string CurrentVersionFile = Path.Combine(InstallDir, "version.txt");
+    private static readonly string ExeNameFile = Path.Combine(InstallDir, "erp_exe_name.txt");
 
     private string erpExe = "";
     private string erpProcessName = "";
