@@ -82,6 +82,10 @@ namespace erp_pfc_20252026.Pages.Achats
             if (Action == "accepter")
                 reponsesLignes = reponsesLignes.Select(r => (r.LigneId, (decimal?)null, false)).ToList();
 
+            // Si action = "refuser", forcer tous les lignes refusées
+            if (Action == "refuser")
+                reponsesLignes = reponsesLignes.Select(r => (r.LigneId, (decimal?)null, true)).ToList();
+
             bool contrePropo = reponsesLignes.Any(r => r.EstRefusee || r.PrixProposeHT.HasValue);
             EstContreProposition = contrePropo;
 

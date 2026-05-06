@@ -140,21 +140,69 @@
     /* Boutons */
     .cf-actions { display: flex; gap: 12px; padding: 20px; flex-wrap: wrap; }
     .btn-confirmer {
-      flex: 1; min-width: 200px; padding: 14px 20px;
+      flex: 1; min-width: 160px; padding: 14px 20px;
       background: linear-gradient(135deg, #22c55e, #16a34a);
       color: #fff; border: none; border-radius: 12px;
       font-family: inherit; font-size: 0.9rem; font-weight: 700;
-      cursor: pointer; transition: opacity .15s;
+      cursor: pointer; transition: opacity .15s, transform .1s;
     }
-    .btn-confirmer:hover { opacity: .88; }
+    .btn-confirmer:hover:not(:disabled) { opacity: .88; }
+    .btn-refuser-tout {
+      flex: 1; min-width: 160px; padding: 14px 20px;
+      background: transparent;
+      color: #ef4444; border: 1.5px solid #ef4444; border-radius: 12px;
+      font-family: inherit; font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: background .15s, opacity .15s;
+    }
+    .btn-refuser-tout:hover:not(:disabled) { background: rgba(239,68,68,0.08); }
     .btn-proposer {
-      flex: 1; min-width: 200px; padding: 14px 20px;
+      flex: 1; min-width: 160px; padding: 14px 20px;
       background: linear-gradient(135deg, #7B5EFF, #5B3EDF);
       color: #fff; border: none; border-radius: 12px;
       font-family: inherit; font-size: 0.9rem; font-weight: 700;
       cursor: pointer; transition: opacity .15s;
     }
-    .btn-proposer:hover { opacity: .88; }
+    .btn-proposer:hover:not(:disabled) { opacity: .88; }
+    button:disabled { opacity: .3; cursor: not-allowed; }
+    .btn-proposer-highlight {
+      box-shadow: 0 0 0 2px #7B5EFF, 0 4px 20px rgba(123,94,255,0.35);
+    }
+
+    /* Mobile table → cards */
+    @@media (max-width: 600px) {
+      .cf-table thead { display: none; }
+      .cf-table, .cf-table tbody { display: block; }
+      .cf-table tr {
+        display: block;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
+        margin: 8px 12px;
+        padding: 4px 0;
+      }
+      .cf-table td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(255,255,255,0.04);
+        padding: 10px 14px;
+        text-align: left !important;
+      }
+      .cf-table td:last-child { border-bottom: none; }
+      .cf-table td::before {
+        content: attr(data-label);
+        font-size: 0.72rem;
+        color: #7F83A5;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .3px;
+        margin-right: 12px;
+        flex-shrink: 0;
+      }
+      .cf-prix-input { width: 110px; }
+      .cf-actions { flex-direction: column; }
+      .btn-confirmer, .btn-refuser-tout, .btn-proposer { min-width: 0; width: 100%; }
+    }
 
     /* Alerte */
     .cf-alert {
@@ -275,22 +323,22 @@
             {
               var l = lignesActives[i];
               <tr id="row-@l.Id">
-                <td style="font-weight:600; color:#fff;">@l.Produit?.Nom</td>
-                <td style="text-align:right;">@l.Quantite.ToString("N3")</td>
-                <td style="text-align:right; color:#9C8CFF; font-weight:700;">@l.PrixUnitaireHT.ToString("N2") DZD</td>
-                <td>
+                <td data-label="Composant" style="font-weight:600; color:#fff;">@l.Produit?.Nom</td>
+                <td data-label="Quantité" style="text-align:right;">@l.Quantite.ToString("N3")</td>
+                <td data-label="Prix demandé" style="text-align:right; color:#9C8CFF; font-weight:700;">@l.PrixUnitaireHT.ToString("N2") DZD</td>
+                <td data-label="Votre prix">
                   <input type="number"
                          name="PrixProposes[@i]"
                          class="cf-prix-input prix-input"
                          data-ligne-id="@l.Id"
-                         data-prix-original="@l.PrixUnitaireHT"
+                         data-prix-original="@l.PrixUnitaireHT.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
                          data-qte="@l.Quantite"
                          value="@l.PrixUnitaireHT.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
                          step="0.01" min="0"
                          placeholder="@l.PrixUnitaireHT.ToString("N2")" />
                   <input type="hidden" name="LigneIds[@i]" value="@l.Id" />
                 </td>
-                <td style="text-align:center;">
+                <td data-label="Refuser" style="text-align:center;">
                   <label class="cf-refus-wrap">
                     <input type="checkbox"
                            name="LignesRefusees[@i]"
@@ -326,10 +374,13 @@
                     placeholder="Commentaire, condition particulière, délai souhaité…"></textarea>
         </div>
         <div class="cf-actions">
-          <button type="submit" name="Action" value="accepter" class="btn-confirmer">
+          <button type="submit" name="Action" value="accepter" class="btn-confirmer" id="btn-accepter">
             ✓ Confirmer la commande
           </button>
-          <button type="submit" name="Action" value="proposer" class="btn-proposer">
+          <button type="submit" name="Action" value="refuser" class="btn-refuser-tout" id="btn-refuser-tout">
+            ✗ Refuser tout
+          </button>
+          <button type="submit" name="Action" value="proposer" class="btn-proposer" id="btn-proposer">
             💬 Envoyer ma contre-proposition
           </button>
         </div>
@@ -344,7 +395,35 @@
 
 <script>
 (function() {
-  // Activer/désactiver les champs prix quand "Refuser" est coché
+  const btnAccepter   = document.getElementById('btn-accepter');
+  const btnRefuserTout = document.getElementById('btn-refuser-tout');
+  const btnProposer   = document.getElementById('btn-proposer');
+
+  function aDesModifications() {
+    // Vérif prix modifiés
+    for (const inp of document.querySelectorAll('.prix-input')) {
+      if (inp.disabled) continue;
+      const valeur   = parseFloat(inp.value) || 0;
+      const original = parseFloat(inp.dataset.prixOriginal) || 0;
+      if (Math.abs(valeur - original) > 0.001) return true;
+    }
+    // Vérif checkboxes cochées
+    for (const cb of document.querySelectorAll('.refus-cb')) {
+      if (cb.checked) return true;
+    }
+    return false;
+  }
+
+  function mettreAJourBoutons() {
+    const modifie = aDesModifications();
+    if (btnAccepter)    { btnAccepter.disabled    = modifie; }
+    if (btnRefuserTout) { btnRefuserTout.disabled  = modifie; }
+    if (btnProposer)    {
+      btnProposer.classList.toggle('btn-proposer-highlight', modifie);
+    }
+  }
+
+  // Checkboxes
   document.querySelectorAll('.refus-cb').forEach(cb => {
     cb.addEventListener('change', () => {
       const row = document.getElementById(cb.dataset.row);
@@ -353,20 +432,22 @@
       const input = row.querySelector('.prix-input');
       if (input) input.disabled = cb.checked;
       recalculerTotal();
+      mettreAJourBoutons();
     });
   });
 
-  // Recalcul total live
+  // Prix
   document.querySelectorAll('.prix-input').forEach(inp => {
-    inp.addEventListener('input', recalculerTotal);
+    inp.addEventListener('input', () => {
+      recalculerTotal();
+      mettreAJourBoutons();
+    });
   });
 
   function recalculerTotal() {
     let total = 0;
     document.querySelectorAll('.prix-input').forEach(inp => {
-      const row = inp.closest('tr');
-      const cb  = row?.querySelector('.refus-cb');
-      if (cb?.checked) return;
+      if (inp.disabled) return;
       const prix = parseFloat(inp.value) || 0;
       const qte  = parseFloat(inp.dataset.qte) || 0;
       total += prix * qte;
