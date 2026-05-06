@@ -227,6 +227,29 @@ namespace Metier.Achats
         }
 
         /// <summary>
+        /// Refus total du BC par le fournisseur — BC passe en Refusé instantanément.
+        /// </summary>
+        public async Task<bool> RefuserDefinitivementAsync(string token, string? messageFournisseur)
+        {
+            var tentative = await _db.AchatNegociationTentatives
+                .Include(t => t.BonCommande)
+                .FirstOrDefaultAsync(t => t.Token == token && t.Statut == StatutTentative.EnAttente);
+            if (tentative == null) return false;
+
+            tentative.Statut             = StatutTentative.Refusee;
+            tentative.MessageFournisseur = messageFournisseur;
+            tentative.DateReponse        = DateTime.UtcNow;
+
+            var bc = tentative.BonCommande!;
+            bc.Statut           = StatutBonCommande.Refuse;
+            bc.RepondeurMessage = messageFournisseur;
+            bc.TokenConfirmation = null;
+
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        /// <summary>
         /// Crée une nouvelle tentative depuis l'acheteur avec des prix modifiés.
         /// Les lignes non réintégrées (exclues) sont marquées EstExclue = true sur la BCLigne.
         /// </summary>

@@ -11,6 +11,7 @@ namespace Donnees.Achats
         public const string Acceptee         = "Acceptee";
         public const string ContreProposition = "ContreProposition";
         public const string Expiree          = "Expiree";
+        public const string Refusee          = "Refusee";
     }
 
     /// <summary>

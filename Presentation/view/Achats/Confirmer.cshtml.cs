@@ -20,9 +20,10 @@ namespace erp_pfc_20252026.Pages.Achats
         }
 
         public AchatNegociationTentative? Tentative { get; set; }
-        public bool DejaRepondu   { get; set; }
-        public bool Succes        { get; set; }
+        public bool DejaRepondu          { get; set; }
+        public bool Succes               { get; set; }
         public bool EstContreProposition { get; set; }
+        public bool EstRefusTotal        { get; set; }
 
         // ── GET ───────────────────────────────────────────────────────────
         public async Task<IActionResult> OnGetAsync(string? token)
@@ -53,12 +54,23 @@ namespace erp_pfc_20252026.Pages.Achats
             Tentative = await _achatsService.GetTentativeParTokenAsync(Token);
             if (Tentative == null) { DejaRepondu = true; return Page(); }
 
+            // Refus total : BC annulé instantanément
+            if (Action == "refuser")
+            {
+                bool ok = await _achatsService.RefuserDefinitivementAsync(Token, MessageFournisseur);
+                Succes = ok;
+                EstContreProposition = false;
+                EstRefusTotal = true;
+                if (!ok) DejaRepondu = true;
+                return Page();
+            }
+
             var reponsesLignes = new List<(int LigneId, decimal? PrixProposeHT, bool EstRefusee)>();
 
             for (int i = 0; i < LigneIds.Count; i++)
             {
-                bool refusee    = i < LignesRefusees.Count && LignesRefusees[i];
-                decimal? prix   = null;
+                bool refusee  = i < LignesRefusees.Count && LignesRefusees[i];
+                decimal? prix = null;
 
                 if (!refusee && i < PrixProposes.Count)
                 {
@@ -69,7 +81,6 @@ namespace erp_pfc_20252026.Pages.Achats
                             System.Globalization.CultureInfo.InvariantCulture,
                             out decimal p))
                     {
-                        // Null si identique au prix BC (= accepté sans modification)
                         var ligneBC = Tentative.BonCommande?.Lignes.FirstOrDefault(l => l.Id == LigneIds[i]);
                         prix = (ligneBC != null && p == ligneBC.PrixUnitaireHT) ? null : p;
                     }
@@ -78,24 +89,17 @@ namespace erp_pfc_20252026.Pages.Achats
                 reponsesLignes.Add((LigneIds[i], prix, refusee));
             }
 
-            // Si action = "accepter", forcer tous prix à null et tous refus à false
             if (Action == "accepter")
                 reponsesLignes = reponsesLignes.Select(r => (r.LigneId, (decimal?)null, false)).ToList();
-
-            // Si action = "refuser", forcer tous les lignes refusées
-            if (Action == "refuser")
-                reponsesLignes = reponsesLignes.Select(r => (r.LigneId, (decimal?)null, true)).ToList();
 
             bool contrePropo = reponsesLignes.Any(r => r.EstRefusee || r.PrixProposeHT.HasValue);
             EstContreProposition = contrePropo;
 
-            bool ok = await _achatsService.TraiterReponseNegociationAsync(
-                Token,
-                MessageFournisseur,
-                reponsesLignes);
+            bool resultat = await _achatsService.TraiterReponseNegociationAsync(
+                Token, MessageFournisseur, reponsesLignes);
 
-            Succes = ok;
-            if (!ok) DejaRepondu = true;
+            Succes = resultat;
+            if (!resultat) DejaRepondu = true;
 
             return Page();
         }

@@ -257,10 +257,14 @@
     var bc2 = Model.Tentative.BonCommande!;
     <div class="cf-card">
       <div class="cf-done">
-        <div class="cf-done-icon">@(Model.EstContreProposition ? "💬" : "✅")</div>
-        <h2>@(Model.EstContreProposition ? "Contre-proposition envoyée" : "Commande confirmée")</h2>
+        <div class="cf-done-icon">@(Model.EstRefusTotal ? "❌" : Model.EstContreProposition ? "💬" : "✅")</div>
+        <h2>@(Model.EstRefusTotal ? "Commande refusée" : Model.EstContreProposition ? "Contre-proposition envoyée" : "Commande confirmée")</h2>
         <p>
-          @if (Model.EstContreProposition)
+          @if (Model.EstRefusTotal)
+          {
+            <text>Vous avez refusé le bon de commande <strong>@bc2.Numero</strong>. L'acheteur en a été notifié.</text>
+          }
+          else if (Model.EstContreProposition)
           {
             <text>Votre contre-proposition pour le bon <strong>@bc2.Numero</strong> a bien été transmise à l'acheteur. Il reviendra vers vous si elle est acceptée.</text>
           }
