@@ -4,7 +4,7 @@
 @using global::Donnees.Achats
 
 @{
-    ViewData["Title"] = "Achats";
+    ViewData["Title"] = "Commandes";
     Layout = "~/Presentation/view/Shared/_Layout.cshtml";
 }
 
@@ -33,19 +33,10 @@
     @* ── EN-TÊTE ──────────────────────────────────────────────────────────── *@
     <div class="achats-page-header">
         <div>
-            <h1 class="achats-page-title">@Model.TitreFiltre</h1>
+            <h1 class="achats-page-title">Commandes</h1>
             <p class="achats-page-subtitle">@Model.SousTitreFiltre</p>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
-            @if (!string.IsNullOrEmpty(Model.Filtre))
-            {
-                <a asp-page="/Achats/Index" class="bc-btn-filtre-reset">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                    Tous les BCs
-                </a>
-            }
             <a asp-page="/Achats/BonCommande" class="btn-primary bc-btn-nouveau">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:14px;height:14px;">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -53,6 +44,38 @@
                 Nouveau bon de commande
             </a>
         </div>
+    </div>
+
+    @* ── ONGLETS UNIFIÉS ───────────────────────────────────────────────────── *@
+    <div class="achats-tabs" role="tablist">
+        <a asp-page="/Achats/Index"
+           class="achats-tab @(string.IsNullOrEmpty(Model.Filtre) ? "achats-tab-active" : "")"
+           role="tab" aria-selected="@(string.IsNullOrEmpty(Model.Filtre) ? "true" : "false")">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                <line x1="3" y1="6" x2="21" y2="6"/>
+                <path d="M16 10a4 4 0 01-8 0"/>
+            </svg>
+            Bons de commande
+        </a>
+        <a asp-page="/Achats/Index" asp-route-filtre="receptions"
+           class="achats-tab @(Model.Filtre == "receptions" ? "achats-tab-active" : "")"
+           role="tab" aria-selected="@(Model.Filtre == "receptions" ? "true" : "false")">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
+                <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+            Bons de réception
+        </a>
+        <a asp-page="/Achats/Index" asp-route-filtre="factures"
+           class="achats-tab @(Model.Filtre == "factures" ? "achats-tab-active" : "")"
+           role="tab" aria-selected="@(Model.Filtre == "factures" ? "true" : "false")">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            Factures fournisseurs
+        </a>
     </div>
 
     @* ── KPI CARDS ─────────────────────────────────────────────────────────── *@

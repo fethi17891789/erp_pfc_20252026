@@ -40,7 +40,7 @@
 
     <div class="modules-grid">
 
-        @* ── Bons de commande ──────────────────────────────────────────────── *@
+        @* ── Commandes (BC + BR + Factures unifiés) ────────────────────────── *@
         <article class="module-tile">
             <div class="module-tile-header">
                 <div class="module-circle">
@@ -50,60 +50,14 @@
                         <path d="M16 10a4 4 0 01-8 0"/>
                     </svg>
                 </div>
-                <span class="module-badge">BC</span>
+                <span class="module-badge">BC · BR · Factures</span>
             </div>
-            <h3>Bons de commande</h3>
-            <p>Créez et suivez vos commandes fournisseurs. Envoi automatique avec lien de confirmation pour le fournisseur.@(Model.EstConfigure && Model.NbBCEnAttente > 0 ? $" ({Model.NbBCEnAttente} en attente)" : "")</p>
+            <h3>Commandes</h3>
+            <p>Cycle d'achat complet en une page : bons de commande, bons de réception et factures fournisseurs avec leurs statuts.@(Model.EstConfigure && Model.NbBCEnAttente > 0 ? $" ({Model.NbBCEnAttente} BC en attente)" : "")</p>
             <div class="module-tile-footer">
                 <span class="module-status-dot"></span>
                 <span class="module-status-text">@(Model.EstConfigure ? "Actif" : "Configuration requise")</span>
                 <a asp-page="/Achats/Index" class="module-action-link">
-                    <button class="module-action" type="button">Ouvrir</button>
-                </a>
-            </div>
-        </article>
-
-        @* ── Bons de réception ─────────────────────────────────────────────── *@
-        <article class="module-tile">
-            <div class="module-tile-header">
-                <div class="module-circle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>
-                        <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
-                    </svg>
-                </div>
-                <span class="module-badge">BR</span>
-            </div>
-            <h3>Bons de réception</h3>
-            <p>Enregistrez la réception des marchandises. Contrôlez les quantités et l'état de chaque article reçu.</p>
-            <div class="module-tile-footer">
-                <span class="module-status-dot"></span>
-                <span class="module-status-text">@(Model.EstConfigure ? "Actif" : "Configuration requise")</span>
-                <a asp-page="/Achats/Index" asp-route-filtre="receptions" class="module-action-link">
-                    <button class="module-action" type="button">Ouvrir</button>
-                </a>
-            </div>
-        </article>
-
-        @* ── Factures fournisseurs ─────────────────────────────────────────── *@
-        <article class="module-tile">
-            <div class="module-tile-header">
-                <div class="module-circle">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="7" y1="13" x2="17" y2="13"/>
-                        <line x1="7" y1="17" x2="13" y2="17"/>
-                    </svg>
-                </div>
-                <span class="module-badge">Factures</span>
-            </div>
-            <h3>Factures fournisseurs</h3>
-            <p>Rapprochez les factures fournisseurs avec vos bons de commande. Détection automatique des écarts de prix.</p>
-            <div class="module-tile-footer">
-                <span class="module-status-dot"></span>
-                <span class="module-status-text">@(Model.EstConfigure ? "Actif" : "Configuration requise")</span>
-                <a asp-page="/Achats/Index" asp-route-filtre="factures" class="module-action-link">
                     <button class="module-action" type="button">Ouvrir</button>
                 </a>
             </div>
