@@ -297,7 +297,7 @@ namespace Metier.Achats
             <th style=""padding:10px 12px;text-align:right;color:#A4A7C8;font-weight:600;"">Total HT</th>
           </tr>
         </thead><tbody>");
-                foreach (var l in bc.Lignes)
+                foreach (var l in bc.Lignes.Where(l => !l.EstExclue))
                 {
                     lignesHtml.Append($@"
           <tr style=""border-bottom:1px solid rgba(255,255,255,0.06);"">

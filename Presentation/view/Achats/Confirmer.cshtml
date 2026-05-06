@@ -270,9 +270,10 @@
             </tr>
           </thead>
           <tbody id="tbody-lignes">
-            @for (int i = 0; i < bc.Lignes.Count; i++)
+            @{ var lignesActives = bc.Lignes.Where(l => !l.EstExclue).ToList(); }
+            @for (int i = 0; i < lignesActives.Count; i++)
             {
-              var l = bc.Lignes[i];
+              var l = lignesActives[i];
               <tr id="row-@l.Id">
                 <td style="font-weight:600; color:#fff;">@l.Produit?.Nom</td>
                 <td style="text-align:right;">@l.Quantite.ToString("N3")</td>

@@ -163,15 +163,18 @@ namespace erp_pfc_20252026.Pages.Achats
         }
 
         // ─── POST : Contre-offre acheteur ─────────────────────────────────────
-        [BindProperty] public List<int>    OffreLigneIds    { get; set; } = new();
-        [BindProperty] public List<string> OffrePrix        { get; set; } = new();
-        [BindProperty] public List<bool>   OffreReintegrer  { get; set; } = new();
+        [BindProperty] public List<int>    OffreLigneIds   { get; set; } = new();
+        [BindProperty] public List<string> OffrePrix       { get; set; } = new();
+        [BindProperty] public List<int>    LignesIncluses  { get; set; } = new();
 
         public async Task<IActionResult> OnPostContreOffrirAsync(int id)
         {
             var offres = new List<(int LigneId, decimal NouveauPrix, bool Reintegrer)>();
             for (int i = 0; i < OffreLigneIds.Count; i++)
             {
+                int ligneId = OffreLigneIds[i];
+                bool reintegrer = LignesIncluses.Contains(ligneId);
+
                 decimal prix = 0;
                 if (i < OffrePrix.Count)
                     decimal.TryParse(OffrePrix[i],
@@ -179,8 +182,7 @@ namespace erp_pfc_20252026.Pages.Achats
                         System.Globalization.CultureInfo.InvariantCulture,
                         out prix);
 
-                bool reintegrer = i < OffreReintegrer.Count && OffreReintegrer[i];
-                offres.Add((OffreLigneIds[i], prix, reintegrer));
+                offres.Add((ligneId, prix, reintegrer));
             }
 
             var tentative = await _achatsService.ContreOffrirAsync(id, offres);
