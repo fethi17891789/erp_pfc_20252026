@@ -17,6 +17,8 @@ namespace Donnees.Achats
         public const string Recu               = "Recu";
         public const string Facture            = "Facture";
         public const string Refuse             = "Refuse";
+        public const string EnNegociation     = "EnNegociation";
+        public const string Annule            = "Annule";
     }
 
     /// <summary>
@@ -75,5 +77,6 @@ namespace Donnees.Achats
         public List<AchatBonCommandeLigne> Lignes { get; set; } = new();
         public List<AchatProforma> Proformas { get; set; } = new();
         public List<AchatBonReception> BonsReception { get; set; } = new();
+        public List<AchatNegociationTentative> Tentatives { get; set; } = new();
     }
 }

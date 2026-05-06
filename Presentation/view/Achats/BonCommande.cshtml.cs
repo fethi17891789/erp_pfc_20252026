@@ -118,13 +118,14 @@ namespace erp_pfc_20252026.Pages.Achats
             return RedirectToPage(new { id = bc.Id });
         }
 
-        // ─── POST : Envoyer le BC au fournisseur ───────────────────────────────
+        // ─── POST : Envoyer le BC au fournisseur (crée une tentative) ────────────
         public async Task<IActionResult> OnPostEnvoyerAsync(int id)
         {
             var bc = await _achatsService.GetBonCommandeAsync(id);
             if (bc == null) return NotFound();
 
-            await _achatsService.MarquerEnvoyeAsync(id);
+            // Créer une nouvelle tentative de négociation
+            var tentative = await _achatsService.CreerTentativeAsync(id);
 
             // Recharger pour avoir les lignes complètes
             bc = await _achatsService.GetBonCommandeAsync(id);
@@ -135,35 +136,89 @@ namespace erp_pfc_20252026.Pages.Achats
             {
                 try
                 {
+                    string baseUrl = $"{Request.Scheme}://{Request.Host}";
                     if (await _gmailService.EstConfigureAsync())
                     {
-                        // ── Envoi via Gmail API (OAuth2) ──────────────────────
                         await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur);
-                        TempData["Succes"] = $"✅ BC {bc.Numero} envoyé à {emailFournisseur}. " +
-                            $"Le fournisseur peut confirmer/refuser par email — réponse détectée automatiquement.";
+                        TempData["Succes"] = $"✅ BC {bc.Numero} — tentative n°{tentative.Numero} envoyée à {emailFournisseur}.";
                     }
                     else
                     {
-                        // ── Fallback SMTP ─────────────────────────────────────
-                        string baseUrl = $"{Request.Scheme}://{Request.Host}";
-                        await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl);
-                        TempData["Succes"] = $"✅ BC {bc.Numero} envoyé à {emailFournisseur}.";
+                        await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, null, tentative.Token);
+                        TempData["Succes"] = $"✅ BC {bc.Numero} — tentative n°{tentative.Numero} envoyée à {emailFournisseur}.";
                     }
                 }
                 catch (Exception ex)
                 {
-                    TempData["Succes"] = $"BC {bc.Numero} marqué comme envoyé. " +
-                        $"Envoi email échoué : {ex.Message} — " +
-                        $"Configurez l'email depuis Paramètres → Email sortant.";
+                    TempData["Succes"] = $"BC {bc.Numero} marqué envoyé (tentative n°{tentative.Numero}). " +
+                        $"Envoi email échoué : {ex.Message}";
                 }
             }
             else
             {
-                TempData["Succes"] = $"BC {bc.Numero} marqué comme envoyé. " +
-                    $"Aucun email renseigné pour ce fournisseur.";
+                TempData["Succes"] = $"BC {bc.Numero} marqué envoyé (tentative n°{tentative.Numero}). Aucun email fournisseur.";
             }
 
             return RedirectToPage(new { id });
+        }
+
+        // ─── POST : Contre-offre acheteur ─────────────────────────────────────
+        [BindProperty] public List<int>    OffreLigneIds    { get; set; } = new();
+        [BindProperty] public List<string> OffrePrix        { get; set; } = new();
+        [BindProperty] public List<bool>   OffreReintegrer  { get; set; } = new();
+
+        public async Task<IActionResult> OnPostContreOffrirAsync(int id)
+        {
+            var offres = new List<(int LigneId, decimal NouveauPrix, bool Reintegrer)>();
+            for (int i = 0; i < OffreLigneIds.Count; i++)
+            {
+                decimal prix = 0;
+                if (i < OffrePrix.Count)
+                    decimal.TryParse(OffrePrix[i],
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out prix);
+
+                bool reintegrer = i < OffreReintegrer.Count && OffreReintegrer[i];
+                offres.Add((OffreLigneIds[i], prix, reintegrer));
+            }
+
+            var tentative = await _achatsService.ContreOffrirAsync(id, offres);
+
+            var bc = await _achatsService.GetBonCommandeAsync(id);
+            string? emailFournisseur = bc!.Fournisseur?.Email;
+
+            if (!string.IsNullOrEmpty(emailFournisseur))
+            {
+                try
+                {
+                    string baseUrl = $"{Request.Scheme}://{Request.Host}";
+                    if (await _gmailService.EstConfigureAsync())
+                        await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur);
+                    else
+                        await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, null, tentative.Token);
+
+                    TempData["Succes"] = $"Contre-offre envoyée au fournisseur (tentative n°{tentative.Numero}).";
+                }
+                catch (Exception ex)
+                {
+                    TempData["Succes"] = $"Contre-offre créée (tentative n°{tentative.Numero}). Envoi email échoué : {ex.Message}";
+                }
+            }
+            else
+            {
+                TempData["Succes"] = $"Contre-offre créée (tentative n°{tentative.Numero}). Aucun email fournisseur.";
+            }
+
+            return RedirectToPage(new { id });
+        }
+
+        // ─── POST : Annuler un BC en cours de négociation ─────────────────────
+        public async Task<IActionResult> OnPostAnnulerAsync(int id)
+        {
+            await _achatsService.AnnulerBonCommandeAsync(id);
+            TempData["Succes"] = "Bon de commande annulé.";
+            return RedirectToPage("/Achats/Index");
         }
 
         // ─── POST : Supprimer un BC brouillon ─────────────────────────────────
@@ -221,6 +276,8 @@ namespace erp_pfc_20252026.Pages.Achats
             StatutBonCommande.Recu             => ("rgba(34,197,94,0.15)",   "#4ade80",  "Reçu"),
             StatutBonCommande.Facture          => ("rgba(192,132,252,0.12)", "#c084fc",  "Facturé"),
             StatutBonCommande.Refuse           => ("rgba(239,68,68,0.12)",   "#ef4444",  "Refusé"),
+            StatutBonCommande.EnNegociation   => ("rgba(251,146,60,0.12)",  "#fb923c",  "En négociation"),
+            StatutBonCommande.Annule          => ("rgba(239,68,68,0.08)",   "#9ca3af",  "Annulé"),
             _                                  => ("rgba(255,255,255,0.08)", "#a4a7c8",  statut)
         };
 

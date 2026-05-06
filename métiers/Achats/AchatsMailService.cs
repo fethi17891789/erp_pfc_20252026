@@ -30,7 +30,8 @@ namespace Metier.Achats
             AchatBonCommande bc,
             string emailFournisseur,
             string baseUrl,
-            byte[]? pdfBlob = null)
+            byte[]? pdfBlob = null,
+            string? token = null)
         {
             var smtpHost     = _config["SmtpAchats:Host"] ?? "smtp.gmail.com";
             var smtpPort     = int.Parse(_config["SmtpAchats:Port"] ?? "587");
@@ -41,7 +42,8 @@ namespace Metier.Achats
             if (string.IsNullOrWhiteSpace(smtpUser) || string.IsNullOrWhiteSpace(smtpPassword))
                 throw new InvalidOperationException("SMTP non configuré. Veuillez configurer l'email dans les Paramètres.");
 
-            string lienConfirmation = $"{baseUrl}/Achats/Confirmer?token={bc.TokenConfirmation}";
+            string tokenEffectif    = token ?? bc.TokenConfirmation ?? "";
+            string lienConfirmation = $"{baseUrl}/Achats/Confirmer?token={tokenEffectif}";
 
             string corps = GenererCorpsEmail(bc, lienConfirmation);
 
@@ -92,7 +94,7 @@ namespace Metier.Achats
           </tr>
         </thead>
         <tbody>");
-                foreach (var l in bc.Lignes)
+                foreach (var l in bc.Lignes.Where(l => !l.EstExclue))
                 {
                     lignesHtml.Append($@"
           <tr style=""border-bottom:1px solid rgba(255,255,255,0.06);"">

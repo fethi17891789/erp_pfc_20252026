@@ -119,6 +119,7 @@ namespace Metier.Achats
                 .Include(b => b.Lignes).ThenInclude(l => l.Produit)
                 .Include(b => b.Proformas)
                 .Include(b => b.BonsReception).ThenInclude(r => r.Lignes).ThenInclude(l => l.Produit)
+                .Include(b => b.Tentatives).ThenInclude(t => t.Lignes).ThenInclude(nl => nl.BonCommandeLigne).ThenInclude(l => l!.Produit)
                 .FirstOrDefaultAsync(b => b.Id == id);
         }
 
@@ -128,6 +129,153 @@ namespace Metier.Achats
                 .Include(b => b.Fournisseur)
                 .Include(b => b.Lignes).ThenInclude(l => l.Produit)
                 .FirstOrDefaultAsync(b => b.TokenConfirmation == token);
+        }
+
+        /// <summary>
+        /// Charge une tentative via son token (pour la page Confirmer publique).
+        /// </summary>
+        public async Task<AchatNegociationTentative?> GetTentativeParTokenAsync(string token)
+        {
+            return await _db.AchatNegociationTentatives
+                .Include(t => t.BonCommande).ThenInclude(b => b!.Fournisseur)
+                .Include(t => t.BonCommande).ThenInclude(b => b!.Lignes).ThenInclude(l => l.Produit)
+                .FirstOrDefaultAsync(t => t.Token == token && t.Statut == StatutTentative.EnAttente);
+        }
+
+        /// <summary>
+        /// Crée une nouvelle tentative de négociation et met à jour le BC.
+        /// Expire les tentatives précédentes en attente.
+        /// </summary>
+        public async Task<AchatNegociationTentative> CreerTentativeAsync(int bcId)
+        {
+            var bc = await _db.AchatBonCommandes.FindAsync(bcId)
+                ?? throw new Exception($"BC {bcId} introuvable.");
+
+            // Expirer les tentatives EnAttente précédentes
+            var anciennes = await _db.AchatNegociationTentatives
+                .Where(t => t.BonCommandeId == bcId && t.Statut == StatutTentative.EnAttente)
+                .ToListAsync();
+            foreach (var a in anciennes)
+                a.Statut = StatutTentative.Expiree;
+
+            int numero = await _db.AchatNegociationTentatives
+                .Where(t => t.BonCommandeId == bcId)
+                .CountAsync() + 1;
+
+            var tentative = new AchatNegociationTentative
+            {
+                BonCommandeId = bcId,
+                Numero        = numero,
+                Token         = Guid.NewGuid().ToString("N"),
+                DateEnvoi     = DateTime.UtcNow,
+                Statut        = StatutTentative.EnAttente
+            };
+
+            bc.Statut        = StatutBonCommande.Envoye;
+            bc.DateEnvoiMail = DateTime.UtcNow;
+            // Compatibilité : stocker aussi le token sur le BC
+            bc.TokenConfirmation = tentative.Token;
+
+            _db.AchatNegociationTentatives.Add(tentative);
+            await _db.SaveChangesAsync();
+            return tentative;
+        }
+
+        /// <summary>
+        /// Traite la réponse négociée du fournisseur (avec prix/refus par ligne).
+        /// </summary>
+        public async Task<bool> TraiterReponseNegociationAsync(
+            string token,
+            string? messageFournisseur,
+            List<(int LigneId, decimal? PrixProposeHT, bool EstRefusee)> reponsesLignes)
+        {
+            var tentative = await _db.AchatNegociationTentatives
+                .Include(t => t.BonCommande)
+                .FirstOrDefaultAsync(t => t.Token == token && t.Statut == StatutTentative.EnAttente);
+            if (tentative == null) return false;
+
+            bool toutAccepte    = reponsesLignes.All(r => !r.EstRefusee && r.PrixProposeHT == null);
+            bool toutRefuse     = reponsesLignes.All(r => r.EstRefusee);
+            bool contrePropo    = !toutAccepte && !toutRefuse;
+
+            // Créer les lignes de réponse
+            foreach (var (ligneId, prix, refusee) in reponsesLignes)
+            {
+                _db.AchatNegociationLignes.Add(new AchatNegociationLigne
+                {
+                    TentativeId         = tentative.Id,
+                    BonCommandeLigneId  = ligneId,
+                    PrixProposeHT       = refusee ? null : prix,
+                    EstRefusee          = refusee
+                });
+            }
+
+            tentative.Statut             = toutAccepte ? StatutTentative.Acceptee : StatutTentative.ContreProposition;
+            tentative.MessageFournisseur = messageFournisseur;
+            tentative.DateReponse        = DateTime.UtcNow;
+
+            var bc = tentative.BonCommande!;
+            if (toutAccepte)
+                bc.Statut = StatutBonCommande.Confirme;
+            else
+                bc.Statut = StatutBonCommande.EnNegociation;
+
+            bc.TokenConfirmation = null;
+
+            await _db.SaveChangesAsync();
+            return true;
+        }
+
+        /// <summary>
+        /// Crée une nouvelle tentative depuis l'acheteur avec des prix modifiés.
+        /// Les lignes non réintégrées (exclues) sont marquées EstExclue = true sur la BCLigne.
+        /// </summary>
+        public async Task<AchatNegociationTentative> ContreOffrirAsync(
+            int bcId,
+            List<(int LigneId, decimal NouveauPrix, bool Reintegrer)> offresAcheteur)
+        {
+            var bc = await _db.AchatBonCommandes
+                .Include(b => b.Lignes)
+                .FirstOrDefaultAsync(b => b.Id == bcId)
+                ?? throw new Exception($"BC {bcId} introuvable.");
+
+            // Marquer les lignes exclues
+            foreach (var ligne in bc.Lignes)
+            {
+                var offre = offresAcheteur.FirstOrDefault(o => o.LigneId == ligne.Id);
+                if (offre == default)
+                {
+                    ligne.EstExclue = true;
+                    continue;
+                }
+                if (!offre.Reintegrer)
+                {
+                    ligne.EstExclue = true;
+                }
+                else
+                {
+                    ligne.EstExclue       = false;
+                    ligne.PrixUnitaireHT  = offre.NouveauPrix;
+                    ligne.TotalHT         = Math.Round(ligne.Quantite * offre.NouveauPrix, 2);
+                }
+            }
+
+            RecalculerTotaux(bc);
+            await _db.SaveChangesAsync();
+
+            // Créer la nouvelle tentative
+            return await CreerTentativeAsync(bcId);
+        }
+
+        /// <summary>
+        /// Annule définitivement un BC (depuis le détail acheteur).
+        /// </summary>
+        public async Task AnnulerBonCommandeAsync(int bcId)
+        {
+            var bc = await _db.AchatBonCommandes.FindAsync(bcId)
+                ?? throw new Exception($"BC {bcId} introuvable.");
+            bc.Statut = StatutBonCommande.Annule;
+            await _db.SaveChangesAsync();
         }
 
         public async Task<AchatBonCommande> CreerBonCommandeAsync(

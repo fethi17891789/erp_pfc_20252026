@@ -1,0 +1,379 @@
+@page
+@model erp_pfc_20252026.Pages.Achats.ConfirmerModel
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+@{
+    Layout = null;
+    ViewData["Title"] = Model.Tentative != null
+        ? $"Réponse BC {Model.Tentative.BonCommande?.Numero}"
+        : "Lien invalide";
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>@ViewData["Title"] — SKYRA ERP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: #02030A;
+      color: #fff;
+      min-height: 100vh;
+      padding: 24px 16px 48px;
+    }
+    .page { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+
+    /* Header */
+    .cf-header {
+      background: linear-gradient(135deg, #7B5EFF, #5B3EDF);
+      border-radius: 20px;
+      padding: 28px 32px;
+      text-align: center;
+    }
+    .cf-header h1 { font-size: 1.5rem; font-weight: 800; }
+    .cf-header p  { color: rgba(255,255,255,0.75); font-size: 0.85rem; margin-top: 4px; }
+
+    /* Card */
+    .cf-card {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .cf-card-title {
+      padding: 14px 20px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: #A4A7C8;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    /* Info grid */
+    .cf-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .cf-info-item {
+      padding: 12px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .cf-info-item:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.05); }
+    .cf-info-label { font-size: 0.75rem; color: #7F83A5; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+    .cf-info-value { font-size: 0.9rem; font-weight: 600; color: #fff; margin-top: 3px; }
+
+    /* Tableau lignes */
+    .cf-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .cf-table thead th {
+      padding: 10px 14px;
+      text-align: left;
+      color: #7F83A5;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      background: rgba(255,255,255,0.02);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .cf-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: #e0e0e0;
+      vertical-align: middle;
+    }
+    .cf-table tr:last-child td { border-bottom: none; }
+
+    /* Input prix */
+    .cf-prix-input {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.83rem;
+      font-weight: 600;
+      padding: 6px 10px;
+      width: 130px;
+      transition: border-color .15s;
+    }
+    .cf-prix-input:focus { outline: none; border-color: rgba(123,94,255,0.6); box-shadow: 0 0 0 2px rgba(123,94,255,0.15); }
+
+    /* Toggle refus */
+    .cf-refus-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .cf-refus-cb { width: 16px; height: 16px; accent-color: #ef4444; cursor: pointer; }
+    .cf-refus-label { font-size: 0.78rem; color: #A4A7C8; cursor: pointer; user-select: none; }
+    tr.ligne-refusee td { opacity: .45; text-decoration: line-through; }
+    tr.ligne-refusee .cf-refus-label { text-decoration: none; opacity: 1; color: #ef4444; }
+
+    /* Total box */
+    .cf-total-box {
+      background: rgba(123,94,255,0.08);
+      border: 1px solid rgba(123,94,255,0.2);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .cf-total-label { color: #A4A7C8; font-size: 0.83rem; }
+    .cf-total-value { font-size: 1.2rem; font-weight: 800; color: #9C8CFF; }
+
+    /* Notes fournisseur */
+    .cf-textarea {
+      width: 100%;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 10px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 12px 14px;
+      resize: vertical;
+      min-height: 80px;
+      transition: border-color .15s;
+    }
+    .cf-textarea:focus { outline: none; border-color: rgba(123,94,255,0.5); }
+
+    /* Boutons */
+    .cf-actions { display: flex; gap: 12px; padding: 20px; flex-wrap: wrap; }
+    .btn-confirmer {
+      flex: 1; min-width: 200px; padding: 14px 20px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff; border: none; border-radius: 12px;
+      font-family: inherit; font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .btn-confirmer:hover { opacity: .88; }
+    .btn-proposer {
+      flex: 1; min-width: 200px; padding: 14px 20px;
+      background: linear-gradient(135deg, #7B5EFF, #5B3EDF);
+      color: #fff; border: none; border-radius: 12px;
+      font-family: inherit; font-size: 0.9rem; font-weight: 700;
+      cursor: pointer; transition: opacity .15s;
+    }
+    .btn-proposer:hover { opacity: .88; }
+
+    /* Alerte */
+    .cf-alert {
+      border-radius: 12px;
+      padding: 16px 20px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      text-align: center;
+    }
+    .cf-alert-error  { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #ef4444; }
+    .cf-alert-success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #22c55e; }
+
+    /* État succès */
+    .cf-done {
+      display: flex; flex-direction: column; align-items: center; gap: 16px;
+      padding: 48px 32px; text-align: center;
+    }
+    .cf-done-icon { font-size: 3rem; }
+    .cf-done h2 { font-size: 1.3rem; font-weight: 800; }
+    .cf-done p { color: #A4A7C8; font-size: 0.88rem; line-height: 1.6; }
+
+    @@media (max-width: 500px) {
+      .cf-info-grid { grid-template-columns: 1fr; }
+      .cf-info-item:nth-child(odd) { border-right: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <div class="cf-header">
+    <h1>SKYRA ERP</h1>
+    <p>Réponse à un bon de commande</p>
+  </div>
+
+  @if (Model.DejaRepondu)
+  {
+    <div class="cf-card">
+      <div class="cf-done">
+        <div class="cf-done-icon">✓</div>
+        <h2>Réponse déjà enregistrée</h2>
+        <p>Ce lien a déjà été utilisé ou a expiré.<br>Merci de contacter notre équipe si vous avez une question.</p>
+      </div>
+    </div>
+  }
+  else if (Model.Tentative == null)
+  {
+    <div class="cf-alert cf-alert-error">Lien invalide ou expiré. Veuillez contacter l'émetteur du bon de commande.</div>
+  }
+  else if (Model.Succes)
+  {
+    var bc2 = Model.Tentative.BonCommande!;
+    <div class="cf-card">
+      <div class="cf-done">
+        <div class="cf-done-icon">@(Model.EstContreProposition ? "💬" : "✅")</div>
+        <h2>@(Model.EstContreProposition ? "Contre-proposition envoyée" : "Commande confirmée")</h2>
+        <p>
+          @if (Model.EstContreProposition)
+          {
+            <text>Votre contre-proposition pour le bon <strong>@bc2.Numero</strong> a bien été transmise à l'acheteur. Il reviendra vers vous si elle est acceptée.</text>
+          }
+          else
+          {
+            <text>Merci ! Votre confirmation pour le bon <strong>@bc2.Numero</strong> a bien été enregistrée.</text>
+          }
+        </p>
+      </div>
+    </div>
+  }
+  else
+  {
+    var bc   = Model.Tentative.BonCommande!;
+    var tent = Model.Tentative;
+    string dateLiv = bc.DateLivraisonSouhaitee.HasValue
+        ? bc.DateLivraisonSouhaitee.Value.ToString("dd/MM/yyyy")
+        : "À définir";
+
+    <div class="cf-card">
+      <div class="cf-card-title">Bon de commande @bc.Numero — Tentative n°@tent.Numero</div>
+      <div class="cf-info-grid">
+        <div class="cf-info-item">
+          <div class="cf-info-label">Référence</div>
+          <div class="cf-info-value">@bc.Numero</div>
+        </div>
+        <div class="cf-info-item">
+          <div class="cf-info-label">Date de commande</div>
+          <div class="cf-info-value">@bc.DateCommande.ToString("dd/MM/yyyy")</div>
+        </div>
+        <div class="cf-info-item">
+          <div class="cf-info-label">Livraison souhaitée</div>
+          <div class="cf-info-value">@dateLiv</div>
+        </div>
+        <div class="cf-info-item">
+          <div class="cf-info-label">Fournisseur</div>
+          <div class="cf-info-value">@(bc.Fournisseur?.FullName ?? "—")</div>
+        </div>
+      </div>
+    </div>
+
+    <form method="post" id="form-reponse">
+      <input type="hidden" name="Token" value="@tent.Token" />
+
+      <div class="cf-card">
+        <div class="cf-card-title">Lignes de commande — modifiez les prix ou refusez des produits</div>
+        <table class="cf-table">
+          <thead>
+            <tr>
+              <th>Composant</th>
+              <th style="text-align:right;">Qté</th>
+              <th style="text-align:right;">Prix HT demandé</th>
+              <th>Votre prix HT</th>
+              <th style="text-align:center;">Refuser</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-lignes">
+            @for (int i = 0; i < bc.Lignes.Count; i++)
+            {
+              var l = bc.Lignes[i];
+              <tr id="row-@l.Id">
+                <td style="font-weight:600; color:#fff;">@l.Produit?.Nom</td>
+                <td style="text-align:right;">@l.Quantite.ToString("N3")</td>
+                <td style="text-align:right; color:#9C8CFF; font-weight:700;">@l.PrixUnitaireHT.ToString("N2") DZD</td>
+                <td>
+                  <input type="number"
+                         name="PrixProposes[@i]"
+                         class="cf-prix-input prix-input"
+                         data-ligne-id="@l.Id"
+                         data-prix-original="@l.PrixUnitaireHT"
+                         data-qte="@l.Quantite"
+                         value="@l.PrixUnitaireHT.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
+                         step="0.01" min="0"
+                         placeholder="@l.PrixUnitaireHT.ToString("N2")" />
+                  <input type="hidden" name="LigneIds[@i]" value="@l.Id" />
+                </td>
+                <td style="text-align:center;">
+                  <label class="cf-refus-wrap">
+                    <input type="checkbox"
+                           name="LignesRefusees[@i]"
+                           class="cf-refus-cb refus-cb"
+                           data-row="row-@l.Id"
+                           value="true" />
+                    <span class="cf-refus-label">Refuser</span>
+                  </label>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <div class="cf-total-box">
+          <span class="cf-total-label">Total HT estimé</span>
+          <span class="cf-total-value" id="total-ht-live">@bc.TotalHT.ToString("N2") DZD</span>
+        </div>
+      </div>
+
+      @if (!string.IsNullOrEmpty(bc.Notes))
+      {
+        <div class="cf-card">
+          <div class="cf-card-title">Notes de l'acheteur</div>
+          <div style="padding:14px 20px; color:#A4A7C8; font-size:0.85rem; line-height:1.6;">@bc.Notes</div>
+        </div>
+      }
+
+      <div class="cf-card">
+        <div class="cf-card-title">Message (optionnel)</div>
+        <div style="padding:14px 20px;">
+          <textarea name="MessageFournisseur" class="cf-textarea"
+                    placeholder="Commentaire, condition particulière, délai souhaité…"></textarea>
+        </div>
+        <div class="cf-actions">
+          <button type="submit" name="Action" value="accepter" class="btn-confirmer">
+            ✓ Confirmer la commande
+          </button>
+          <button type="submit" name="Action" value="proposer" class="btn-proposer">
+            💬 Envoyer ma contre-proposition
+          </button>
+        </div>
+      </div>
+    </form>
+  }
+
+  <div style="text-align:center; color:#7F83A5; font-size:0.75rem; padding-top:8px;">
+    Cet email a été envoyé automatiquement par <strong style="color:#9C8CFF;">SKYRA ERP</strong>. Lien à usage unique.
+  </div>
+</div>
+
+<script>
+(function() {
+  // Activer/désactiver les champs prix quand "Refuser" est coché
+  document.querySelectorAll('.refus-cb').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const row = document.getElementById(cb.dataset.row);
+      if (!row) return;
+      row.classList.toggle('ligne-refusee', cb.checked);
+      const input = row.querySelector('.prix-input');
+      if (input) input.disabled = cb.checked;
+      recalculerTotal();
+    });
+  });
+
+  // Recalcul total live
+  document.querySelectorAll('.prix-input').forEach(inp => {
+    inp.addEventListener('input', recalculerTotal);
+  });
+
+  function recalculerTotal() {
+    let total = 0;
+    document.querySelectorAll('.prix-input').forEach(inp => {
+      const row = inp.closest('tr');
+      const cb  = row?.querySelector('.refus-cb');
+      if (cb?.checked) return;
+      const prix = parseFloat(inp.value) || 0;
+      const qte  = parseFloat(inp.dataset.qte) || 0;
+      total += prix * qte;
+    });
+    const el = document.getElementById('total-ht-live');
+    if (el) el.textContent = total.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DZD';
+  }
+})();
+</script>
+</body>
+</html>

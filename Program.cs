@@ -1087,6 +1087,8 @@ using (var scopeAchats = app.Services.CreateScope())
                 );
                 CREATE INDEX IF NOT EXISTS ""IX_AchatBCLignes_BonCommandeId""
                     ON ""AchatBonCommandeLignes""(""BonCommandeId"");
+                ALTER TABLE ""AchatBonCommandeLignes""
+                    ADD COLUMN IF NOT EXISTS ""EstExclue"" BOOLEAN NOT NULL DEFAULT FALSE;
 
                 CREATE TABLE IF NOT EXISTS ""AchatProformas"" (
                     ""Id""               SERIAL PRIMARY KEY,
@@ -1183,6 +1185,37 @@ using (var scopeAchats = app.Services.CreateScope())
                     ""ExpiresAt""    TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
                     ""ConfigureeLe"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
                 );
+
+                CREATE TABLE IF NOT EXISTS ""AchatNegociationTentatives"" (
+                    ""Id""                  SERIAL PRIMARY KEY,
+                    ""BonCommandeId""       INT NOT NULL,
+                    ""Numero""              INT NOT NULL DEFAULT 1,
+                    ""Token""               VARCHAR(100) NULL,
+                    ""DateEnvoi""           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
+                    ""Statut""              VARCHAR(30) NOT NULL DEFAULT 'EnAttente',
+                    ""MessageFournisseur""  VARCHAR(1000) NULL,
+                    ""DateReponse""         TIMESTAMP WITHOUT TIME ZONE NULL,
+                    CONSTRAINT ""FK_AchatNegTentative_BC""
+                        FOREIGN KEY (""BonCommandeId"") REFERENCES ""AchatBonCommandes""(""Id"") ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatNegTentatives_Token""
+                    ON ""AchatNegociationTentatives""(""Token"");
+                CREATE INDEX IF NOT EXISTS ""IX_AchatNegTentatives_BcId""
+                    ON ""AchatNegociationTentatives""(""BonCommandeId"");
+
+                CREATE TABLE IF NOT EXISTS ""AchatNegociationLignes"" (
+                    ""Id""                  SERIAL PRIMARY KEY,
+                    ""TentativeId""         INT NOT NULL,
+                    ""BonCommandeLigneId""  INT NOT NULL,
+                    ""PrixProposeHT""       NUMERIC(18,2) NULL,
+                    ""EstRefusee""          BOOLEAN NOT NULL DEFAULT FALSE,
+                    CONSTRAINT ""FK_AchatNegLigne_Tentative""
+                        FOREIGN KEY (""TentativeId"") REFERENCES ""AchatNegociationTentatives""(""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_AchatNegLigne_BCLigne""
+                        FOREIGN KEY (""BonCommandeLigneId"") REFERENCES ""AchatBonCommandeLignes""(""Id"") ON DELETE RESTRICT
+                );
+                CREATE INDEX IF NOT EXISTS ""IX_AchatNegLignes_TentativeId""
+                    ON ""AchatNegociationLignes""(""TentativeId"");
             ";
 
             using (var cmd = new NpgsqlCommand(createAchatsSql, conn))

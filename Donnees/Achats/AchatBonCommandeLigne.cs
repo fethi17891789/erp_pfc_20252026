@@ -27,5 +27,8 @@ namespace Donnees.Achats
 
         /// <summary>Calculé : Quantite × PrixUnitaireHT</summary>
         public decimal TotalHT { get; set; } = 0m;
+
+        /// <summary>Vrai si l'acheteur a exclu cette ligne d'une renégociation (après refus fournisseur non réintégré).</summary>
+        public bool EstExclue { get; set; } = false;
     }
 }
