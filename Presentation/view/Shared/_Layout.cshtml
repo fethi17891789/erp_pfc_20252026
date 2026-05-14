@@ -110,9 +110,6 @@
                                 </svg>
                             </button>
                             <div class="nav-sub nav-sub-nested" id="nav-sub-achats">
-                                <a asp-page="/Achats/Hub" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Achats/Hub" ? "nav-sub-link-active" : "")">
-                                    <span class="nav-dot"></span> Vue d'ensemble
-                                </a>
                                 <a asp-page="/Achats/Index" class="nav-sub-link @(ViewContext.RouteData.Values["page"]?.ToString() == "/Achats/Index" ? "nav-sub-link-active" : "")">
                                     <span class="nav-dot"></span> Commandes
                                 </a>
