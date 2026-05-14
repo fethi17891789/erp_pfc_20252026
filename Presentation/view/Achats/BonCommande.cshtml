@@ -459,7 +459,8 @@
                                     <thead>
                                         <tr>
                                             <th>Composant</th>
-                                            <th style="text-align:right;">Qté</th>
+                                            <th style="text-align:right;">Qté demandée</th>
+                                            <th style="text-align:right;">Qté proposée</th>
                                             <th style="text-align:right;">Prix unitaire HT</th>
                                             <th style="text-align:right;">Total HT</th>
                                         </tr>
@@ -469,12 +470,16 @@
                                         {
                                             var repLigne = tent.Lignes.FirstOrDefault(l => l.BonCommandeLigneId == bcLigne.Id);
                                             bool ligneRefusee = repLigne?.EstRefusee == true;
-                                            decimal prixAffiche = repLigne?.PrixProposeHT ?? bcLigne.PrixUnitaireHT;
-                                            decimal totalLigne = prixAffiche * bcLigne.Quantite;
+                                            decimal prixAffiche = repLigne?.PrixProposeHT ?? 0m;
+                                            decimal qteAffiche = repLigne?.QuantiteProposee ?? bcLigne.Quantite;
+                                            decimal totalLigne = prixAffiche * qteAffiche;
 
                                             <tr style="@(ligneRefusee ? "opacity:0.45;" : "")">
                                                 <td class="bc-td-nom" style="@(ligneRefusee ? "text-decoration:line-through;" : "")">@bcLigne.Produit?.Nom</td>
-                                                <td style="text-align:right;">@bcLigne.Quantite.ToString("N2")</td>
+                                                <td style="text-align:right; color:var(--text-muted);">@bcLigne.Quantite.ToString("N2")</td>
+                                                <td style="text-align:right; font-weight:600; color:@(ligneRefusee ? "#ef4444" : qteAffiche != bcLigne.Quantite ? "#fb923c" : "#22c55e");">
+                                                    @(ligneRefusee ? "—" : qteAffiche.ToString("N2"))
+                                                </td>
                                                 <td style="text-align:right; font-weight:600; color:@(ligneRefusee ? "#ef4444" : "var(--text)");">
                                                     @(ligneRefusee ? "Refusé" : prixAffiche.ToString("N2") + " DZD")
                                                 </td>
@@ -497,7 +502,7 @@
                     var dernTent = tentatives.First();
                     <div style="border-top:1px solid rgba(255,255,255,0.07); margin-top:4px; padding:20px;">
                         <p style="font-size:0.82rem; color:var(--text-muted); margin-bottom:14px; font-weight:600;" id="co-instruction">
-                            Contre-proposition du fournisseur reçue. Acceptez ou ajustez les conditions.
+                            Proforma du fournisseur reçue. Acceptez ou ajustez les conditions.
                         </p>
                         <form method="post" asp-page-handler="ContreOffrir" id="form-co">
                             <input type="hidden" name="id" value="@bc.Id" />
@@ -505,7 +510,7 @@
                                 <thead>
                                     <tr>
                                         <th>Composant</th>
-                                        <th style="text-align:right;">Prix BC</th>
+                                        <th style="text-align:right;">Qté proposée</th>
                                         <th style="text-align:right;">Prix fournisseur</th>
                                         <th>Votre offre</th>
                                         <th style="text-align:center;">Inclure</th>
@@ -517,7 +522,8 @@
                                         var lig = bc.Lignes[i];
                                         var repFourn = dernTent.Lignes.FirstOrDefault(l => l.BonCommandeLigneId == lig.Id);
                                         bool refuseFourn = repFourn?.EstRefusee == true;
-                                        decimal prixFourn = repFourn?.PrixProposeHT ?? lig.PrixUnitaireHT;
+                                        decimal prixFourn = repFourn?.PrixProposeHT ?? 0m;
+                                        decimal qteFourn = repFourn?.QuantiteProposee ?? lig.Quantite;
                                         bool incluse = !lig.EstExclue && !refuseFourn;
 
                                         <tr id="co-row-@lig.Id" class="@(incluse ? "" : "co-row-exclue")">
@@ -528,8 +534,10 @@
                                                     <span style="font-size:0.7rem; color:#ef4444; font-weight:700; margin-left:6px;">(refusé)</span>
                                                 }
                                             </td>
-                                            <td style="text-align:right; color:var(--text-muted);">@lig.PrixUnitaireHT.ToString("N2") DZD</td>
-                                            <td style="text-align:right; color:@(refuseFourn ? "#ef4444" : prixFourn != lig.PrixUnitaireHT ? "#fb923c" : "#22c55e"); font-weight:700;">
+                                            <td style="text-align:right; color:@(refuseFourn ? "#ef4444" : qteFourn != lig.Quantite ? "#fb923c" : "#22c55e"); font-weight:600;">
+                                                @(refuseFourn ? "—" : qteFourn.ToString("N2"))
+                                            </td>
+                                            <td style="text-align:right; color:@(refuseFourn ? "#ef4444" : "#22c55e"); font-weight:700;">
                                                 @(refuseFourn ? "Refusé" : prixFourn.ToString("N2") + " DZD")
                                             </td>
                                             <td>

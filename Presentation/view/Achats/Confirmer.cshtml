@@ -25,7 +25,7 @@
       min-height: 100vh;
       padding: 24px 16px 48px;
     }
-    .page { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+    .page { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
 
     /* Header */
     .cf-header {
@@ -36,6 +36,23 @@
     }
     .cf-header h1 { font-size: 1.5rem; font-weight: 800; }
     .cf-header p  { color: rgba(255,255,255,0.75); font-size: 0.85rem; margin-top: 4px; }
+
+    /* Section label */
+    .cf-section-label {
+      display: flex; align-items: center; gap: 12px;
+      margin: 8px 0 0;
+      font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1px; color: #7F83A5;
+    }
+    .cf-section-label::after {
+      content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.06);
+    }
+    .cf-section-label .cf-section-icon {
+      width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 0.85rem;
+    }
+    .cf-section-icon-bc { background: rgba(123,94,255,0.15); }
+    .cf-section-icon-pf { background: rgba(34,197,94,0.15); }
 
     /* Card */
     .cf-card {
@@ -57,14 +74,14 @@
     /* Info grid */
     .cf-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
     .cf-info-item {
-      padding: 12px 20px;
+      padding: 14px 20px;
       border-bottom: 1px solid rgba(255,255,255,0.05);
     }
     .cf-info-item:nth-child(odd) { border-right: 1px solid rgba(255,255,255,0.05); }
-    .cf-info-label { font-size: 0.75rem; color: #7F83A5; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+    .cf-info-label { font-size: 0.72rem; color: #7F83A5; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
     .cf-info-value { font-size: 0.9rem; font-weight: 600; color: #fff; margin-top: 3px; }
 
-    /* Tableau lignes */
+    /* Tableau read-only */
     .cf-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
     .cf-table thead th {
       padding: 10px 14px;
@@ -85,8 +102,31 @@
     }
     .cf-table tr:last-child td { border-bottom: none; }
 
-    /* Input prix */
-    .cf-prix-input {
+    /* Proforma table */
+    .pf-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .pf-table thead th {
+      padding: 10px 14px;
+      text-align: left;
+      color: #7F83A5;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      background: rgba(34,197,94,0.04);
+      border-bottom: 1px solid rgba(34,197,94,0.12);
+    }
+    .pf-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: #e0e0e0;
+      vertical-align: middle;
+    }
+    .pf-table tr:last-child td { border-bottom: none; }
+    .pf-table .pf-produit { color: #fff; font-weight: 600; }
+    .pf-table .pf-qte-demandee { color: #7F83A5; font-size: 0.78rem; }
+
+    /* Input fields */
+    .pf-input {
       background: rgba(255,255,255,0.05);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: 8px;
@@ -94,23 +134,17 @@
       font-family: inherit;
       font-size: 0.83rem;
       font-weight: 600;
-      padding: 6px 10px;
-      width: 130px;
+      padding: 8px 10px;
+      width: 120px;
       transition: border-color .15s;
     }
-    .cf-prix-input:focus { outline: none; border-color: rgba(123,94,255,0.6); box-shadow: 0 0 0 2px rgba(123,94,255,0.15); }
-
-    /* Toggle refus */
-    .cf-refus-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .cf-refus-cb { width: 16px; height: 16px; accent-color: #ef4444; cursor: pointer; }
-    .cf-refus-label { font-size: 0.78rem; color: #A4A7C8; cursor: pointer; user-select: none; }
-    tr.ligne-refusee td { opacity: .45; text-decoration: line-through; }
-    tr.ligne-refusee .cf-refus-label { text-decoration: none; opacity: 1; color: #ef4444; }
+    .pf-input:focus { outline: none; border-color: rgba(34,197,94,0.5); box-shadow: 0 0 0 2px rgba(34,197,94,0.12); }
+    .pf-input::placeholder { color: #7F83A5; font-weight: 400; }
 
     /* Total box */
-    .cf-total-box {
-      background: rgba(123,94,255,0.08);
-      border: 1px solid rgba(123,94,255,0.2);
+    .pf-total-box {
+      background: rgba(34,197,94,0.06);
+      border: 1px solid rgba(34,197,94,0.15);
       border-radius: 12px;
       padding: 16px 20px;
       margin: 16px 20px;
@@ -118,10 +152,10 @@
       justify-content: space-between;
       align-items: center;
     }
-    .cf-total-label { color: #A4A7C8; font-size: 0.83rem; }
-    .cf-total-value { font-size: 1.2rem; font-weight: 800; color: #9C8CFF; }
+    .pf-total-label { color: #A4A7C8; font-size: 0.83rem; }
+    .pf-total-value { font-size: 1.2rem; font-weight: 800; color: #22c55e; }
 
-    /* Notes fournisseur */
+    /* Notes */
     .cf-textarea {
       width: 100%;
       background: rgba(255,255,255,0.03);
@@ -135,44 +169,34 @@
       min-height: 80px;
       transition: border-color .15s;
     }
-    .cf-textarea:focus { outline: none; border-color: rgba(123,94,255,0.5); }
+    .cf-textarea:focus { outline: none; border-color: rgba(34,197,94,0.4); }
 
     /* Boutons */
     .cf-actions { display: flex; gap: 12px; padding: 20px; flex-wrap: wrap; }
-    .btn-confirmer {
-      flex: 1; min-width: 160px; padding: 14px 20px;
+    .btn-proforma {
+      flex: 2; min-width: 200px; padding: 14px 20px;
       background: linear-gradient(135deg, #22c55e, #16a34a);
       color: #fff; border: none; border-radius: 12px;
       font-family: inherit; font-size: 0.9rem; font-weight: 700;
       cursor: pointer; transition: opacity .15s, transform .1s;
     }
-    .btn-confirmer:hover:not(:disabled) { opacity: .88; }
+    .btn-proforma:hover:not(:disabled) { opacity: .88; }
+    .btn-proforma:active:not(:disabled) { transform: scale(.98); }
     .btn-refuser-tout {
-      flex: 1; min-width: 160px; padding: 14px 20px;
+      flex: 1; min-width: 140px; padding: 14px 20px;
       background: transparent;
-      color: #ef4444; border: 1.5px solid #ef4444; border-radius: 12px;
+      color: #ef4444; border: 1.5px solid rgba(239,68,68,0.3); border-radius: 12px;
       font-family: inherit; font-size: 0.9rem; font-weight: 700;
-      cursor: pointer; transition: background .15s, opacity .15s;
+      cursor: pointer; transition: background .15s, border-color .15s;
     }
-    .btn-refuser-tout:hover:not(:disabled) { background: rgba(239,68,68,0.08); }
-    .btn-proposer {
-      flex: 1; min-width: 160px; padding: 14px 20px;
-      background: linear-gradient(135deg, #7B5EFF, #5B3EDF);
-      color: #fff; border: none; border-radius: 12px;
-      font-family: inherit; font-size: 0.9rem; font-weight: 700;
-      cursor: pointer; transition: opacity .15s;
-    }
-    .btn-proposer:hover:not(:disabled) { opacity: .88; }
+    .btn-refuser-tout:hover:not(:disabled) { background: rgba(239,68,68,0.06); border-color: #ef4444; }
     button:disabled { opacity: .3; cursor: not-allowed; }
-    .btn-proposer-highlight {
-      box-shadow: 0 0 0 2px #7B5EFF, 0 4px 20px rgba(123,94,255,0.35);
-    }
 
-    /* Mobile table → cards */
+    /* Mobile */
     @@media (max-width: 600px) {
-      .cf-table thead { display: none; }
-      .cf-table, .cf-table tbody { display: block; }
-      .cf-table tr {
+      .cf-table thead, .pf-table thead { display: none; }
+      .cf-table, .cf-table tbody, .pf-table, .pf-table tbody { display: block; }
+      .cf-table tr, .pf-table tr {
         display: block;
         background: rgba(255,255,255,0.02);
         border: 1px solid rgba(255,255,255,0.08);
@@ -180,7 +204,7 @@
         margin: 8px 12px;
         padding: 4px 0;
       }
-      .cf-table td {
+      .cf-table td, .pf-table td {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -188,8 +212,8 @@
         padding: 10px 14px;
         text-align: left !important;
       }
-      .cf-table td:last-child { border-bottom: none; }
-      .cf-table td::before {
+      .cf-table td:last-child, .pf-table td:last-child { border-bottom: none; }
+      .cf-table td::before, .pf-table td::before {
         content: attr(data-label);
         font-size: 0.72rem;
         color: #7F83A5;
@@ -199,9 +223,13 @@
         margin-right: 12px;
         flex-shrink: 0;
       }
-      .cf-prix-input { width: 110px; }
+      .pf-input { width: 100px; }
       .cf-actions { flex-direction: column; }
-      .btn-confirmer, .btn-refuser-tout, .btn-proposer { min-width: 0; width: 100%; }
+      .btn-proforma, .btn-refuser-tout { min-width: 0; width: 100%; }
+    }
+    @@media (max-width: 500px) {
+      .cf-info-grid { grid-template-columns: 1fr; }
+      .cf-info-item:nth-child(odd) { border-right: none; }
     }
 
     /* Alerte */
@@ -213,7 +241,6 @@
       text-align: center;
     }
     .cf-alert-error  { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: #ef4444; }
-    .cf-alert-success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25); color: #22c55e; }
 
     /* État succès */
     .cf-done {
@@ -223,11 +250,6 @@
     .cf-done-icon { font-size: 3rem; }
     .cf-done h2 { font-size: 1.3rem; font-weight: 800; }
     .cf-done p { color: #A4A7C8; font-size: 0.88rem; line-height: 1.6; }
-
-    @@media (max-width: 500px) {
-      .cf-info-grid { grid-template-columns: 1fr; }
-      .cf-info-item:nth-child(odd) { border-right: none; }
-    }
   </style>
 </head>
 <body>
@@ -257,20 +279,16 @@
     var bc2 = Model.Tentative.BonCommande!;
     <div class="cf-card">
       <div class="cf-done">
-        <div class="cf-done-icon">@(Model.EstRefusTotal ? "❌" : Model.EstContreProposition ? "💬" : "✅")</div>
-        <h2>@(Model.EstRefusTotal ? "Commande refusée" : Model.EstContreProposition ? "Contre-proposition envoyée" : "Commande confirmée")</h2>
+        <div class="cf-done-icon">@(Model.EstRefusTotal ? "❌" : "📄")</div>
+        <h2>@(Model.EstRefusTotal ? "Commande refusée" : "Proforma envoyée")</h2>
         <p>
           @if (Model.EstRefusTotal)
           {
             <text>Vous avez refusé le bon de commande <strong>@bc2.Numero</strong>. L'acheteur en a été notifié.</text>
           }
-          else if (Model.EstContreProposition)
-          {
-            <text>Votre contre-proposition pour le bon <strong>@bc2.Numero</strong> a bien été transmise à l'acheteur. Il reviendra vers vous si elle est acceptée.</text>
-          }
           else
           {
-            <text>Merci ! Votre confirmation pour le bon <strong>@bc2.Numero</strong> a bien été enregistrée.</text>
+            <text>Votre proforma pour le bon <strong>@bc2.Numero</strong> a bien été transmise à l'acheteur. Il reviendra vers vous.</text>
           }
         </p>
       </div>
@@ -282,10 +300,16 @@
     var tent = Model.Tentative;
     string dateLiv = bc.DateLivraisonSouhaitee.HasValue
         ? bc.DateLivraisonSouhaitee.Value.ToString("dd/MM/yyyy")
-        : "À définir";
+        : "Non précisée";
+
+    <!-- ═══════════════ PARTIE 1 : BON DE COMMANDE (lecture seule) ═══════════════ -->
+    <div class="cf-section-label">
+      <span class="cf-section-icon cf-section-icon-bc">📋</span>
+      Bon de commande
+    </div>
 
     <div class="cf-card">
-      <div class="cf-card-title">Bon de commande @bc.Numero — Tentative n°@tent.Numero</div>
+      <div class="cf-card-title">Informations de la commande</div>
       <div class="cf-info-grid">
         <div class="cf-info-item">
           <div class="cf-info-label">Référence</div>
@@ -306,86 +330,109 @@
       </div>
     </div>
 
+    <div class="cf-card">
+      <div class="cf-card-title">Produits demandés</div>
+      <table class="cf-table">
+        <thead>
+          <tr>
+            <th>Composant</th>
+            <th style="text-align:right;">Quantité demandée</th>
+          </tr>
+        </thead>
+        <tbody>
+          @{ var lignesActives = bc.Lignes.Where(l => !l.EstExclue).ToList(); }
+          @foreach (var l in lignesActives)
+          {
+            <tr>
+              <td data-label="Composant" style="font-weight:600; color:#fff;">@(l.Produit?.Nom ?? "—")</td>
+              <td data-label="Quantité" style="text-align:right; font-weight:700; color:#9C8CFF;">@l.Quantite.ToString("N3")</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (!string.IsNullOrEmpty(bc.Notes))
+    {
+      <div class="cf-card">
+        <div class="cf-card-title">Notes de l'acheteur</div>
+        <div style="padding:14px 20px; color:#A4A7C8; font-size:0.85rem; line-height:1.6;">@bc.Notes</div>
+      </div>
+    }
+
+    <!-- ═══════════════ PARTIE 2 : PROFORMA (formulaire fournisseur) ═══════════════ -->
+    <div class="cf-section-label">
+      <span class="cf-section-icon cf-section-icon-pf">📄</span>
+      Votre proforma
+    </div>
+
     <form method="post" id="form-reponse">
       <input type="hidden" name="Token" value="@tent.Token" />
 
       <div class="cf-card">
-        <div class="cf-card-title">Lignes de commande — modifiez les prix ou refusez des produits</div>
-        <table class="cf-table">
+        <div class="cf-card-title">Renseignez vos quantités et prix</div>
+        <table class="pf-table">
           <thead>
             <tr>
               <th>Composant</th>
-              <th style="text-align:right;">Qté</th>
-              <th style="text-align:right;">Prix HT demandé</th>
-              <th>Votre prix HT</th>
-              <th style="text-align:center;">Refuser</th>
+              <th style="text-align:right;">Quantité disponible</th>
+              <th style="text-align:right;">Prix unitaire HT</th>
+              <th style="text-align:right;">Total HT</th>
             </tr>
           </thead>
-          <tbody id="tbody-lignes">
-            @{ var lignesActives = bc.Lignes.Where(l => !l.EstExclue).ToList(); }
+          <tbody id="tbody-proforma">
             @for (int i = 0; i < lignesActives.Count; i++)
             {
               var l = lignesActives[i];
-              <tr id="row-@l.Id">
-                <td data-label="Composant" style="font-weight:600; color:#fff;">@l.Produit?.Nom</td>
-                <td data-label="Quantité" style="text-align:right;">@l.Quantite.ToString("N3")</td>
-                <td data-label="Prix demandé" style="text-align:right; color:#9C8CFF; font-weight:700;">@l.PrixUnitaireHT.ToString("N2") DZD</td>
-                <td data-label="Votre prix">
+              <tr>
+                <td data-label="Composant">
+                  <span class="pf-produit">@(l.Produit?.Nom ?? "—")</span>
+                  <br><span class="pf-qte-demandee">Demandé : @l.Quantite.ToString("N3")</span>
+                </td>
+                <td data-label="Quantité" style="text-align:right;">
                   <input type="number"
-                         name="PrixProposes[@i]"
-                         class="cf-prix-input prix-input"
-                         data-ligne-id="@l.Id"
-                         data-prix-original="@l.PrixUnitaireHT.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
-                         data-qte="@l.Quantite"
-                         value="@l.PrixUnitaireHT.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)"
-                         step="0.01" min="0"
-                         placeholder="@l.PrixUnitaireHT.ToString("N2")" />
+                         name="QtesProposees[@i]"
+                         class="pf-input qte-input"
+                         data-qte-demandee="@l.Quantite"
+                         value="@l.Quantite.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)"
+                         step="0.001" min="0"
+                         placeholder="@l.Quantite.ToString("N3")" />
                   <input type="hidden" name="LigneIds[@i]" value="@l.Id" />
                 </td>
-                <td data-label="Refuser" style="text-align:center;">
-                  <label class="cf-refus-wrap">
-                    <input type="checkbox"
-                           name="LignesRefusees[@i]"
-                           class="cf-refus-cb refus-cb"
-                           data-row="row-@l.Id"
-                           value="true" />
-                    <span class="cf-refus-label">Refuser</span>
-                  </label>
+                <td data-label="Prix HT" style="text-align:right;">
+                  <input type="number"
+                         name="PrixProposes[@i]"
+                         class="pf-input prix-input"
+                         value=""
+                         step="0.01" min="0"
+                         placeholder="0.00 DZD" />
+                </td>
+                <td data-label="Total" style="text-align:right; font-weight:700; color:#22c55e;" class="td-total">
+                  —
                 </td>
               </tr>
             }
           </tbody>
         </table>
 
-        <div class="cf-total-box">
-          <span class="cf-total-label">Total HT estimé</span>
-          <span class="cf-total-value" id="total-ht-live">@bc.TotalHT.ToString("N2") DZD</span>
+        <div class="pf-total-box">
+          <span class="pf-total-label">Total HT proforma</span>
+          <span class="pf-total-value" id="total-ht-live">— DZD</span>
         </div>
       </div>
-
-      @if (!string.IsNullOrEmpty(bc.Notes))
-      {
-        <div class="cf-card">
-          <div class="cf-card-title">Notes de l'acheteur</div>
-          <div style="padding:14px 20px; color:#A4A7C8; font-size:0.85rem; line-height:1.6;">@bc.Notes</div>
-        </div>
-      }
 
       <div class="cf-card">
         <div class="cf-card-title">Message (optionnel)</div>
         <div style="padding:14px 20px;">
           <textarea name="MessageFournisseur" class="cf-textarea"
-                    placeholder="Commentaire, condition particulière, délai souhaité…"></textarea>
+                    placeholder="Commentaire, condition particulière, délai de livraison…"></textarea>
         </div>
         <div class="cf-actions">
-          <button type="submit" name="Action" value="accepter" class="btn-confirmer" id="btn-accepter">
-            ✓ Confirmer la commande
+          <button type="submit" name="Action" value="proforma" class="btn-proforma" id="btn-proforma">
+            📄 Envoyer proforma
           </button>
           <button type="submit" name="Action" value="refuser" class="btn-refuser-tout" id="btn-refuser-tout">
             ✗ Refuser tout
-          </button>
-          <button type="submit" name="Action" value="proposer" class="btn-proposer" id="btn-proposer">
-            💬 Envoyer ma contre-proposition
           </button>
         </div>
       </div>
@@ -393,72 +440,51 @@
   }
 
   <div style="text-align:center; color:#7F83A5; font-size:0.75rem; padding-top:8px;">
-    Cet email a été envoyé automatiquement par <strong style="color:#9C8CFF;">SKYRA ERP</strong>. Lien à usage unique.
+    Envoyé automatiquement par <strong style="color:#9C8CFF;">SKYRA ERP</strong>. Lien à usage unique.
   </div>
 </div>
 
 <script>
 (function() {
-  const btnAccepter   = document.getElementById('btn-accepter');
-  const btnRefuserTout = document.getElementById('btn-refuser-tout');
-  const btnProposer   = document.getElementById('btn-proposer');
+  var prixInputs = document.querySelectorAll('.prix-input');
+  var qteInputs  = document.querySelectorAll('.qte-input');
+  var btnProforma = document.getElementById('btn-proforma');
 
-  function aDesModifications() {
-    // Vérif prix modifiés
-    for (const inp of document.querySelectorAll('.prix-input')) {
-      if (inp.disabled) continue;
-      const valeur   = parseFloat(inp.value) || 0;
-      const original = parseFloat(inp.dataset.prixOriginal) || 0;
-      if (Math.abs(valeur - original) > 0.001) return true;
+  function recalculer() {
+    var totalGlobal = 0;
+    var rows = document.querySelectorAll('#tbody-proforma tr');
+    var toutRempli = true;
+
+    rows.forEach(function(row) {
+      var prix = parseFloat(row.querySelector('.prix-input').value) || 0;
+      var qte  = parseFloat(row.querySelector('.qte-input').value) || 0;
+      var total = prix * qte;
+      var tdTotal = row.querySelector('.td-total');
+
+      if (prix > 0 && qte > 0) {
+        tdTotal.textContent = total.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DZD';
+        totalGlobal += total;
+      } else {
+        tdTotal.textContent = '—';
+      }
+
+      if (!prix || prix <= 0) toutRempli = false;
+    });
+
+    var el = document.getElementById('total-ht-live');
+    if (el) {
+      el.textContent = totalGlobal > 0
+        ? totalGlobal.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DZD'
+        : '— DZD';
     }
-    // Vérif checkboxes cochées
-    for (const cb of document.querySelectorAll('.refus-cb')) {
-      if (cb.checked) return true;
-    }
-    return false;
+
+    if (btnProforma) btnProforma.disabled = !toutRempli;
   }
 
-  function mettreAJourBoutons() {
-    const modifie = aDesModifications();
-    if (btnAccepter)    { btnAccepter.disabled    = modifie; }
-    if (btnRefuserTout) { btnRefuserTout.disabled  = modifie; }
-    if (btnProposer)    {
-      btnProposer.classList.toggle('btn-proposer-highlight', modifie);
-    }
-  }
+  prixInputs.forEach(function(inp) { inp.addEventListener('input', recalculer); });
+  qteInputs.forEach(function(inp)  { inp.addEventListener('input', recalculer); });
 
-  // Checkboxes
-  document.querySelectorAll('.refus-cb').forEach(cb => {
-    cb.addEventListener('change', () => {
-      const row = document.getElementById(cb.dataset.row);
-      if (!row) return;
-      row.classList.toggle('ligne-refusee', cb.checked);
-      const input = row.querySelector('.prix-input');
-      if (input) input.disabled = cb.checked;
-      recalculerTotal();
-      mettreAJourBoutons();
-    });
-  });
-
-  // Prix
-  document.querySelectorAll('.prix-input').forEach(inp => {
-    inp.addEventListener('input', () => {
-      recalculerTotal();
-      mettreAJourBoutons();
-    });
-  });
-
-  function recalculerTotal() {
-    let total = 0;
-    document.querySelectorAll('.prix-input').forEach(inp => {
-      if (inp.disabled) return;
-      const prix = parseFloat(inp.value) || 0;
-      const qte  = parseFloat(inp.dataset.qte) || 0;
-      total += prix * qte;
-    });
-    const el = document.getElementById('total-ht-live');
-    if (el) el.textContent = total.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' DZD';
-  }
+  recalculer();
 })();
 </script>
 </body>

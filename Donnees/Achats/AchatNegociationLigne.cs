@@ -20,6 +20,9 @@ namespace Donnees.Achats
         /// <summary>Prix proposé par le fournisseur. Null = accepte le prix du BC.</summary>
         public decimal? PrixProposeHT { get; set; }
 
+        /// <summary>Quantité que le fournisseur peut fournir. Null = accepte la quantité demandée.</summary>
+        public decimal? QuantiteProposee { get; set; }
+
         /// <summary>Vrai si le fournisseur refuse ce produit entièrement.</summary>
         public bool EstRefusee { get; set; } = false;
     }

@@ -306,51 +306,9 @@ namespace Metier.Achats
         /// </summary>
         private string GenererCorpsEmail(AchatBonCommande bc, string emailERP, string? baseUrl = null, string? tentativeToken = null)
         {
-            string dateLivraison = bc.DateLivraisonSouhaitee.HasValue
-                ? bc.DateLivraisonSouhaitee.Value.ToString("dd/MM/yyyy")
-                : "À définir";
-
-            // Construire les liens
             string lienConfirmation = "";
             if (!string.IsNullOrEmpty(baseUrl) && !string.IsNullOrEmpty(tentativeToken))
-            {
                 lienConfirmation = $"{baseUrl}/Achats/Confirmer?token={tentativeToken}";
-            }
-
-            string mailtoConfirmer = $"mailto:{emailERP}?subject={Uri.EscapeDataString($"{bc.Numero} CONFIRMER")}";
-            string mailtoRefuser = $"mailto:{emailERP}?subject={Uri.EscapeDataString($"{bc.Numero} REFUSER")}";
-
-            var lignesHtml = new StringBuilder();
-            if (bc.Lignes?.Any() == true)
-            {
-                lignesHtml.Append(@"
-      <table style=""width:100%;border-collapse:collapse;margin:24px 0;font-size:13px;"">
-        <thead>
-          <tr style=""background:rgba(123,94,255,0.2);"">
-            <th style=""padding:10px 12px;text-align:left;color:#A4A7C8;font-weight:600;"">Composant</th>
-            <th style=""padding:10px 12px;text-align:right;color:#A4A7C8;font-weight:600;"">Quantité</th>
-            <th style=""padding:10px 12px;text-align:right;color:#A4A7C8;font-weight:600;"">Prix HT</th>
-            <th style=""padding:10px 12px;text-align:right;color:#A4A7C8;font-weight:600;"">Total HT</th>
-          </tr>
-        </thead><tbody>");
-                foreach (var l in bc.Lignes.Where(l => !l.EstExclue))
-                {
-                    lignesHtml.Append($@"
-          <tr style=""border-bottom:1px solid rgba(255,255,255,0.06);"">
-            <td style=""padding:10px 12px;color:#e0e0e0;"">{l.Produit?.Nom ?? "—"}{(l.EstSousTraitance ? " <span style='font-size:11px;color:#fbbf24;'>(sous-traitance)</span>" : "")}</td>
-            <td style=""padding:10px 12px;text-align:right;color:#e0e0e0;"">{l.Quantite:N3}</td>
-            <td style=""padding:10px 12px;text-align:right;color:#e0e0e0;"">{l.PrixUnitaireHT:N2} DZD</td>
-            <td style=""padding:10px 12px;text-align:right;font-weight:700;color:#9C8CFF;"">{l.TotalHT:N2} DZD</td>
-          </tr>");
-                }
-                lignesHtml.Append("</tbody></table>");
-            }
-
-            string notesHtml = string.IsNullOrWhiteSpace(bc.Notes) ? "" : $@"
-      <div style=""background:rgba(255,255,255,0.04);border-left:3px solid #7B5EFF;border-radius:4px;padding:12px 16px;margin:16px 0;"">
-        <p style=""margin:0;font-size:12px;color:#A4A7C8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;"">Notes</p>
-        <p style=""margin:6px 0 0;font-size:13px;color:#e0e0e0;"">{System.Web.HttpUtility.HtmlEncode(bc.Notes)}</p>
-      </div>";
 
             return $@"<!DOCTYPE html>
 <html>
@@ -359,21 +317,12 @@ namespace Metier.Achats
   <meta name=""viewport"" content=""width=device-width,initial-scale=1"">
   <style>
     body{{font-family:'Segoe UI',Arial,sans-serif;background:#0d0f1a;margin:0;padding:20px;}}
-    .wrap{{max-width:620px;margin:0 auto;background:#13152b;border-radius:20px;overflow:hidden;border:1px solid rgba(123,94,255,0.2);}}
+    .wrap{{max-width:520px;margin:0 auto;background:#13152b;border-radius:20px;overflow:hidden;border:1px solid rgba(123,94,255,0.2);}}
     .hd{{background:linear-gradient(135deg,#7B5EFF,#5B3EDF);padding:36px 32px;text-align:center;}}
-    .hd h1{{color:#fff;margin:0;font-size:26px;font-weight:800;}}
+    .hd h1{{color:#fff;margin:0;font-size:24px;font-weight:800;}}
     .hd p{{color:rgba(255,255,255,.75);margin:6px 0 0;font-size:14px;}}
-    .bd{{padding:32px;color:#e0e0e0;}}
-    .row{{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.07);}}
-    .lbl{{color:#A4A7C8;font-size:13px;}}.val{{color:#fff;font-weight:600;font-size:13px;}}
-    .tot{{background:rgba(123,94,255,.12);border:1px solid rgba(123,94,255,.25);border-radius:14px;padding:20px;margin:24px 0;text-align:center;}}
-    .tot .m{{font-size:30px;font-weight:800;color:#9C8CFF;}}
-    .tot .s{{color:#A4A7C8;font-size:13px;margin-top:6px;}}
-    .btns{{text-align:center;margin:28px 0;}}
-    .btn{{display:inline-block;text-decoration:none;padding:15px 30px;border-radius:999px;font-weight:700;font-size:15px;margin:6px;}}
-    .ok{{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;}}
-    .ko{{background:transparent;color:#ef4444;border:1px solid #ef4444;padding:14px 29px;}}
-    .hint{{background:rgba(123,94,255,.08);border:1px solid rgba(123,94,255,.2);border-radius:12px;padding:14px 18px;margin:20px 0;font-size:12px;color:#A4A7C8;line-height:1.6;text-align:center;}}
+    .bd{{padding:32px;text-align:center;color:#e0e0e0;}}
+    .btn{{display:inline-block;text-decoration:none;padding:16px 40px;border-radius:999px;font-weight:700;font-size:15px;background:linear-gradient(135deg,#7B5EFF,#5B3EDF);color:#fff;margin:24px 0;}}
     .ft{{padding:20px 32px;text-align:center;color:#7F83A5;font-size:12px;border-top:1px solid rgba(255,255,255,.06);}}
   </style>
 </head>
@@ -381,34 +330,10 @@ namespace Metier.Achats
 <div class=""wrap"">
   <div class=""hd""><h1>SKYRA ERP</h1><p>Bon de Commande {bc.Numero}</p></div>
   <div class=""bd"">
-    <p style=""margin:0 0 20px;font-size:14px;color:#A4A7C8;"">Bonjour,<br><br>
-    Veuillez trouver ci-dessous notre bon de commande. Merci de confirmer votre acceptation ou votre refus via les boutons ci-dessous.</p>
-    <div class=""row""><span class=""lbl"">Référence BC</span><span class=""val"">{bc.Numero}</span></div>
-    <div class=""row""><span class=""lbl"">Date de commande</span><span class=""val"">{bc.DateCommande:dd/MM/yyyy}</span></div>
-    <div class=""row""><span class=""lbl"">Livraison souhaitée</span><span class=""val"">{dateLivraison}</span></div>
-    {lignesHtml}
-    {notesHtml}
-    <div class=""tot"">
-      <div class=""m"">{bc.TotalTTC:N2} DZD TTC</div>
-      <div class=""s"">Total HT : {bc.TotalHT:N2} DZD &nbsp;·&nbsp; TVA 19% : {bc.MontantTVA:N2} DZD</div>
-    </div>
-    <div class=""btns"">
-      {(string.IsNullOrEmpty(lienConfirmation) ?
-        $@"<a href=""{mailtoConfirmer}"" class=""btn ok"">✓&nbsp; Confirmer la commande</a>
-           <a href=""{mailtoRefuser}"" class=""btn ko"">✗&nbsp; Refuser</a>" :
-        $@"<a href=""{lienConfirmation}&reponse=confirmer"" class=""btn ok"">✓&nbsp; Confirmer la commande</a>
-           <a href=""{lienConfirmation}&reponse=refuser"" class=""btn ko"">✗&nbsp; Refuser</a>")}
-    </div>
-    <div class=""hint"">
-      {(string.IsNullOrEmpty(lienConfirmation) ?
-        "Cliquez sur un bouton — votre messagerie s'ouvrira avec le sujet pré-rempli.<br>Envoyez simplement l'email. Votre réponse sera enregistrée automatiquement." :
-        "Cliquez sur un bouton pour confirmer ou refuser cette commande.")}
-    </div>
-    {(string.IsNullOrEmpty(lienConfirmation) ? "" : $@"
-    <p style=""text-align:center;color:#7F83A5;font-size:12px;margin:0;"">
-      Ou ouvrez la page de confirmation :<br>
-      <a href=""{lienConfirmation}"" style=""color:#9C8CFF;word-break:break-all;"">{lienConfirmation}</a>
-    </p>")}
+    <p style=""font-size:14px;color:#A4A7C8;line-height:1.7;margin:0 0 8px;"">
+      Bonjour,<br><br>Vous avez reçu un bon de commande. Consultez les détails et répondez via le lien ci-dessous.
+    </p>
+    <a href=""{lienConfirmation}"" class=""btn"">Voir le bon de commande</a>
   </div>
   <div class=""ft"">Envoyé automatiquement par <strong style=""color:#9C8CFF;"">SKYRA ERP</strong>.</div>
 </div>

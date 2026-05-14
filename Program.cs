@@ -1210,6 +1210,7 @@ using (var scopeAchats = app.Services.CreateScope())
                     ""TentativeId""         INT NOT NULL,
                     ""BonCommandeLigneId""  INT NOT NULL,
                     ""PrixProposeHT""       NUMERIC(18,2) NULL,
+                    ""QuantiteProposee""    NUMERIC(18,3) NULL,
                     ""EstRefusee""          BOOLEAN NOT NULL DEFAULT FALSE,
                     CONSTRAINT ""FK_AchatNegLigne_Tentative""
                         FOREIGN KEY (""TentativeId"") REFERENCES ""AchatNegociationTentatives""(""Id"") ON DELETE CASCADE,
@@ -1225,6 +1226,14 @@ using (var scopeAchats = app.Services.CreateScope())
                 Console.WriteLine("[DEBUG] Vérification / Création des tables Achats...");
                 cmd.ExecuteNonQuery();
                 Console.WriteLine("[DEBUG] Tables Achats prêtes.");
+            }
+
+            var alterAchatsSql = @"
+                ALTER TABLE ""AchatNegociationLignes"" ADD COLUMN IF NOT EXISTS ""QuantiteProposee"" NUMERIC(18,3) NULL;
+            ";
+            using (var cmdAlter = new NpgsqlCommand(alterAchatsSql, conn))
+            {
+                cmdAlter.ExecuteNonQuery();
             }
         }
     }

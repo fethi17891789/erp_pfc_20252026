@@ -196,25 +196,25 @@ namespace Metier.Achats
         public async Task<bool> TraiterReponseNegociationAsync(
             string token,
             string? messageFournisseur,
-            List<(int LigneId, decimal? PrixProposeHT, bool EstRefusee)> reponsesLignes)
+            List<(int LigneId, decimal? PrixProposeHT, decimal? QuantiteProposee, bool EstRefusee)> reponsesLignes)
         {
             var tentative = await _db.AchatNegociationTentatives
                 .Include(t => t.BonCommande)
                 .FirstOrDefaultAsync(t => t.Token == token && t.Statut == StatutTentative.EnAttente);
             if (tentative == null) return false;
 
-            bool toutAccepte    = reponsesLignes.All(r => !r.EstRefusee && r.PrixProposeHT == null);
+            bool toutAccepte    = reponsesLignes.All(r => !r.EstRefusee && r.PrixProposeHT == null && r.QuantiteProposee == null);
             bool toutRefuse     = reponsesLignes.All(r => r.EstRefusee);
             bool contrePropo    = !toutAccepte && !toutRefuse;
 
-            // Créer les lignes de réponse
-            foreach (var (ligneId, prix, refusee) in reponsesLignes)
+            foreach (var (ligneId, prix, qte, refusee) in reponsesLignes)
             {
                 _db.AchatNegociationLignes.Add(new AchatNegociationLigne
                 {
                     TentativeId         = tentative.Id,
                     BonCommandeLigneId  = ligneId,
                     PrixProposeHT       = refusee ? null : prix,
+                    QuantiteProposee    = refusee ? null : qte,
                     EstRefusee          = refusee
                 });
             }

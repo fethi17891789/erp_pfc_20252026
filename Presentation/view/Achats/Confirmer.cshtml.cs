@@ -25,7 +25,6 @@ namespace erp_pfc_20252026.Pages.Achats
         public bool EstContreProposition { get; set; }
         public bool EstRefusTotal        { get; set; }
 
-        // ── GET ───────────────────────────────────────────────────────────
         public async Task<IActionResult> OnGetAsync(string? token)
         {
             if (string.IsNullOrWhiteSpace(token))
@@ -38,13 +37,12 @@ namespace erp_pfc_20252026.Pages.Achats
             return Page();
         }
 
-        // ── POST ──────────────────────────────────────────────────────────
         [BindProperty] public string Token              { get; set; } = string.Empty;
         [BindProperty] public string? MessageFournisseur { get; set; }
-        [BindProperty] public string Action             { get; set; } = "accepter";
-        [BindProperty] public List<int>      LigneIds       { get; set; } = new();
-        [BindProperty] public List<string?>  PrixProposes   { get; set; } = new();
-        [BindProperty] public List<bool>     LignesRefusees { get; set; } = new();
+        [BindProperty] public string Action             { get; set; } = "proforma";
+        [BindProperty] public List<int>      LigneIds         { get; set; } = new();
+        [BindProperty] public List<string?>  PrixProposes     { get; set; } = new();
+        [BindProperty] public List<string?>  QtesProposees    { get; set; } = new();
 
         public async Task<IActionResult> OnPostAsync()
         {
@@ -54,7 +52,6 @@ namespace erp_pfc_20252026.Pages.Achats
             Tentative = await _achatsService.GetTentativeParTokenAsync(Token);
             if (Tentative == null) { DejaRepondu = true; return Page(); }
 
-            // Refus total : BC annulé instantanément
             if (Action == "refuser")
             {
                 bool ok = await _achatsService.RefuserDefinitivementAsync(Token, MessageFournisseur);
@@ -65,35 +62,38 @@ namespace erp_pfc_20252026.Pages.Achats
                 return Page();
             }
 
-            var reponsesLignes = new List<(int LigneId, decimal? PrixProposeHT, bool EstRefusee)>();
+            var reponsesLignes = new List<(int LigneId, decimal? PrixProposeHT, decimal? QuantiteProposee, bool EstRefusee)>();
 
             for (int i = 0; i < LigneIds.Count; i++)
             {
-                bool refusee  = i < LignesRefusees.Count && LignesRefusees[i];
                 decimal? prix = null;
+                decimal? qte  = null;
 
-                if (!refusee && i < PrixProposes.Count)
+                if (i < PrixProposes.Count && !string.IsNullOrWhiteSpace(PrixProposes[i]))
                 {
-                    string? raw = PrixProposes[i];
-                    if (!string.IsNullOrWhiteSpace(raw) && decimal.TryParse(
-                            raw,
-                            System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture,
-                            out decimal p))
+                    if (decimal.TryParse(PrixProposes[i],
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out decimal p))
+                        prix = p;
+                }
+
+                if (i < QtesProposees.Count && !string.IsNullOrWhiteSpace(QtesProposees[i]))
+                {
+                    if (decimal.TryParse(QtesProposees[i],
+                        System.Globalization.NumberStyles.Any,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out decimal q))
                     {
                         var ligneBC = Tentative.BonCommande?.Lignes.FirstOrDefault(l => l.Id == LigneIds[i]);
-                        prix = (ligneBC != null && p == ligneBC.PrixUnitaireHT) ? null : p;
+                        qte = (ligneBC != null && q == ligneBC.Quantite) ? null : q;
                     }
                 }
 
-                reponsesLignes.Add((LigneIds[i], prix, refusee));
+                reponsesLignes.Add((LigneIds[i], prix, qte, false));
             }
 
-            if (Action == "accepter")
-                reponsesLignes = reponsesLignes.Select(r => (r.LigneId, (decimal?)null, false)).ToList();
-
-            bool contrePropo = reponsesLignes.Any(r => r.EstRefusee || r.PrixProposeHT.HasValue);
-            EstContreProposition = contrePropo;
+            EstContreProposition = true;
 
             bool resultat = await _achatsService.TraiterReponseNegociationAsync(
                 Token, MessageFournisseur, reponsesLignes);
