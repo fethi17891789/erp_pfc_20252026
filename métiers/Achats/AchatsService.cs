@@ -695,6 +695,9 @@ namespace Metier.Achats
                 DateLivraisonSouhaitee = bc.DateLivraisonSouhaitee,
                 NomFournisseur         = fournisseur?.FullName ?? "—",
                 EmailFournisseur       = fournisseur?.Email,
+                TelephoneFournisseur   = fournisseur?.Phone,
+                SiteWebFournisseur     = fournisseur?.Website,
+                AdresseFournisseur     = fournisseur?.AdresseComplete,
 
                 LignesBc = bc.Lignes.Where(l => !l.EstExclue).Select(l => new LigneBcPdf
                 {

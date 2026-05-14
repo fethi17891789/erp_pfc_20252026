@@ -2,6 +2,7 @@
 @model DossierAchatPdfModel
 @{
     Layout = null;
+    var now = DateTime.UtcNow;
 }
 <!DOCTYPE html>
 <html lang="fr">
@@ -9,191 +10,609 @@
 <meta charset="utf-8"/>
 <title>Dossier d'achat @Model.NumeroBc</title>
 <style>
-    @@page { size: A4; margin: 12mm 14mm; }
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; color: #1e1e2f; margin: 0; padding: 0; }
-    .container { max-width: 800px; margin: 0 auto; }
+    @@page { size: A4; margin: 14mm 16mm 18mm 16mm; }
+    @@page :first { margin-top: 14mm; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 11px; color: #1a1a2e; margin: 0; padding: 0; line-height: 1.45; }
 
-    .header { display: table; width: 100%; margin-bottom: 20px; border-bottom: 3px solid #7B5EFF; padding-bottom: 12px; }
-    .header-left { display: table-cell; vertical-align: top; width: 50%; }
-    .header-right { display: table-cell; vertical-align: top; width: 50%; text-align: right; }
-    .logo { font-size: 26px; font-weight: 800; color: #7B5EFF; margin: 0 0 4px; }
-    .logo-sub { font-size: 10px; color: #999; }
-    .doc-title { font-size: 20px; font-weight: 700; color: #1e1e2f; margin: 0 0 4px; }
-    .doc-ref { font-size: 13px; color: #7B5EFF; font-weight: 700; }
-    .doc-date { font-size: 11px; color: #888; }
+    /* ── Page breaks ── */
+    .page { page-break-before: always; }
+    .page:first-child { page-break-before: avoid; }
 
-    .section { margin: 22px 0 0; page-break-inside: avoid; }
-    .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff; background: #7B5EFF; padding: 7px 12px; border-radius: 4px 4px 0 0; margin: 0; }
-    .section-title-green { background: #16a34a; }
-    .section-title-blue { background: #2563eb; }
-    .section-title-orange { background: #ea580c; }
+    /* ── Document header ── */
+    .doc-header { display: table; width: 100%; margin-bottom: 6px; }
+    .doc-header-left { display: table-cell; vertical-align: top; width: 50%; }
+    .doc-header-right { display: table-cell; vertical-align: top; width: 50%; text-align: right; }
+    .company-name { font-size: 22px; font-weight: 800; color: #7B5EFF; margin: 0 0 2px; }
+    .company-sub { font-size: 9px; color: #999; text-transform: uppercase; letter-spacing: 1.5px; }
+    .doc-type { font-size: 18px; font-weight: 800; color: #1a1a2e; margin: 0 0 3px; text-transform: uppercase; letter-spacing: .5px; }
+    .doc-ref { font-size: 12px; color: #7B5EFF; font-weight: 700; }
+    .doc-date { font-size: 10px; color: #888; margin-top: 2px; }
+    .doc-header-bar { height: 3px; background: linear-gradient(90deg, #7B5EFF, #a78bfa); margin-bottom: 16px; border-radius: 2px; }
 
-    .info-grid { display: table; width: 100%; border: 1px solid #e5e5ea; border-top: none; }
+    /* ── Parties (emetteur / destinataire) ── */
+    .parties { display: table; width: 100%; margin-bottom: 18px; }
+    .party { display: table-cell; width: 48%; vertical-align: top; }
+    .party-spacer { display: table-cell; width: 4%; }
+    .party-box { border: 1px solid #e2e2ea; border-radius: 6px; padding: 10px 14px; background: #fafaff; }
+    .party-label { font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: #7B5EFF; margin: 0 0 6px; }
+    .party-name { font-size: 13px; font-weight: 700; color: #1a1a2e; margin: 0 0 4px; }
+    .party-line { font-size: 10px; color: #555; margin: 0; line-height: 1.6; }
+    .party-line span { color: #888; }
+
+    /* ── Info grid ── */
+    .info-grid { display: table; width: 100%; border: 1px solid #e2e2ea; border-radius: 0 0 6px 6px; margin-bottom: 16px; }
     .info-row { display: table-row; }
-    .info-label { display: table-cell; padding: 6px 12px; font-weight: 700; color: #666; width: 35%; border-bottom: 1px solid #f0f0f5; background: #fafaff; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
-    .info-value { display: table-cell; padding: 6px 12px; border-bottom: 1px solid #f0f0f5; font-weight: 500; }
+    .info-label { display: table-cell; padding: 6px 12px; font-weight: 700; color: #666; width: 30%; border-bottom: 1px solid #f0f0f5; background: #fafaff; font-size: 10px; text-transform: uppercase; letter-spacing: .3px; }
+    .info-value { display: table-cell; padding: 6px 12px; border-bottom: 1px solid #f0f0f5; font-weight: 500; font-size: 11px; }
+    .info-row:last-child .info-label,
+    .info-row:last-child .info-value { border-bottom: none; }
 
-    table.data { width: 100%; border-collapse: collapse; border: 1px solid #e5e5ea; border-top: none; }
-    table.data th { background: #f5f5ff; padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #666; border-bottom: 2px solid #e5e5ea; }
-    table.data td { padding: 7px 10px; border-bottom: 1px solid #f0f0f5; font-size: 11.5px; }
+    /* ── Data tables ── */
+    table.data { width: 100%; border-collapse: collapse; border: 1px solid #e2e2ea; margin-bottom: 0; }
+    table.data th { background: #f0f0fa; padding: 8px 10px; text-align: left; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; color: #555; border-bottom: 2px solid #e2e2ea; }
+    table.data td { padding: 7px 10px; border-bottom: 1px solid #f0f0f5; font-size: 11px; }
     table.data tr:last-child td { border-bottom: none; }
+    table.data tr:nth-child(even) td { background: #fafaff; }
     .text-right { text-align: right; }
+    .text-center { text-align: center; }
     .text-bold { font-weight: 700; }
     .text-purple { color: #7B5EFF; }
     .text-green { color: #16a34a; }
     .text-orange { color: #ea580c; }
     .text-muted { color: #999; }
 
-    .total-row { background: #f5f5ff; border: 1px solid #e5e5ea; border-top: none; padding: 10px 12px; display: table; width: 100%; }
-    .total-label { display: table-cell; color: #666; font-size: 11px; font-weight: 700; text-transform: uppercase; }
-    .total-value { display: table-cell; text-align: right; font-size: 16px; font-weight: 800; color: #7B5EFF; }
+    /* ── Totaux ── */
+    .totaux-wrap { display: table; width: 100%; }
+    .totaux-spacer { display: table-cell; width: 55%; }
+    .totaux-block { display: table-cell; width: 45%; border: 1px solid #e2e2ea; border-top: none; border-radius: 0 0 6px 6px; }
+    .totaux-line { display: table; width: 100%; padding: 6px 14px; border-bottom: 1px solid #f0f0f5; }
+    .totaux-line:last-child { border-bottom: none; background: #f0f0fa; padding: 9px 14px; }
+    .totaux-lbl { display: table-cell; font-size: 10px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: .3px; }
+    .totaux-val { display: table-cell; text-align: right; font-weight: 700; font-size: 11px; }
+    .totaux-val-big { font-size: 14px; color: #7B5EFF; font-weight: 800; }
 
-    .totaux-block { border: 1px solid #e5e5ea; border-top: none; }
-    .totaux-line { display: table; width: 100%; padding: 5px 12px; border-bottom: 1px solid #f0f0f5; }
-    .totaux-line:last-child { border-bottom: none; background: #f5f5ff; padding: 8px 12px; }
-    .totaux-lbl { display: table-cell; font-size: 11px; color: #666; font-weight: 600; }
-    .totaux-val { display: table-cell; text-align: right; font-weight: 700; font-size: 12px; }
-    .totaux-val-big { font-size: 15px; color: #7B5EFF; font-weight: 800; }
+    /* ── Section titles ── */
+    .section-bar { padding: 8px 14px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff; border-radius: 6px 6px 0 0; margin-top: 18px; }
+    .section-bar.purple { background: #7B5EFF; }
+    .section-bar.orange { background: #ea580c; }
+    .section-bar.blue   { background: #2563eb; }
+    .section-bar.green  { background: #16a34a; }
 
-    .br-block { margin-top: 8px; border: 1px solid #e0e0ea; border-radius: 4px; overflow: hidden; }
-    .br-header { background: #f0f8ff; padding: 6px 12px; font-weight: 700; font-size: 11px; color: #2563eb; border-bottom: 1px solid #e0e0ea; }
+    /* ── BR sub-block ── */
+    .br-sub { border: 1px solid #d0d0e0; border-radius: 6px; overflow: hidden; margin-bottom: 14px; }
+    .br-sub-header { background: #eef4ff; padding: 7px 14px; font-weight: 700; font-size: 11px; color: #2563eb; border-bottom: 1px solid #d0d0e0; }
 
-    .footer { margin-top: 30px; border-top: 2px solid #7B5EFF; padding-top: 10px; text-align: center; font-size: 10px; color: #999; }
-    .footer strong { color: #7B5EFF; }
+    /* ── Message box ── */
+    .msg-box { background: #fafaff; border: 1px solid #e2e2ea; border-top: none; padding: 10px 14px; font-size: 11px; color: #555; font-style: italic; border-radius: 0 0 6px 6px; }
 
-    .msg-box { background: #fafaff; border: 1px solid #e5e5ea; border-top: none; padding: 8px 12px; font-size: 11px; color: #555; font-style: italic; }
+    /* ── Conditions / mentions ── */
+    .mentions { margin-top: 22px; padding: 10px 14px; border: 1px dashed #d0d0e0; border-radius: 6px; font-size: 9px; color: #888; line-height: 1.6; }
+    .mentions strong { color: #555; }
+
+    /* ── Signature ── */
+    .signatures { display: table; width: 100%; margin-top: 30px; }
+    .sig-box { display: table-cell; width: 45%; text-align: center; vertical-align: top; }
+    .sig-spacer { display: table-cell; width: 10%; }
+    .sig-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 40px; }
+    .sig-line { border-top: 1px solid #ccc; margin-top: 50px; padding-top: 6px; font-size: 10px; color: #555; }
+
+    /* ── Footer ── */
+    .page-footer { margin-top: 24px; border-top: 2px solid #7B5EFF; padding-top: 8px; text-align: center; font-size: 9px; color: #aaa; }
+    .page-footer strong { color: #7B5EFF; }
+
+    /* ── Watermark ── */
+    .watermark { position: fixed; bottom: 8mm; right: 10mm; font-size: 8px; color: #ccc; }
 </style>
 </head>
 <body>
-<div class="container">
 
-    <!-- ═══ EN-TÊTE ═══ -->
-    <div class="header">
-        <div class="header-left">
-            <div class="logo">SKYRA ERP</div>
-            <div class="logo-sub">Dossier d'achat complet</div>
+@{
+    /* ── Infos entreprise (fictives) ── */
+    var skyraName = "SKYRA Technologies SARL";
+    var skyraNif = "001816054790132";
+    var skyraRc = "16/00-0254879 B13";
+    var skyraAi = "16540987201";
+    var skyraNis = "001816054790145";
+    var skyraAdresse = "Zone d'activité Bab Ezzouar, Lot 12 — Alger 16000, Algérie";
+    var skyraTel = "+213 (0) 21 24 56 78";
+    var skyraEmail = "contact@@skyra-erp.dz";
+    var skyraSite = "www.skyra-erp.dz";
+
+    /* ── Infos fournisseur (fictives pour les champs manquants) ── */
+    var fNom = Model.NomFournisseur;
+    var fEmail = Model.EmailFournisseur ?? "—";
+    var fTel = Model.TelephoneFournisseur ?? "+213 (0) 00 00 00 00";
+    var fSite = Model.SiteWebFournisseur ?? "—";
+    var fAdresse = Model.AdresseFournisseur ?? "Adresse non renseignée";
+    var fNif = "002319087650098";
+    var fRc = "19/00-0198453 A07";
+    var fAi = "19320876504";
+    var fNis = "002319087650076";
+}
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PAGE 1 — BON DE COMMANDE
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+    <!-- En-tete -->
+    <div class="doc-header">
+        <div class="doc-header-left">
+            <div class="company-name">SKYRA</div>
+            <div class="company-sub">Enterprise Resource Planning</div>
         </div>
-        <div class="header-right">
-            <div class="doc-title">DOSSIER D'ACHAT</div>
+        <div class="doc-header-right">
+            <div class="doc-type">Bon de Commande</div>
             <div class="doc-ref">@Model.NumeroBc</div>
-            <div class="doc-date">Émis le @DateTime.UtcNow.ToString("dd/MM/yyyy")</div>
+            <div class="doc-date">Date : @Model.DateCommande.ToString("dd/MM/yyyy")</div>
         </div>
     </div>
+    <div class="doc-header-bar"></div>
 
-    <!-- ═══ 1. BON DE COMMANDE ═══ -->
-    <div class="section">
-        <div class="section-title">1. Bon de commande</div>
-        <div class="info-grid">
-            <div class="info-row"><div class="info-label">Référence</div><div class="info-value text-bold">@Model.NumeroBc</div></div>
-            <div class="info-row"><div class="info-label">Fournisseur</div><div class="info-value">@Model.NomFournisseur</div></div>
-            <div class="info-row"><div class="info-label">Date de commande</div><div class="info-value">@Model.DateCommande.ToString("dd/MM/yyyy")</div></div>
-            <div class="info-row"><div class="info-label">Livraison souhaitée</div><div class="info-value">@(Model.DateLivraisonSouhaitee?.ToString("dd/MM/yyyy") ?? "—")</div></div>
+    <!-- Parties -->
+    <div class="parties">
+        <div class="party">
+            <div class="party-box">
+                <div class="party-label">Donneur d'ordre</div>
+                <p class="party-name">@skyraName</p>
+                <p class="party-line">@skyraAdresse</p>
+                <p class="party-line"><span>Tél :</span> @skyraTel</p>
+                <p class="party-line"><span>Email :</span> @skyraEmail</p>
+                <p class="party-line"><span>NIF :</span> @skyraNif</p>
+                <p class="party-line"><span>RC :</span> @skyraRc</p>
+                <p class="party-line"><span>AI :</span> @skyraAi &nbsp; <span>NIS :</span> @skyraNis</p>
+            </div>
         </div>
-        <table class="data">
-            <thead><tr><th>Composant</th><th class="text-right">Quantité demandée</th></tr></thead>
-            <tbody>
-                @foreach (var l in Model.LignesBc)
+        <div class="party-spacer"></div>
+        <div class="party">
+            <div class="party-box">
+                <div class="party-label">Fournisseur</div>
+                <p class="party-name">@fNom</p>
+                <p class="party-line">@fAdresse</p>
+                <p class="party-line"><span>Tél :</span> @fTel</p>
+                <p class="party-line"><span>Email :</span> @fEmail</p>
+                @if (fSite != "—")
                 {
-                    <tr>
-                        <td class="text-bold">@l.NomProduit</td>
-                        <td class="text-right">@l.Quantite.ToString("N3")</td>
-                    </tr>
+                    <p class="party-line"><span>Site :</span> @fSite</p>
                 }
-            </tbody>
-        </table>
+                <p class="party-line"><span>NIF :</span> @fNif</p>
+                <p class="party-line"><span>RC :</span> @fRc</p>
+                <p class="party-line"><span>AI :</span> @fAi &nbsp; <span>NIS :</span> @fNis</p>
+            </div>
+        </div>
     </div>
 
-    <!-- ═══ 2. FACTURE PROFORMA ═══ -->
-    <div class="section">
-        <div class="section-title section-title-orange">2. Facture proforma fournisseur</div>
-        @if (!string.IsNullOrEmpty(Model.MessageFournisseur))
-        {
-            <div class="msg-box">« @Model.MessageFournisseur »</div>
-        }
-        <table class="data">
-            <thead>
+    <!-- Infos commande -->
+    <div class="info-grid" style="border-radius:6px; margin-bottom:14px;">
+        <div class="info-row"><div class="info-label">Référence BC</div><div class="info-value text-bold text-purple">@Model.NumeroBc</div></div>
+        <div class="info-row"><div class="info-label">Date de commande</div><div class="info-value">@Model.DateCommande.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("fr-FR"))</div></div>
+        <div class="info-row"><div class="info-label">Livraison souhaitée</div><div class="info-value">@(Model.DateLivraisonSouhaitee?.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("fr-FR")) ?? "Non spécifiée")</div></div>
+        <div class="info-row"><div class="info-label">Mode de paiement</div><div class="info-value">Virement bancaire à 30 jours</div></div>
+    </div>
+
+    <!-- Tableau articles -->
+    <div class="section-bar purple">Détail des articles commandés</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th style="width:8%;">N°</th>
+                <th>Désignation</th>
+                <th class="text-right" style="width:18%;">Quantité</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ var iBc = 0; }
+            @foreach (var l in Model.LignesBc)
+            {
+                iBc++;
                 <tr>
-                    <th>Composant</th>
-                    <th class="text-right">Qté demandée</th>
-                    <th class="text-right">Qté proposée</th>
-                    <th class="text-right">Prix unit. HT</th>
-                    <th class="text-right">Total HT</th>
+                    <td class="text-center text-muted">@iBc</td>
+                    <td class="text-bold">@l.NomProduit</td>
+                    <td class="text-right">@l.Quantite.ToString("N3")</td>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach (var l in Model.LignesProforma)
+            }
+        </tbody>
+    </table>
+
+    <!-- Mentions -->
+    <div class="mentions">
+        <strong>Conditions générales :</strong> Toute livraison doit être accompagnée d'un bon de livraison conforme.
+        Les marchandises endommagées ou non conformes feront l'objet d'un retour aux frais du fournisseur.
+        Le paiement sera effectué après réception et vérification complète de la commande.
+    </div>
+
+    <!-- Signatures -->
+    <div class="signatures">
+        <div class="sig-box">
+            <div class="sig-label">Le donneur d'ordre</div>
+            <div class="sig-line">Cachet et signature</div>
+        </div>
+        <div class="sig-spacer"></div>
+        <div class="sig-box">
+            <div class="sig-label">Le fournisseur</div>
+            <div class="sig-line">Cachet et signature</div>
+        </div>
+    </div>
+
+    <div class="page-footer">
+        <strong>SKYRA ERP</strong> &mdash; @skyraAdresse &mdash; NIF : @skyraNif<br/>
+        Document généré le @now.ToString("dd/MM/yyyy à HH:mm")
+    </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PAGE 2 — FACTURE PROFORMA FOURNISSEUR
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+    <div class="doc-header">
+        <div class="doc-header-left">
+            <div class="company-name">SKYRA</div>
+            <div class="company-sub">Enterprise Resource Planning</div>
+        </div>
+        <div class="doc-header-right">
+            <div class="doc-type" style="color:#ea580c;">Facture Proforma</div>
+            <div class="doc-ref" style="color:#ea580c;">@(Model.NumeroProforma ?? "—")</div>
+            <div class="doc-date">Date : @(Model.DateProforma?.ToString("dd/MM/yyyy") ?? "—")</div>
+        </div>
+    </div>
+    <div class="doc-header-bar" style="background:linear-gradient(90deg,#ea580c,#f97316);"></div>
+
+    <!-- Parties -->
+    <div class="parties">
+        <div class="party">
+            <div class="party-box">
+                <div class="party-label">Émetteur (Fournisseur)</div>
+                <p class="party-name">@fNom</p>
+                <p class="party-line">@fAdresse</p>
+                <p class="party-line"><span>Tél :</span> @fTel</p>
+                <p class="party-line"><span>Email :</span> @fEmail</p>
+                @if (fSite != "—")
                 {
-                    <tr>
-                        <td class="text-bold">@l.NomProduit</td>
-                        <td class="text-right text-muted">@l.QuantiteDemandee.ToString("N3")</td>
-                        <td class="text-right">@l.QuantiteProposee.ToString("N3")</td>
-                        <td class="text-right">@l.PrixUnitaireHT.ToString("N2") DZD</td>
-                        <td class="text-right text-bold text-purple">@l.TotalHT.ToString("N2") DZD</td>
-                    </tr>
+                    <p class="party-line"><span>Site :</span> @fSite</p>
                 }
-            </tbody>
-        </table>
+                <p class="party-line"><span>NIF :</span> @fNif &nbsp; <span>RC :</span> @fRc</p>
+            </div>
+        </div>
+        <div class="party-spacer"></div>
+        <div class="party">
+            <div class="party-box">
+                <div class="party-label">Destinataire (Acheteur)</div>
+                <p class="party-name">@skyraName</p>
+                <p class="party-line">@skyraAdresse</p>
+                <p class="party-line"><span>Tél :</span> @skyraTel</p>
+                <p class="party-line"><span>Email :</span> @skyraEmail</p>
+                <p class="party-line"><span>NIF :</span> @skyraNif &nbsp; <span>RC :</span> @skyraRc</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Référence BC associée -->
+    <div class="info-grid" style="border-radius:6px; margin-bottom:14px;">
+        <div class="info-row"><div class="info-label">Réf. Bon de Commande</div><div class="info-value text-bold">@Model.NumeroBc</div></div>
+        <div class="info-row"><div class="info-label">N° Proforma</div><div class="info-value text-bold" style="color:#ea580c;">@(Model.NumeroProforma ?? "—")</div></div>
+        <div class="info-row"><div class="info-label">Date Proforma</div><div class="info-value">@(Model.DateProforma?.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("fr-FR")) ?? "—")</div></div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.MessageFournisseur))
+    {
+        <div class="section-bar orange">Message du fournisseur</div>
+        <div class="msg-box">« @Model.MessageFournisseur »</div>
+        <div style="height:12px;"></div>
+    }
+
+    <!-- Tableau proforma -->
+    <div class="section-bar orange">Détail de l'offre</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th style="width:6%;">N°</th>
+                <th>Désignation</th>
+                <th class="text-right">Qté demandée</th>
+                <th class="text-right">Qté proposée</th>
+                <th class="text-right">P.U. HT</th>
+                <th class="text-right">Total HT</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ var iPro = 0; }
+            @foreach (var l in Model.LignesProforma)
+            {
+                iPro++;
+                <tr>
+                    <td class="text-center text-muted">@iPro</td>
+                    <td class="text-bold">@l.NomProduit</td>
+                    <td class="text-right text-muted">@l.QuantiteDemandee.ToString("N3")</td>
+                    <td class="text-right">@l.QuantiteProposee.ToString("N3")</td>
+                    <td class="text-right">@l.PrixUnitaireHT.ToString("N2") DZD</td>
+                    <td class="text-right text-bold">@l.TotalHT.ToString("N2") DZD</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <!-- Totaux proforma -->
+    <div class="totaux-wrap">
+        <div class="totaux-spacer"></div>
         <div class="totaux-block">
             <div class="totaux-line"><div class="totaux-lbl">Total HT</div><div class="totaux-val">@Model.ProformaTotalHT.ToString("N2") DZD</div></div>
-            <div class="totaux-line"><div class="totaux-lbl">TVA 19%</div><div class="totaux-val">@Model.ProformaTVA.ToString("N2") DZD</div></div>
+            <div class="totaux-line"><div class="totaux-lbl">TVA (19%)</div><div class="totaux-val">@Model.ProformaTVA.ToString("N2") DZD</div></div>
             <div class="totaux-line"><div class="totaux-lbl">Total TTC</div><div class="totaux-val totaux-val-big">@Model.ProformaTotalTTC.ToString("N2") DZD</div></div>
         </div>
     </div>
 
-    <!-- ═══ 3. BONS DE RÉCEPTION ═══ -->
-    <div class="section">
-        <div class="section-title section-title-blue">3. Bon@(Model.BonsReception.Count > 1 ? "s" : "") de réception (@Model.BonsReception.Count)</div>
-        @foreach (var br in Model.BonsReception)
-        {
-            <div class="br-block">
-                <div class="br-header">@br.Numero — @br.DateReception.ToString("dd/MM/yyyy")</div>
-                <table class="data" style="border:none;">
-                    <thead>
-                        <tr>
-                            <th>Composant</th>
-                            <th class="text-right">Commandée</th>
-                            <th class="text-right">Reçue</th>
-                            <th class="text-right">Endommagée</th>
-                            <th class="text-right">Conforme</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var l in br.Lignes)
-                        {
-                            <tr>
-                                <td class="text-bold">@l.NomProduit</td>
-                                <td class="text-right text-muted">@l.QuantiteCommandee.ToString("N2")</td>
-                                <td class="text-right">@l.QuantiteRecue.ToString("N2")</td>
-                                <td class="text-right text-orange">@(l.QuantiteEndommagee > 0 ? l.QuantiteEndommagee.ToString("N2") : "—")</td>
-                                <td class="text-right text-bold text-green">@l.QuantiteConforme.ToString("N2")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
+    <div class="mentions" style="margin-top:16px;">
+        <strong>Note :</strong> Ce document constitue la facture proforma émise par le fournisseur, acceptée par le donneur d'ordre.
+        Les prix indiqués sont fermes et non révisables pour la durée de cette commande.
     </div>
 
-    <!-- ═══ 4. FACTURE FINALE ═══ -->
-    <div class="section">
-        <div class="section-title section-title-green">4. Facture finale</div>
-        <div class="info-grid">
-            <div class="info-row"><div class="info-label">N° Facture</div><div class="info-value text-bold">@Model.NumeroFacture</div></div>
-            <div class="info-row"><div class="info-label">Date</div><div class="info-value">@Model.DateFacture.ToString("dd/MM/yyyy")</div></div>
-            <div class="info-row"><div class="info-label">Fournisseur</div><div class="info-value">@Model.NomFournisseur</div></div>
+    <div class="page-footer">
+        <strong>SKYRA ERP</strong> &mdash; Dossier @Model.NumeroBc &mdash; Facture Proforma<br/>
+        Document généré le @now.ToString("dd/MM/yyyy à HH:mm")
+    </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     PAGE(S) 3+ — BON(S) DE RÉCEPTION
+     ═══════════════════════════════════════════════════════════════════ -->
+@{ var brIndex = 0; }
+@foreach (var br in Model.BonsReception)
+{
+    brIndex++;
+    <div class="page">
+
+        <div class="doc-header">
+            <div class="doc-header-left">
+                <div class="company-name">SKYRA</div>
+                <div class="company-sub">Enterprise Resource Planning</div>
+            </div>
+            <div class="doc-header-right">
+                <div class="doc-type" style="color:#2563eb;">Bon de Réception</div>
+                <div class="doc-ref" style="color:#2563eb;">@br.Numero</div>
+                <div class="doc-date">Date : @br.DateReception.ToString("dd/MM/yyyy")</div>
+            </div>
         </div>
+        <div class="doc-header-bar" style="background:linear-gradient(90deg,#2563eb,#60a5fa);"></div>
+
+        <!-- Parties -->
+        <div class="parties">
+            <div class="party">
+                <div class="party-box">
+                    <div class="party-label">Réceptionnaire</div>
+                    <p class="party-name">@skyraName</p>
+                    <p class="party-line">@skyraAdresse</p>
+                    <p class="party-line"><span>Tél :</span> @skyraTel</p>
+                    <p class="party-line"><span>NIF :</span> @skyraNif</p>
+                </div>
+            </div>
+            <div class="party-spacer"></div>
+            <div class="party">
+                <div class="party-box">
+                    <div class="party-label">Expéditeur (Fournisseur)</div>
+                    <p class="party-name">@fNom</p>
+                    <p class="party-line">@fAdresse</p>
+                    <p class="party-line"><span>Tél :</span> @fTel</p>
+                    <p class="party-line"><span>NIF :</span> @fNif</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Infos réception -->
+        <div class="info-grid" style="border-radius:6px; margin-bottom:14px;">
+            <div class="info-row"><div class="info-label">Réf. Bon de Commande</div><div class="info-value text-bold">@Model.NumeroBc</div></div>
+            <div class="info-row"><div class="info-label">N° Bon de Réception</div><div class="info-value text-bold" style="color:#2563eb;">@br.Numero</div></div>
+            <div class="info-row"><div class="info-label">Date de réception</div><div class="info-value">@br.DateReception.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("fr-FR"))</div></div>
+            <div class="info-row"><div class="info-label">Réception</div><div class="info-value">@brIndex / @Model.BonsReception.Count</div></div>
+        </div>
+
+        <!-- Tableau réception -->
+        <div class="section-bar blue">Contrôle des marchandises réceptionnées</div>
+        <table class="data">
+            <thead>
+                <tr>
+                    <th style="width:6%;">N°</th>
+                    <th>Désignation</th>
+                    <th class="text-right">Qté commandée</th>
+                    <th class="text-right">Qté reçue</th>
+                    <th class="text-right">Qté endommagée</th>
+                    <th class="text-right">Qté conforme</th>
+                </tr>
+            </thead>
+            <tbody>
+                @{ var iBr = 0; }
+                @foreach (var l in br.Lignes)
+                {
+                    iBr++;
+                    <tr>
+                        <td class="text-center text-muted">@iBr</td>
+                        <td class="text-bold">@l.NomProduit</td>
+                        <td class="text-right text-muted">@l.QuantiteCommandee.ToString("N2")</td>
+                        <td class="text-right">@l.QuantiteRecue.ToString("N2")</td>
+                        <td class="text-right text-orange">@(l.QuantiteEndommagee > 0 ? l.QuantiteEndommagee.ToString("N2") : "—")</td>
+                        <td class="text-right text-bold text-green">@l.QuantiteConforme.ToString("N2")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @{
+            var totalRecu = br.Lignes.Sum(l => l.QuantiteRecue);
+            var totalEndom = br.Lignes.Sum(l => l.QuantiteEndommagee);
+            var totalConf = br.Lignes.Sum(l => l.QuantiteConforme);
+        }
+        <div class="info-grid" style="margin-top:0; border-top:2px solid #2563eb;">
+            <div class="info-row">
+                <div class="info-label">Total réceptionné</div>
+                <div class="info-value text-bold">@totalRecu.ToString("N2")</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Total endommagé</div>
+                <div class="info-value text-orange text-bold">@(totalEndom > 0 ? totalEndom.ToString("N2") : "Aucun")</div>
+            </div>
+            <div class="info-row">
+                <div class="info-label">Total conforme</div>
+                <div class="info-value text-green text-bold">@totalConf.ToString("N2")</div>
+            </div>
+        </div>
+
+        <div class="mentions">
+            <strong>Observation :</strong> Les marchandises ont été contrôlées conformément aux spécifications du bon de commande.
+            Toute réserve est mentionnée ci-dessus dans la colonne « Quantité endommagée ».
+        </div>
+
+        <!-- Signatures -->
+        <div class="signatures">
+            <div class="sig-box">
+                <div class="sig-label">Le réceptionnaire</div>
+                <div class="sig-line">Cachet et signature</div>
+            </div>
+            <div class="sig-spacer"></div>
+            <div class="sig-box">
+                <div class="sig-label">Le livreur / transporteur</div>
+                <div class="sig-line">Cachet et signature</div>
+            </div>
+        </div>
+
+        <div class="page-footer">
+            <strong>SKYRA ERP</strong> &mdash; Dossier @Model.NumeroBc &mdash; Bon de Réception @brIndex/@Model.BonsReception.Count<br/>
+            Document généré le @now.ToString("dd/MM/yyyy à HH:mm")
+        </div>
+    </div>
+}
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     DERNIÈRE PAGE — FACTURE FINALE
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="page">
+
+    <div class="doc-header">
+        <div class="doc-header-left">
+            <div class="company-name">SKYRA</div>
+            <div class="company-sub">Enterprise Resource Planning</div>
+        </div>
+        <div class="doc-header-right">
+            <div class="doc-type" style="color:#16a34a;">Facture</div>
+            <div class="doc-ref" style="color:#16a34a;">@Model.NumeroFacture</div>
+            <div class="doc-date">Date : @Model.DateFacture.ToString("dd/MM/yyyy")</div>
+        </div>
+    </div>
+    <div class="doc-header-bar" style="background:linear-gradient(90deg,#16a34a,#4ade80);"></div>
+
+    <!-- Parties -->
+    <div class="parties">
+        <div class="party">
+            <div class="party-box">
+                <div class="party-label">Émetteur (Fournisseur)</div>
+                <p class="party-name">@fNom</p>
+                <p class="party-line">@fAdresse</p>
+                <p class="party-line"><span>Tél :</span> @fTel</p>
+                <p class="party-line"><span>Email :</span> @fEmail</p>
+                @if (fSite != "—")
+                {
+                    <p class="party-line"><span>Site :</span> @fSite</p>
+                }
+                <p class="party-line"><span>NIF :</span> @fNif &nbsp; <span>RC :</span> @fRc</p>
+                <p class="party-line"><span>AI :</span> @fAi &nbsp; <span>NIS :</span> @fNis</p>
+            </div>
+        </div>
+        <div class="party-spacer"></div>
+        <div class="party">
+            <div class="party-box">
+                <div class="party-label">Client (Acheteur)</div>
+                <p class="party-name">@skyraName</p>
+                <p class="party-line">@skyraAdresse</p>
+                <p class="party-line"><span>Tél :</span> @skyraTel</p>
+                <p class="party-line"><span>Email :</span> @skyraEmail</p>
+                <p class="party-line"><span>NIF :</span> @skyraNif &nbsp; <span>RC :</span> @skyraRc</p>
+                <p class="party-line"><span>AI :</span> @skyraAi &nbsp; <span>NIS :</span> @skyraNis</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Infos facture -->
+    <div class="info-grid" style="border-radius:6px; margin-bottom:14px;">
+        <div class="info-row"><div class="info-label">N° Facture</div><div class="info-value text-bold" style="color:#16a34a;">@Model.NumeroFacture</div></div>
+        <div class="info-row"><div class="info-label">Date de facturation</div><div class="info-value">@Model.DateFacture.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("fr-FR"))</div></div>
+        <div class="info-row"><div class="info-label">Réf. Bon de Commande</div><div class="info-value text-bold">@Model.NumeroBc</div></div>
+        <div class="info-row"><div class="info-label">Réf. Proforma</div><div class="info-value">@(Model.NumeroProforma ?? "—")</div></div>
+        <div class="info-row"><div class="info-label">Mode de paiement</div><div class="info-value">Virement bancaire</div></div>
+    </div>
+
+    <!-- Tableau des articles facturés (repris de la proforma) -->
+    <div class="section-bar green">Détail des articles facturés</div>
+    <table class="data">
+        <thead>
+            <tr>
+                <th style="width:6%;">N°</th>
+                <th>Désignation</th>
+                <th class="text-right">Quantité</th>
+                <th class="text-right">P.U. HT</th>
+                <th class="text-right">Total HT</th>
+            </tr>
+        </thead>
+        <tbody>
+            @{ var iFact = 0; }
+            @foreach (var l in Model.LignesProforma)
+            {
+                iFact++;
+                <tr>
+                    <td class="text-center text-muted">@iFact</td>
+                    <td class="text-bold">@l.NomProduit</td>
+                    <td class="text-right">@l.QuantiteProposee.ToString("N3")</td>
+                    <td class="text-right">@l.PrixUnitaireHT.ToString("N2") DZD</td>
+                    <td class="text-right text-bold">@l.TotalHT.ToString("N2") DZD</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <!-- Totaux facture -->
+    <div class="totaux-wrap">
+        <div class="totaux-spacer"></div>
         <div class="totaux-block">
             <div class="totaux-line"><div class="totaux-lbl">Montant HT</div><div class="totaux-val">@Model.FactureHT.ToString("N2") DZD</div></div>
-            <div class="totaux-line"><div class="totaux-lbl">TVA 19%</div><div class="totaux-val">@Model.FactureTVA.ToString("N2") DZD</div></div>
-            <div class="totaux-line"><div class="totaux-lbl">Montant TTC</div><div class="totaux-val totaux-val-big">@Model.FactureTTC.ToString("N2") DZD</div></div>
+            <div class="totaux-line"><div class="totaux-lbl">TVA (19%)</div><div class="totaux-val">@Model.FactureTVA.ToString("N2") DZD</div></div>
+            <div class="totaux-line"><div class="totaux-lbl">Net à payer TTC</div><div class="totaux-val totaux-val-big">@Model.FactureTTC.ToString("N2") DZD</div></div>
         </div>
     </div>
 
-    <!-- ═══ PIED DE PAGE ═══ -->
-    <div class="footer">
-        Document généré automatiquement par <strong>SKYRA ERP</strong> le @DateTime.UtcNow.ToString("dd/MM/yyyy à HH:mm") — @Model.NumeroBc
+    <!-- Montant en lettres -->
+    <div class="info-grid" style="border-radius:6px; margin-top:14px;">
+        <div class="info-row">
+            <div class="info-label">Arrêtée à</div>
+            <div class="info-value text-bold" style="font-style:italic;">La présente facture est arrêtée à la somme de @Model.FactureTTC.ToString("N2") DZD TTC.</div>
+        </div>
     </div>
 
+    <div class="mentions">
+        <strong>Conditions de règlement :</strong> Paiement par virement bancaire à 30 jours date de facture.
+        Tout retard de paiement entraînera l'application de pénalités de retard au taux légal en vigueur.<br/>
+        <strong>Coordonnées bancaires :</strong> Banque Nationale d'Algérie (BNA) &mdash; Agence 587 &mdash; Compte n° 00200 587 0300 0012 4578 &mdash; Clé RIB : 42
+    </div>
+
+    <!-- Signatures -->
+    <div class="signatures">
+        <div class="sig-box">
+            <div class="sig-label">Le fournisseur</div>
+            <div class="sig-line">Cachet et signature</div>
+        </div>
+        <div class="sig-spacer"></div>
+        <div class="sig-box">
+            <div class="sig-label">Le client</div>
+            <div class="sig-line">Cachet et signature</div>
+        </div>
+    </div>
+
+    <div class="page-footer">
+        <strong>SKYRA ERP</strong> &mdash; @skyraAdresse &mdash; NIF : @skyraNif<br/>
+        Document généré le @now.ToString("dd/MM/yyyy à HH:mm") &mdash; Dossier complet @Model.NumeroBc
+    </div>
 </div>
+
+<div class="watermark">SKYRA ERP &mdash; @Model.NumeroBc</div>
+
 </body>
 </html>

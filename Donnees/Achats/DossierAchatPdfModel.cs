@@ -10,6 +10,9 @@ namespace Donnees.Achats
         public DateTime? DateLivraisonSouhaitee { get; set; }
         public string NomFournisseur { get; set; } = "";
         public string? EmailFournisseur { get; set; }
+        public string? TelephoneFournisseur { get; set; }
+        public string? SiteWebFournisseur { get; set; }
+        public string? AdresseFournisseur { get; set; }
 
         public List<LigneBcPdf> LignesBc { get; set; } = new();
 
