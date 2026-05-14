@@ -91,11 +91,12 @@ namespace Metier.Achats
             var sql = $@"
                 SELECT COALESCE(MAX(CAST(SPLIT_PART(""{colonne}"", '-', 3) AS INTEGER)), 0)
                 FROM ""{table}""
-                WHERE ""{colonne}"" LIKE '{pattern}'";
+                WHERE ""{colonne}"" LIKE @pattern";
 
             using var conn = new Npgsql.NpgsqlConnection(_db.Database.GetConnectionString());
             await conn.OpenAsync();
             using var cmd = new Npgsql.NpgsqlCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@pattern", pattern);
             var result = await cmd.ExecuteScalarAsync();
             int prochain = Convert.ToInt32(result) + 1;
 
