@@ -167,7 +167,7 @@
                 }
                 @if (bc.Statut == StatutBonCommande.Recu || bc.Statut == StatutBonCommande.PartiellemtRecu)
                 {
-                    <a asp-page="/Achats/Facture" asp-route-bcId="@bc.Id" class="bc-btn-secondary">
+                    <a asp-page="/Achats/Facture" asp-route-bcId="@bc.Id" class="btn-primary bc-btn-send">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
                             <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
                             <polyline points="14 2 14 8 20 8"/>
@@ -552,43 +552,82 @@
                     </svg>
                     Bons de réception (@bc.BonsReception.Count)
                 </div>
-                <table class="bc-table" style="margin:0;">
-                    <thead>
-                        <tr>
-                            <th>Numéro</th>
-                            <th>Date</th>
-                            <th>Statut</th>
-                            <th>Articles</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var br in bc.BonsReception.OrderByDescending(r => r.DateCreation))
+                @foreach (var br in bc.BonsReception.OrderByDescending(r => r.DateCreation))
+                {
+                    bool brValide = br.Statut == StatutBonReception.Valide;
+                    decimal totalRecue = br.Lignes.Sum(l => l.QuantiteRecue);
+                    decimal totalEndommagee = br.Lignes.Sum(l => l.QuantiteEndommagee);
+                    decimal totalConforme = totalRecue - totalEndommagee;
+
+                    <div style="background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.06); border-radius:14px; padding:16px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                            <div style="display:flex; align-items:center; gap:12px;">
+                                <span style="font-weight:700; font-size:0.95rem;">@br.Numero</span>
+                                @if (brValide)
+                                {
+                                    <span class="bc-statut-badge" style="background:rgba(34,197,94,0.10);color:#22c55e;border:1px solid #22c55e;">Validé</span>
+                                }
+                                else
+                                {
+                                    <span class="bc-statut-badge" style="background:rgba(251,191,36,0.10);color:#fbbf24;border:1px solid #fbbf24;">En cours</span>
+                                }
+                                <span style="color:var(--text-muted-2); font-size:0.8rem;">@br.DateReception.ToString("dd/MM/yyyy")</span>
+                            </div>
+                            <a asp-page="/Achats/BonReception" asp-route-id="@br.Id" class="bc-link" style="font-size:12px;font-weight:600;">
+                                Voir détail →
+                            </a>
+                        </div>
+
+                        @if (!string.IsNullOrEmpty(br.Notes))
                         {
-                            bool brValide = br.Statut == StatutBonReception.Valide;
-                            <tr>
-                                <td style="font-weight:700;">@br.Numero</td>
-                                <td>@br.DateReception.ToString("dd/MM/yyyy")</td>
-                                <td>
-                                    @if (brValide)
-                                    {
-                                        <span class="bc-statut-badge" style="background:rgba(34,197,94,0.10);color:#22c55e;border:1px solid #22c55e;">Validé</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="bc-statut-badge" style="background:rgba(251,191,36,0.10);color:#fbbf24;border:1px solid #fbbf24;">En cours</span>
-                                    }
-                                </td>
-                                <td>@br.Lignes.Count ligne@(br.Lignes.Count > 1 ? "s" : "")</td>
-                                <td style="text-align:right;">
-                                    <a asp-page="/Achats/BonReception" asp-route-id="@br.Id" class="bc-link" style="font-size:12px;font-weight:600;">
-                                        Voir →
-                                    </a>
-                                </td>
-                            </tr>
+                            <div style="color:var(--text-muted); font-size:0.8rem; margin-bottom:10px; font-style:italic;">@br.Notes</div>
                         }
-                    </tbody>
-                </table>
+
+                        <table class="bc-table" style="margin:0; font-size:0.85rem;">
+                            <thead>
+                                <tr>
+                                    <th>Produit</th>
+                                    <th style="text-align:right;">Commandée</th>
+                                    <th style="text-align:right;">Reçue</th>
+                                    <th style="text-align:right;">Endommagée</th>
+                                    <th style="text-align:right;">Conforme</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var l in br.Lignes)
+                                {
+                                    decimal conforme = l.QuantiteRecue - l.QuantiteEndommagee;
+                                    <tr>
+                                        <td>
+                                            <span style="font-weight:600;">@(l.Produit?.Nom ?? "—")</span>
+                                            @if (!string.IsNullOrEmpty(l.Produit?.Reference))
+                                            {
+                                                <span style="color:var(--text-muted-2); font-size:0.75rem; margin-left:6px;">@l.Produit.Reference</span>
+                                            }
+                                        </td>
+                                        <td style="text-align:right;">@l.QuantiteCommandee.ToString("N2")</td>
+                                        <td style="text-align:right; font-weight:600;">@l.QuantiteRecue.ToString("N2")</td>
+                                        <td style="text-align:right; color:@(l.QuantiteEndommagee > 0 ? "#ef4444" : "var(--text-muted-2)"); font-weight:@(l.QuantiteEndommagee > 0 ? "600" : "400");">
+                                            @(l.QuantiteEndommagee > 0 ? l.QuantiteEndommagee.ToString("N2") : "—")
+                                        </td>
+                                        <td style="text-align:right; font-weight:600; color:@(conforme > 0 ? "#22c55e" : "#ef4444");">
+                                            @conforme.ToString("N2")
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+
+                        <div style="display:flex; gap:20px; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.05); font-size:0.8rem;">
+                            <div><span style="color:var(--text-muted-2);">Total reçu</span> <span style="font-weight:700; margin-left:4px;">@totalRecue.ToString("N2")</span></div>
+                            <div><span style="color:var(--text-muted-2);">Conforme</span> <span style="font-weight:700; color:#22c55e; margin-left:4px;">@totalConforme.ToString("N2")</span></div>
+                            @if (totalEndommagee > 0)
+                            {
+                                <div><span style="color:var(--text-muted-2);">Endommagé</span> <span style="font-weight:700; color:#ef4444; margin-left:4px;">@totalEndommagee.ToString("N2")</span></div>
+                            }
+                        </div>
+                    </div>
+                }
             </div>
         }
 

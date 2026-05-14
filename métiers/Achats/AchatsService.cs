@@ -533,6 +533,9 @@ namespace Metier.Achats
             // Mettre à jour le statut du BR
             br.Statut = StatutBonReception.Valide;
 
+            // Sauvegarder le BR validé avant de vérifier les totaux
+            await _db.SaveChangesAsync();
+
             // Mettre à jour le statut du BC en comparant quantités reçues vs commandées
             var bc = br.BonCommande;
             if (bc != null)
@@ -541,7 +544,7 @@ namespace Metier.Achats
                     .Where(r => r.BonCommandeId == bc.Id && r.Statut == StatutBonReception.Valide)
                     .SelectMany(r => r.Lignes)
                     .GroupBy(l => l.ProduitId)
-                    .Select(g => new { ProduitId = g.Key, TotalRecu = g.Sum(l => l.QuantiteRecue) })
+                    .Select(g => new { ProduitId = g.Key, TotalRecu = g.Sum(l => l.QuantiteRecue - l.QuantiteEndommagee) })
                     .ToListAsync();
 
                 bool toutRecu = bc.Lignes.All(lbc =>

@@ -77,7 +77,7 @@ namespace erp_pfc_20252026.Pages.Achats
                     {
                         if (!QuantitesDejaRecues.ContainsKey(l.ProduitId))
                             QuantitesDejaRecues[l.ProduitId] = 0;
-                        QuantitesDejaRecues[l.ProduitId] += l.QuantiteRecue;
+                        QuantitesDejaRecues[l.ProduitId] += l.QuantiteRecue - l.QuantiteEndommagee;
                     }
             }
             else
