@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Donnees;
 using Donnees.Achats;
+using Metier;
 using Microsoft.EntityFrameworkCore;
 
 namespace Metier.Achats
@@ -17,11 +18,13 @@ namespace Metier.Achats
     public class AchatsService
     {
         private readonly ErpDbContext _db;
+        private readonly IPdfService _pdfService;
         private const decimal TAUX_TVA = 0.19m;
 
-        public AchatsService(ErpDbContext db)
+        public AchatsService(ErpDbContext db, IPdfService pdfService)
         {
             _db = db;
+            _pdfService = pdfService;
         }
 
         // =====================================================================
@@ -582,9 +585,15 @@ namespace Metier.Achats
                 });
 
                 bc.Statut = toutRecu ? StatutBonCommande.Recu : StatutBonCommande.PartiellemtRecu;
-            }
+                await _db.SaveChangesAsync();
 
-            await _db.SaveChangesAsync();
+                if (toutRecu)
+                    await FinaliserAchatAsync(bc.Id, userId);
+            }
+            else
+            {
+                await _db.SaveChangesAsync();
+            }
         }
 
         // =====================================================================
@@ -649,6 +658,104 @@ namespace Metier.Achats
 
             await _db.SaveChangesAsync();
             return facture;
+        }
+
+        // =====================================================================
+        //  FINALISATION ACHAT (auto-facture + PDF dossier complet)
+        // =====================================================================
+
+        public async Task FinaliserAchatAsync(int bcId, int? userId = null)
+        {
+            var bc = await _db.AchatBonCommandes
+                .Include(b => b.Fournisseur)
+                .Include(b => b.BCFournisseurs).ThenInclude(f => f.Fournisseur)
+                .Include(b => b.Lignes).ThenInclude(l => l.Produit)
+                .Include(b => b.BonsReception).ThenInclude(r => r.Lignes).ThenInclude(l => l.Produit)
+                .Include(b => b.Tentatives).ThenInclude(t => t.Lignes).ThenInclude(l => l.BonCommandeLigne).ThenInclude(bl => bl!.Produit)
+                .Include(b => b.Tentatives).ThenInclude(t => t.Fournisseur)
+                .FirstOrDefaultAsync(b => b.Id == bcId);
+
+            if (bc == null) return;
+
+            var facture = await CreerFactureAsync(
+                bcId, null, null, DateTime.UtcNow, bc.TotalHT, null, userId);
+
+            var tentativeAcceptee = bc.Tentatives
+                .Where(t => t.Statut == StatutTentative.Acceptee)
+                .OrderByDescending(t => t.Numero)
+                .FirstOrDefault();
+
+            var fournisseur = bc.Fournisseur
+                ?? bc.BCFournisseurs.FirstOrDefault()?.Fournisseur;
+
+            var model = new DossierAchatPdfModel
+            {
+                NumeroBc               = bc.Numero,
+                DateCommande           = bc.DateCommande,
+                DateLivraisonSouhaitee = bc.DateLivraisonSouhaitee,
+                NomFournisseur         = fournisseur?.FullName ?? "—",
+                EmailFournisseur       = fournisseur?.Email,
+
+                LignesBc = bc.Lignes.Where(l => !l.EstExclue).Select(l => new LigneBcPdf
+                {
+                    NomProduit = l.Produit?.Nom ?? "—",
+                    Quantite   = l.Quantite
+                }).ToList(),
+
+                NumeroProforma     = tentativeAcceptee != null ? $"Proforma n°{tentativeAcceptee.Numero}" : null,
+                DateProforma       = tentativeAcceptee?.DateReponse,
+                MessageFournisseur = tentativeAcceptee?.MessageFournisseur,
+
+                LignesProforma = tentativeAcceptee?.Lignes
+                    .Where(l => !l.EstRefusee)
+                    .Select(l =>
+                    {
+                        var bcLigne = bc.Lignes.FirstOrDefault(bl => bl.Id == l.BonCommandeLigneId);
+                        decimal qteP = l.QuantiteProposee ?? bcLigne?.Quantite ?? 0;
+                        decimal prixP = l.PrixProposeHT ?? bcLigne?.PrixUnitaireHT ?? 0;
+                        return new LigneProformaPdf
+                        {
+                            NomProduit       = bcLigne?.Produit?.Nom ?? "—",
+                            QuantiteDemandee = bcLigne?.Quantite ?? 0,
+                            QuantiteProposee = qteP,
+                            PrixUnitaireHT   = prixP,
+                            TotalHT          = Math.Round(qteP * prixP, 2)
+                        };
+                    }).ToList() ?? new(),
+
+                BonsReception = bc.BonsReception
+                    .Where(r => r.Statut == StatutBonReception.Valide)
+                    .OrderBy(r => r.DateCreation)
+                    .Select(r => new BonReceptionPdf
+                    {
+                        Numero        = r.Numero,
+                        DateReception = r.DateReception,
+                        Lignes = r.Lignes.Select(l => new LigneBrPdf
+                        {
+                            NomProduit        = l.Produit?.Nom ?? "—",
+                            QuantiteCommandee = l.QuantiteCommandee,
+                            QuantiteRecue     = l.QuantiteRecue,
+                            QuantiteEndommagee = l.QuantiteEndommagee,
+                            QuantiteConforme  = l.QuantiteRecue - l.QuantiteEndommagee
+                        }).ToList()
+                    }).ToList(),
+
+                NumeroFacture = facture.Numero,
+                DateFacture   = facture.DateFacture,
+                FactureHT     = facture.MontantHT,
+                FactureTVA    = facture.MontantTVA,
+                FactureTTC    = facture.MontantTTC
+            };
+
+            model.ProformaTotalHT  = model.LignesProforma.Sum(l => l.TotalHT);
+            model.ProformaTVA      = Math.Round(model.ProformaTotalHT * TAUX_TVA, 2);
+            model.ProformaTotalTTC = model.ProformaTotalHT + model.ProformaTVA;
+
+            var pdfBytes = await _pdfService.GeneratePdfFromViewAsync(
+                "Achats/DossierAchatTemplate", model);
+
+            bc.PdfDossierAchat = pdfBytes;
+            await _db.SaveChangesAsync();
         }
 
         // =====================================================================

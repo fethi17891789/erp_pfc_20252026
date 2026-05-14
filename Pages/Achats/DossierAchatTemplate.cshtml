@@ -1,0 +1,199 @@
+@using global::Donnees.Achats
+@model DossierAchatPdfModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<title>Dossier d'achat @Model.NumeroBc</title>
+<style>
+    @@page { size: A4; margin: 12mm 14mm; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 12px; color: #1e1e2f; margin: 0; padding: 0; }
+    .container { max-width: 800px; margin: 0 auto; }
+
+    .header { display: table; width: 100%; margin-bottom: 20px; border-bottom: 3px solid #7B5EFF; padding-bottom: 12px; }
+    .header-left { display: table-cell; vertical-align: top; width: 50%; }
+    .header-right { display: table-cell; vertical-align: top; width: 50%; text-align: right; }
+    .logo { font-size: 26px; font-weight: 800; color: #7B5EFF; margin: 0 0 4px; }
+    .logo-sub { font-size: 10px; color: #999; }
+    .doc-title { font-size: 20px; font-weight: 700; color: #1e1e2f; margin: 0 0 4px; }
+    .doc-ref { font-size: 13px; color: #7B5EFF; font-weight: 700; }
+    .doc-date { font-size: 11px; color: #888; }
+
+    .section { margin: 22px 0 0; page-break-inside: avoid; }
+    .section-title { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #fff; background: #7B5EFF; padding: 7px 12px; border-radius: 4px 4px 0 0; margin: 0; }
+    .section-title-green { background: #16a34a; }
+    .section-title-blue { background: #2563eb; }
+    .section-title-orange { background: #ea580c; }
+
+    .info-grid { display: table; width: 100%; border: 1px solid #e5e5ea; border-top: none; }
+    .info-row { display: table-row; }
+    .info-label { display: table-cell; padding: 6px 12px; font-weight: 700; color: #666; width: 35%; border-bottom: 1px solid #f0f0f5; background: #fafaff; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; }
+    .info-value { display: table-cell; padding: 6px 12px; border-bottom: 1px solid #f0f0f5; font-weight: 500; }
+
+    table.data { width: 100%; border-collapse: collapse; border: 1px solid #e5e5ea; border-top: none; }
+    table.data th { background: #f5f5ff; padding: 7px 10px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; color: #666; border-bottom: 2px solid #e5e5ea; }
+    table.data td { padding: 7px 10px; border-bottom: 1px solid #f0f0f5; font-size: 11.5px; }
+    table.data tr:last-child td { border-bottom: none; }
+    .text-right { text-align: right; }
+    .text-bold { font-weight: 700; }
+    .text-purple { color: #7B5EFF; }
+    .text-green { color: #16a34a; }
+    .text-orange { color: #ea580c; }
+    .text-muted { color: #999; }
+
+    .total-row { background: #f5f5ff; border: 1px solid #e5e5ea; border-top: none; padding: 10px 12px; display: table; width: 100%; }
+    .total-label { display: table-cell; color: #666; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+    .total-value { display: table-cell; text-align: right; font-size: 16px; font-weight: 800; color: #7B5EFF; }
+
+    .totaux-block { border: 1px solid #e5e5ea; border-top: none; }
+    .totaux-line { display: table; width: 100%; padding: 5px 12px; border-bottom: 1px solid #f0f0f5; }
+    .totaux-line:last-child { border-bottom: none; background: #f5f5ff; padding: 8px 12px; }
+    .totaux-lbl { display: table-cell; font-size: 11px; color: #666; font-weight: 600; }
+    .totaux-val { display: table-cell; text-align: right; font-weight: 700; font-size: 12px; }
+    .totaux-val-big { font-size: 15px; color: #7B5EFF; font-weight: 800; }
+
+    .br-block { margin-top: 8px; border: 1px solid #e0e0ea; border-radius: 4px; overflow: hidden; }
+    .br-header { background: #f0f8ff; padding: 6px 12px; font-weight: 700; font-size: 11px; color: #2563eb; border-bottom: 1px solid #e0e0ea; }
+
+    .footer { margin-top: 30px; border-top: 2px solid #7B5EFF; padding-top: 10px; text-align: center; font-size: 10px; color: #999; }
+    .footer strong { color: #7B5EFF; }
+
+    .msg-box { background: #fafaff; border: 1px solid #e5e5ea; border-top: none; padding: 8px 12px; font-size: 11px; color: #555; font-style: italic; }
+</style>
+</head>
+<body>
+<div class="container">
+
+    <!-- ═══ EN-TÊTE ═══ -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">SKYRA ERP</div>
+            <div class="logo-sub">Dossier d'achat complet</div>
+        </div>
+        <div class="header-right">
+            <div class="doc-title">DOSSIER D'ACHAT</div>
+            <div class="doc-ref">@Model.NumeroBc</div>
+            <div class="doc-date">Émis le @DateTime.UtcNow.ToString("dd/MM/yyyy")</div>
+        </div>
+    </div>
+
+    <!-- ═══ 1. BON DE COMMANDE ═══ -->
+    <div class="section">
+        <div class="section-title">1. Bon de commande</div>
+        <div class="info-grid">
+            <div class="info-row"><div class="info-label">Référence</div><div class="info-value text-bold">@Model.NumeroBc</div></div>
+            <div class="info-row"><div class="info-label">Fournisseur</div><div class="info-value">@Model.NomFournisseur</div></div>
+            <div class="info-row"><div class="info-label">Date de commande</div><div class="info-value">@Model.DateCommande.ToString("dd/MM/yyyy")</div></div>
+            <div class="info-row"><div class="info-label">Livraison souhaitée</div><div class="info-value">@(Model.DateLivraisonSouhaitee?.ToString("dd/MM/yyyy") ?? "—")</div></div>
+        </div>
+        <table class="data">
+            <thead><tr><th>Composant</th><th class="text-right">Quantité demandée</th></tr></thead>
+            <tbody>
+                @foreach (var l in Model.LignesBc)
+                {
+                    <tr>
+                        <td class="text-bold">@l.NomProduit</td>
+                        <td class="text-right">@l.Quantite.ToString("N3")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ═══ 2. FACTURE PROFORMA ═══ -->
+    <div class="section">
+        <div class="section-title section-title-orange">2. Facture proforma fournisseur</div>
+        @if (!string.IsNullOrEmpty(Model.MessageFournisseur))
+        {
+            <div class="msg-box">« @Model.MessageFournisseur »</div>
+        }
+        <table class="data">
+            <thead>
+                <tr>
+                    <th>Composant</th>
+                    <th class="text-right">Qté demandée</th>
+                    <th class="text-right">Qté proposée</th>
+                    <th class="text-right">Prix unit. HT</th>
+                    <th class="text-right">Total HT</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in Model.LignesProforma)
+                {
+                    <tr>
+                        <td class="text-bold">@l.NomProduit</td>
+                        <td class="text-right text-muted">@l.QuantiteDemandee.ToString("N3")</td>
+                        <td class="text-right">@l.QuantiteProposee.ToString("N3")</td>
+                        <td class="text-right">@l.PrixUnitaireHT.ToString("N2") DZD</td>
+                        <td class="text-right text-bold text-purple">@l.TotalHT.ToString("N2") DZD</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <div class="totaux-block">
+            <div class="totaux-line"><div class="totaux-lbl">Total HT</div><div class="totaux-val">@Model.ProformaTotalHT.ToString("N2") DZD</div></div>
+            <div class="totaux-line"><div class="totaux-lbl">TVA 19%</div><div class="totaux-val">@Model.ProformaTVA.ToString("N2") DZD</div></div>
+            <div class="totaux-line"><div class="totaux-lbl">Total TTC</div><div class="totaux-val totaux-val-big">@Model.ProformaTotalTTC.ToString("N2") DZD</div></div>
+        </div>
+    </div>
+
+    <!-- ═══ 3. BONS DE RÉCEPTION ═══ -->
+    <div class="section">
+        <div class="section-title section-title-blue">3. Bon@(Model.BonsReception.Count > 1 ? "s" : "") de réception (@Model.BonsReception.Count)</div>
+        @foreach (var br in Model.BonsReception)
+        {
+            <div class="br-block">
+                <div class="br-header">@br.Numero — @br.DateReception.ToString("dd/MM/yyyy")</div>
+                <table class="data" style="border:none;">
+                    <thead>
+                        <tr>
+                            <th>Composant</th>
+                            <th class="text-right">Commandée</th>
+                            <th class="text-right">Reçue</th>
+                            <th class="text-right">Endommagée</th>
+                            <th class="text-right">Conforme</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var l in br.Lignes)
+                        {
+                            <tr>
+                                <td class="text-bold">@l.NomProduit</td>
+                                <td class="text-right text-muted">@l.QuantiteCommandee.ToString("N2")</td>
+                                <td class="text-right">@l.QuantiteRecue.ToString("N2")</td>
+                                <td class="text-right text-orange">@(l.QuantiteEndommagee > 0 ? l.QuantiteEndommagee.ToString("N2") : "—")</td>
+                                <td class="text-right text-bold text-green">@l.QuantiteConforme.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+
+    <!-- ═══ 4. FACTURE FINALE ═══ -->
+    <div class="section">
+        <div class="section-title section-title-green">4. Facture finale</div>
+        <div class="info-grid">
+            <div class="info-row"><div class="info-label">N° Facture</div><div class="info-value text-bold">@Model.NumeroFacture</div></div>
+            <div class="info-row"><div class="info-label">Date</div><div class="info-value">@Model.DateFacture.ToString("dd/MM/yyyy")</div></div>
+            <div class="info-row"><div class="info-label">Fournisseur</div><div class="info-value">@Model.NomFournisseur</div></div>
+        </div>
+        <div class="totaux-block">
+            <div class="totaux-line"><div class="totaux-lbl">Montant HT</div><div class="totaux-val">@Model.FactureHT.ToString("N2") DZD</div></div>
+            <div class="totaux-line"><div class="totaux-lbl">TVA 19%</div><div class="totaux-val">@Model.FactureTVA.ToString("N2") DZD</div></div>
+            <div class="totaux-line"><div class="totaux-lbl">Montant TTC</div><div class="totaux-val totaux-val-big">@Model.FactureTTC.ToString("N2") DZD</div></div>
+        </div>
+    </div>
+
+    <!-- ═══ PIED DE PAGE ═══ -->
+    <div class="footer">
+        Document généré automatiquement par <strong>SKYRA ERP</strong> le @DateTime.UtcNow.ToString("dd/MM/yyyy à HH:mm") — @Model.NumeroBc
+    </div>
+
+</div>
+</body>
+</html>

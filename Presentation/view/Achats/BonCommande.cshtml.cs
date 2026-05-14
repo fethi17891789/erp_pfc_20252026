@@ -269,6 +269,16 @@ namespace erp_pfc_20252026.Pages.Achats
             return RedirectToPage("/Achats/Index");
         }
 
+        // ─── GET : Télécharger le dossier d'achat PDF ─────────────────────────
+        public async Task<IActionResult> OnGetTelechargerDossierAsync(int id)
+        {
+            var bc = await _db.AchatBonCommandes.FindAsync(id);
+            if (bc?.PdfDossierAchat == null)
+                return NotFound();
+
+            return File(bc.PdfDossierAchat, "application/pdf", $"Dossier_{bc.Numero}.pdf");
+        }
+
         // ─── Helpers ──────────────────────────────────────────────────────────
         private async Task ChargerDonneesFormulaire()
         {

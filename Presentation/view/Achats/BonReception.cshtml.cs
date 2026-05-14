@@ -15,13 +15,21 @@ namespace erp_pfc_20252026.Pages.Achats
 {
     public class BonReceptionModel : PageModel
     {
-        private readonly AchatsService _achatsService;
-        private readonly ErpDbContext   _db;
+        private readonly AchatsService      _achatsService;
+        private readonly ErpDbContext        _db;
+        private readonly AchatsGmailService  _gmailService;
+        private readonly AchatsMailService   _mailService;
 
-        public BonReceptionModel(AchatsService achatsService, ErpDbContext db)
+        public BonReceptionModel(
+            AchatsService achatsService,
+            ErpDbContext db,
+            AchatsGmailService gmailService,
+            AchatsMailService mailService)
         {
             _achatsService = achatsService;
             _db            = db;
+            _gmailService  = gmailService;
+            _mailService   = mailService;
         }
 
         // ─── Données d'affichage ───────────────────────────────────────────────
@@ -120,10 +128,40 @@ namespace erp_pfc_20252026.Pages.Achats
             var br = await _achatsService.CreerBonReceptionAsync(
                 bcId, dateReception, Notes?.Trim(), lignesInput, userId);
 
-            // Valider immédiatement (mise à jour du stock + historique prix)
             await _achatsService.ValiderBonReceptionAsync(br.Id, userId);
 
-            TempData["Succes"] = $"Bon de réception {br.Numero} créé et stock mis à jour.";
+            var bcMaj = await _achatsService.GetBonCommandeAsync(bcId);
+            if (bcMaj?.Statut == StatutBonCommande.Facture && bcMaj.PdfDossierAchat != null)
+            {
+                var fournisseur = bcMaj.Fournisseur
+                    ?? bcMaj.BCFournisseurs.FirstOrDefault()?.Fournisseur;
+                string? email = fournisseur?.Email;
+
+                if (!string.IsNullOrEmpty(email))
+                {
+                    try
+                    {
+                        if (await _gmailService.EstConfigureAsync())
+                            await _gmailService.EnvoyerDossierAchatAsync(bcMaj, email, bcMaj.PdfDossierAchat);
+                        else
+                            await _mailService.EnvoyerDossierAchatAsync(bcMaj, email, bcMaj.PdfDossierAchat);
+
+                        TempData["Succes"] = $"Bon de réception {br.Numero} validé. Achat finalisé — dossier PDF envoyé à {email}.";
+                    }
+                    catch
+                    {
+                        TempData["Succes"] = $"Bon de réception {br.Numero} validé. Achat finalisé — échec d'envoi email.";
+                    }
+                }
+                else
+                {
+                    TempData["Succes"] = $"Bon de réception {br.Numero} validé. Achat finalisé.";
+                }
+            }
+            else
+            {
+                TempData["Succes"] = $"Bon de réception {br.Numero} créé et stock mis à jour.";
+            }
             return RedirectToPage("/Achats/BonCommande", new { id = bcId });
         }
 

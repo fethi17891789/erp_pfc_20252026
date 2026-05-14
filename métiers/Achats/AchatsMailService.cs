@@ -109,6 +109,38 @@ namespace Metier.Achats
             await client.SendMailAsync(message);
         }
 
+        public async Task EnvoyerDossierAchatAsync(AchatBonCommande bc, string emailFournisseur, byte[] pdfDossier)
+        {
+            var smtpHost     = _config["SmtpAchats:Host"] ?? "smtp.gmail.com";
+            var smtpPort     = int.Parse(_config["SmtpAchats:Port"] ?? "587");
+            var smtpUser     = _config["SmtpAchats:User"] ?? "";
+            var smtpPassword = _config["SmtpAchats:Password"] ?? "";
+            var smtpFrom     = _config["SmtpAchats:From"] ?? smtpUser;
+
+            if (string.IsNullOrWhiteSpace(smtpUser) || string.IsNullOrWhiteSpace(smtpPassword))
+                throw new InvalidOperationException("SMTP non configuré.");
+
+            using var client = new SmtpClient(smtpHost, smtpPort)
+            {
+                Credentials = new NetworkCredential(smtpUser, smtpPassword),
+                EnableSsl   = true
+            };
+
+            using var message = new MailMessage(smtpFrom, emailFournisseur)
+            {
+                Subject    = $"Dossier d'achat finalisé — {bc.Numero} — SKYRA ERP",
+                Body       = $"Bonjour,\n\nL'achat {bc.Numero} a été finalisé. Vous trouverez en pièce jointe le dossier complet.\n\nCordialement,\nSKYRA ERP",
+                IsBodyHtml = false
+            };
+
+            message.Attachments.Add(new Attachment(
+                new System.IO.MemoryStream(pdfDossier),
+                $"Dossier_{bc.Numero}.pdf",
+                "application/pdf"));
+
+            await client.SendMailAsync(message);
+        }
+
         private string GenererCorpsEmail(AchatBonCommande bc, string lienConfirmation)
         {
             return $@"

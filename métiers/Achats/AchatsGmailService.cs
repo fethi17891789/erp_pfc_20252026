@@ -340,6 +340,62 @@ namespace Metier.Achats
 </body></html>";
         }
 
+        public async Task EnvoyerDossierAchatAsync(AchatBonCommande bc, string emailDestinataire, byte[] pdfDossier)
+        {
+            var tokenEntite = await _db.AchatEmailTokens
+                .Where(t => t.Provider == "gmail")
+                .OrderByDescending(t => t.ConfigureeLe)
+                .FirstOrDefaultAsync()
+                ?? throw new InvalidOperationException("Gmail non configuré.");
+
+            var credential = await ObtenirCredentialAsync(tokenEntite);
+            var service    = new GmailService(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = credential,
+                ApplicationName       = "SKYRA ERP"
+            });
+
+            string sujet = $"Dossier d'achat finalisé — {bc.Numero} — SKYRA ERP";
+            string corps = $@"<!DOCTYPE html><html><head><meta charset=""utf-8""><style>
+  body{{font-family:'Segoe UI',Arial,sans-serif;background:#0d0f1a;margin:0;padding:20px;}}
+  .wrap{{max-width:520px;margin:0 auto;background:#13152b;border-radius:20px;overflow:hidden;border:1px solid rgba(34,197,94,0.2);}}
+  .hd{{background:linear-gradient(135deg,#22c55e,#16a34a);padding:36px 32px;text-align:center;}}
+  .hd h1{{color:#fff;margin:0;font-size:22px;font-weight:800;}}
+  .hd p{{color:rgba(255,255,255,.75);margin:6px 0 0;font-size:14px;}}
+  .bd{{padding:32px;text-align:center;color:#e0e0e0;}}
+  .ft{{padding:20px 32px;text-align:center;color:#7F83A5;font-size:12px;border-top:1px solid rgba(255,255,255,.06);}}
+</style></head><body>
+<div class=""wrap"">
+  <div class=""hd""><h1>✓ ACHAT FINALISÉ</h1><p>{bc.Numero}</p></div>
+  <div class=""bd"">
+    <p style=""font-size:14px;color:#A4A7C8;line-height:1.7;margin:0;"">
+      Bonjour,<br><br>L'achat <strong style=""color:#fff;"">{bc.Numero}</strong> a été finalisé.
+      Vous trouverez en pièce jointe le dossier complet (bon de commande, proforma, bon(s) de réception et facture finale).
+    </p>
+  </div>
+  <div class=""ft"">Envoyé automatiquement par <strong style=""color:#22c55e;"">SKYRA ERP</strong>.</div>
+</div>
+</body></html>";
+
+            var message = new MimeMessage();
+            message.From.Add(new MailboxAddress("SKYRA ERP", tokenEntite.EmailAdresse));
+            message.To.Add(MailboxAddress.Parse(emailDestinataire));
+            message.Subject = sujet;
+
+            var builder = new MimeKit.BodyBuilder();
+            builder.HtmlBody = corps;
+            builder.Attachments.Add($"Dossier_{bc.Numero}.pdf", pdfDossier, new MimeKit.ContentType("application", "pdf"));
+            message.Body = builder.ToMessageBody();
+
+            using var stream = new System.IO.MemoryStream();
+            await message.WriteToAsync(stream);
+            string raw = Convert.ToBase64String(stream.ToArray())
+                .Replace('+', '-').Replace('/', '_').TrimEnd('=');
+
+            await service.Users.Messages.Send(
+                new Google.Apis.Gmail.v1.Data.Message { Raw = raw }, "me").ExecuteAsync();
+        }
+
         private string GenererCorpsEmailAcceptation(AchatBonCommande bc, AchatNegociationTentative? tentative = null)
         {
             var lignesHtml = new StringBuilder();

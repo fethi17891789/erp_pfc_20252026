@@ -1059,6 +1059,7 @@ using (var scopeAchats = app.Services.CreateScope())
                     ""Notes""                    VARCHAR(1000) NULL,
                     ""TokenConfirmation""         VARCHAR(100) NULL,
                     ""PdfBlob""                  BYTEA NULL,
+                    ""PdfDossierAchat""          BYTEA NULL,
                     ""DateEnvoiMail""             TIMESTAMP WITHOUT TIME ZONE NULL,
                     ""RepondeurMessage""          VARCHAR(500) NULL,
                     ""DateReponse""              TIMESTAMP WITHOUT TIME ZONE NULL,
@@ -1247,6 +1248,7 @@ using (var scopeAchats = app.Services.CreateScope())
                 ALTER TABLE ""AchatNegociationLignes"" ADD COLUMN IF NOT EXISTS ""QuantiteProposee"" NUMERIC(18,3) NULL;
                 ALTER TABLE ""AchatNegociationTentatives"" ADD COLUMN IF NOT EXISTS ""FournisseurId"" INT NULL;
                 ALTER TABLE ""AchatBonCommandes"" ALTER COLUMN ""FournisseurId"" DROP NOT NULL;
+                ALTER TABLE ""AchatBonCommandes"" ADD COLUMN IF NOT EXISTS ""PdfDossierAchat"" BYTEA NULL;
             ";
             using (var cmdAlter = new NpgsqlCommand(alterAchatsSql, conn))
             {

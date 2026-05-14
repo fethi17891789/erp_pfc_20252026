@@ -54,6 +54,9 @@ namespace Donnees.Achats
         /// <summary>PDF du BC généré et stocké en base (BYTEA).</summary>
         public byte[]? PdfBlob { get; set; }
 
+        /// <summary>PDF du dossier d'achat complet (BC + proforma + BR + facture). Généré automatiquement à la réception totale.</summary>
+        public byte[]? PdfDossierAchat { get; set; }
+
         public DateTime? DateEnvoiMail { get; set; }
 
         /// <summary>Message laissé par le fournisseur lors de sa réponse (via interface email).</summary>
