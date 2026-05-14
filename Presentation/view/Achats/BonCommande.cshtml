@@ -772,21 +772,6 @@
                         </div>
                         <div id="lignes-container"></div>
 
-                        @* Totaux live *@
-                        <div class="bc-totaux" id="totaux-section" style="display:none;">
-                            <div class="bc-total-row">
-                                <span>Total HT</span>
-                                <span id="total-ht">0,00 DZD</span>
-                            </div>
-                            <div class="bc-total-row">
-                                <span>TVA (19%)</span>
-                                <span id="total-tva">0,00 DZD</span>
-                            </div>
-                            <div class="bc-total-row bc-total-ttc">
-                                <span>Total TTC</span>
-                                <span id="total-ttc">0,00 DZD</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -851,12 +836,6 @@
                 <div class="bc-field-group">
                     <label class="bc-label">Quantité <span class="bc-required">*</span></label>
                     <input type="number" id="input-qte" class="bc-input" value="1" min="0.001" step="0.001" />
-                </div>
-                <div class="bc-field-group">
-                    <label class="bc-label">Prix unitaire HT (DZD)</label>
-                    <input type="number" id="input-prix" class="bc-input" step="0.01" min="0"
-                           placeholder="Laissez vide pour utiliser le coût d'achat" />
-                    <span class="bc-field-hint" id="hint-cout-achat"></span>
                 </div>
             </div>
             <div class="bc-modal-footer">
@@ -937,9 +916,7 @@ function ouvrirAjoutLigne() {
     document.getElementById('selected-produit-nom').value = '';
     document.getElementById('selected-produit-est-mp').value = '';
     document.getElementById('input-qte').value = '1';
-    document.getElementById('input-prix').value = '';
-    document.getElementById('hint-cout-achat').textContent = '';
-    filtrerProduits(''); // afficher les produits dès l'ouverture
+    filtrerProduits('');
     document.getElementById('modal-ligne').style.display = 'flex';
     setTimeout(() => document.getElementById('search-produit').focus(), 50);
 }
@@ -972,7 +949,6 @@ function filtrerProduits(q) {
     container.innerHTML = matches.map(p => {
         const tagCls  = p.estMatierePremiere ? 'bc-tag-mp' : 'bc-tag-st';
         const tagLbl  = p.typeLabel || (p.estMatierePremiere ? 'MP' : 'Autre');
-        const prix    = Number(p.coutAchat).toLocaleString('fr-FR', {minimumFractionDigits:2});
         const nomSafe = p.nom.replace(/'/g, "\\'");
         return `
             <div class="bc-produit-item" onclick="selectionnerProduit(${p.id}, '${nomSafe}', ${p.coutAchat}, ${p.estMatierePremiere})">
@@ -980,7 +956,6 @@ function filtrerProduits(q) {
                 <span class="bc-produit-meta">
                     ${p.reference ? '<code style="font-size:0.7rem;opacity:.7">' + p.reference + '</code> · ' : ''}
                     <span class="${tagCls}">${tagLbl}</span>
-                    · ${prix} DZD
                 </span>
             </div>`;
     }).join('');
@@ -992,15 +967,6 @@ function selectionnerProduit(id, nom, coutAchat, estMP) {
     document.getElementById('selected-produit-est-mp').value = estMP;
     document.getElementById('search-produit').value = nom;
     document.getElementById('produit-results').innerHTML = '';
-
-    if (coutAchat > 0) {
-        document.getElementById('input-prix').value = coutAchat.toFixed(2);
-        document.getElementById('hint-cout-achat').textContent =
-            `Prix pré-rempli depuis le dernier coût d'achat : ${Number(coutAchat).toLocaleString('fr-FR',{minimumFractionDigits:2})} DZD`;
-    } else {
-        document.getElementById('input-prix').value = '';
-        document.getElementById('hint-cout-achat').textContent = 'Aucun coût d\'achat enregistré pour ce composant.';
-    }
 }
 
 // ─── Valider la ligne (avec flow sous-traitance) ─────────────────────────
@@ -1009,12 +975,11 @@ function validerLigne() {
     const nom       = document.getElementById('selected-produit-nom').value;
     const estMP     = document.getElementById('selected-produit-est-mp').value === 'true';
     const qte       = parseFloat(document.getElementById('input-qte').value);
-    const prix      = parseFloat(document.getElementById('input-prix').value) || 0;
 
     if (!produitId || !nom) { afficherErreurModal('Veuillez sélectionner un composant dans la liste.'); return; }
     if (!qte || qte <= 0)   { afficherErreurModal('La quantité doit être supérieure à 0.'); return; }
 
-    ligneEnCours = { produitId, nom, estSousTraitance: false, quantite: qte, prixHT: prix };
+    ligneEnCours = { produitId, nom, estSousTraitance: false, quantite: qte, prixHT: 0 };
 
     if (!estMP) {
         // Afficher modal sous-traitance
@@ -1070,8 +1035,6 @@ function mettreAJourAffichage() {
                     <th>Composant</th>
                     <th style="text-align:center;">Type</th>
                     <th style="text-align:right;">Quantité</th>
-                    <th style="text-align:right;">Prix HT</th>
-                    <th style="text-align:right;">Total HT</th>
                     <th></th>
                 </tr></thead>
                 <tbody>
@@ -1084,10 +1047,6 @@ function mettreAJourAffichage() {
                                     : '<span class="bc-tag-mp">Matière première</span>'}
                             </td>
                             <td style="text-align:right;font-weight:600;">${l.quantite.toLocaleString('fr-FR',{minimumFractionDigits:3})}</td>
-                            <td style="text-align:right;">${Number(l.prixHT).toLocaleString('fr-FR',{minimumFractionDigits:2})} DZD</td>
-                            <td style="text-align:right;font-weight:700;color:var(--accent-light);">
-                                ${(l.quantite * l.prixHT).toLocaleString('fr-FR',{minimumFractionDigits:2})} DZD
-                            </td>
                             <td style="text-align:center;">
                                 <button type="button" class="bc-btn-remove" onclick="supprimerLigne(${i})">✕</button>
                             </td>
@@ -1095,14 +1054,6 @@ function mettreAJourAffichage() {
                 </tbody>
             </table>`;
     }
-
-    // Calcul totaux
-    const totalHT = lignes.reduce((s, l) => s + l.quantite * l.prixHT, 0);
-    const tva     = totalHT * 0.19;
-    const ttc     = totalHT + tva;
-    document.getElementById('total-ht').textContent  = totalHT.toLocaleString('fr-FR',{minimumFractionDigits:2}) + ' DZD';
-    document.getElementById('total-tva').textContent = tva.toLocaleString('fr-FR',{minimumFractionDigits:2})     + ' DZD';
-    document.getElementById('total-ttc').textContent = ttc.toLocaleString('fr-FR',{minimumFractionDigits:2})     + ' DZD';
 
     // Mettre à jour le champ caché
     document.getElementById('lignes-json').value = JSON.stringify(lignes);
