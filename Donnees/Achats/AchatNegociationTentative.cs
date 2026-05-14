@@ -25,6 +25,9 @@ namespace Donnees.Achats
         public int BonCommandeId { get; set; }
         public AchatBonCommande? BonCommande { get; set; }
 
+        public int? FournisseurId { get; set; }
+        public Contact? Fournisseur { get; set; }
+
         /// <summary>Numéro ordinal : 1, 2, 3…</summary>
         public int Numero { get; set; } = 1;
 

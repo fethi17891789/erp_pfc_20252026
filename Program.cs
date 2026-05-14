@@ -1188,9 +1188,22 @@ using (var scopeAchats = app.Services.CreateScope())
                     ""ConfigureeLe"" TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW()
                 );
 
+                CREATE TABLE IF NOT EXISTS ""AchatBCFournisseurs"" (
+                    ""Id""               SERIAL PRIMARY KEY,
+                    ""BonCommandeId""    INT NOT NULL,
+                    ""FournisseurId""    INT NOT NULL,
+                    CONSTRAINT ""FK_AchatBCFourn_BC""
+                        FOREIGN KEY (""BonCommandeId"") REFERENCES ""AchatBonCommandes""(""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_AchatBCFourn_Fournisseur""
+                        FOREIGN KEY (""FournisseurId"") REFERENCES ""Contacts""(""Id"") ON DELETE RESTRICT,
+                    CONSTRAINT ""UQ_AchatBCFourn_BC_Fourn""
+                        UNIQUE (""BonCommandeId"", ""FournisseurId"")
+                );
+
                 CREATE TABLE IF NOT EXISTS ""AchatNegociationTentatives"" (
                     ""Id""                  SERIAL PRIMARY KEY,
                     ""BonCommandeId""       INT NOT NULL,
+                    ""FournisseurId""       INT NULL,
                     ""Numero""              INT NOT NULL DEFAULT 1,
                     ""Token""               VARCHAR(100) NULL,
                     ""DateEnvoi""           TIMESTAMP WITHOUT TIME ZONE NOT NULL DEFAULT NOW(),
@@ -1198,7 +1211,9 @@ using (var scopeAchats = app.Services.CreateScope())
                     ""MessageFournisseur""  VARCHAR(1000) NULL,
                     ""DateReponse""         TIMESTAMP WITHOUT TIME ZONE NULL,
                     CONSTRAINT ""FK_AchatNegTentative_BC""
-                        FOREIGN KEY (""BonCommandeId"") REFERENCES ""AchatBonCommandes""(""Id"") ON DELETE CASCADE
+                        FOREIGN KEY (""BonCommandeId"") REFERENCES ""AchatBonCommandes""(""Id"") ON DELETE CASCADE,
+                    CONSTRAINT ""FK_AchatNegTentative_Fournisseur""
+                        FOREIGN KEY (""FournisseurId"") REFERENCES ""Contacts""(""Id"") ON DELETE RESTRICT
                 );
                 CREATE INDEX IF NOT EXISTS ""IX_AchatNegTentatives_Token""
                     ON ""AchatNegociationTentatives""(""Token"");
@@ -1230,6 +1245,8 @@ using (var scopeAchats = app.Services.CreateScope())
 
             var alterAchatsSql = @"
                 ALTER TABLE ""AchatNegociationLignes"" ADD COLUMN IF NOT EXISTS ""QuantiteProposee"" NUMERIC(18,3) NULL;
+                ALTER TABLE ""AchatNegociationTentatives"" ADD COLUMN IF NOT EXISTS ""FournisseurId"" INT NULL;
+                ALTER TABLE ""AchatBonCommandes"" ALTER COLUMN ""FournisseurId"" DROP NOT NULL;
             ";
             using (var cmdAlter = new NpgsqlCommand(alterAchatsSql, conn))
             {

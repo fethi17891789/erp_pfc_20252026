@@ -325,7 +325,7 @@
         </div>
         <div class="cf-info-item">
           <div class="cf-info-label">Fournisseur</div>
-          <div class="cf-info-value">@(bc.Fournisseur?.FullName ?? "—")</div>
+          <div class="cf-info-value">@(tent.Fournisseur?.FullName ?? bc.Fournisseur?.FullName ?? "—")</div>
         </div>
       </div>
     </div>

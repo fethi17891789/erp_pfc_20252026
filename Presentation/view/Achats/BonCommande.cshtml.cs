@@ -120,172 +120,131 @@ namespace erp_pfc_20252026.Pages.Achats
             if (!string.IsNullOrEmpty(DateLivraisonSouhaitee) && DateTime.TryParse(DateLivraisonSouhaitee, out var dl))
                 dateLivraison = dl;
 
-            AchatBonCommande? dernierBc = null;
-            foreach (var fId in fournisseurIds)
-            {
-                dernierBc = await _achatsService.CreerBonCommandeAsync(
-                    fId, dateLivraison, Notes, lignesInput, userId);
-            }
+            var bc = await _achatsService.CreerBonCommandeAsync(
+                fournisseurIds, dateLivraison, Notes, lignesInput, userId);
 
-            if (fournisseurIds.Count == 1)
-            {
-                TempData["Succes"] = $"Bon de commande {dernierBc!.Numero} créé avec succès.";
-                return RedirectToPage(new { id = dernierBc.Id });
-            }
-
-            TempData["Succes"] = $"{fournisseurIds.Count} bons de commande créés — un par fournisseur sélectionné.";
-            return RedirectToPage("/Achats/Index");
+            TempData["Succes"] = $"Bon de commande {bc.Numero} créé avec succès.";
+            return RedirectToPage(new { id = bc.Id });
         }
 
-        // ─── POST : Envoyer le BC au fournisseur (crée une tentative) ────────────
+        // ─── POST : Envoyer le BC à tous les fournisseurs ────────────
         public async Task<IActionResult> OnPostEnvoyerAsync(int id)
         {
             var bc = await _achatsService.GetBonCommandeAsync(id);
             if (bc == null) return NotFound();
 
-            // Créer une nouvelle tentative de négociation
-            var tentative = await _achatsService.CreerTentativeAsync(id);
+            var tentatives = await _achatsService.CreerTentativesPourTousFournisseursAsync(id);
 
-            // Recharger pour avoir les lignes complètes
             bc = await _achatsService.GetBonCommandeAsync(id);
 
-            string? emailFournisseur = bc!.Fournisseur?.Email;
+            var envoyes   = new List<string>();
+            var echoues   = new List<string>();
 
-            if (string.IsNullOrEmpty(emailFournisseur))
+            string baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+            foreach (var tentative in tentatives)
             {
-                TempData["Erreur"] = $"BC {bc.Numero} — aucun email fournisseur configuré. Ajoutez un email dans l'annuaire.";
-                return RedirectToPage(new { id });
+                var fournisseur = bc!.BCFournisseurs.FirstOrDefault(f => f.FournisseurId == tentative.FournisseurId);
+                string? emailFournisseur = fournisseur?.Fournisseur?.Email;
+
+                if (string.IsNullOrEmpty(emailFournisseur))
+                {
+                    echoues.Add(fournisseur?.Fournisseur?.FullName ?? $"ID {tentative.FournisseurId}");
+                    continue;
+                }
+
+                try
+                {
+                    if (await _gmailService.EstConfigureAsync())
+                        await _gmailService.EnvoyerBonCommandeAsync(bc!, emailFournisseur, baseUrl, tentative.Token);
+                    else
+                        await _mailService.EnvoyerBonCommandeAsync(bc!, emailFournisseur, baseUrl, null, tentative.Token);
+
+                    envoyes.Add(emailFournisseur);
+                }
+                catch (Exception ex)
+                {
+                    echoues.Add($"{emailFournisseur} ({ex.Message})");
+                }
             }
 
-            try
+            if (envoyes.Any())
             {
-                string baseUrl = $"{Request.Scheme}://{Request.Host}";
-                if (await _gmailService.EstConfigureAsync())
-                    await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, tentative.Token);
-                else
-                    await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, null, tentative.Token);
-
                 await _achatsService.MarquerBcEnvoyeAsync(id);
-                TempData["Succes"] = $"✅ BC {bc.Numero} — tentative n°{tentative.Numero} envoyée à {emailFournisseur}.";
+                TempData["Succes"] = $"BC {bc!.Numero} envoyé à {envoyes.Count} fournisseur(s) : {string.Join(", ", envoyes)}.";
             }
-            catch (Exception ex)
-            {
-                TempData["Erreur"] = $"Échec d'envoi du BC {bc.Numero} : {ex.Message}";
-            }
+
+            if (echoues.Any())
+                TempData["Erreur"] = $"Échec pour : {string.Join(", ", echoues)}";
 
             return RedirectToPage(new { id });
         }
 
-        // ─── POST : Accepter la contre-proposition (acheteur — sans modif) ──────
-        public async Task<IActionResult> OnPostAccepterContrePropositionAsync(int id)
+        // ─── POST : Accepter une proforma spécifique ─────────────────────────
+        public async Task<IActionResult> OnPostAccepterProformaAsync(int id, int tentativeId)
         {
             var bc = await _achatsService.GetBonCommandeAsync(id);
             if (bc == null) return NotFound();
 
-            // Récupérer la dernière tentative (contre-proposition du fournisseur)
             var tentative = await _db.AchatNegociationTentatives
                 .Include(t => t.Lignes)
-                .Where(t => t.BonCommandeId == id && t.Statut == "ContreProposition")
-                .OrderByDescending(t => t.Numero)
-                .FirstOrDefaultAsync();
+                .Include(t => t.Fournisseur)
+                .FirstOrDefaultAsync(t => t.Id == tentativeId && t.BonCommandeId == id);
 
-            if (tentative != null)
+            if (tentative == null || tentative.Statut != "ContreProposition")
             {
-                // Marquer la tentative comme acceptée (acheteur l'accepte telle quelle)
-                tentative.Statut = "Acceptee";
-                tentative.DateReponse = DateTime.UtcNow;
-                _db.AchatNegociationTentatives.Update(tentative);
+                TempData["Erreur"] = "Cette proforma ne peut pas être acceptée.";
+                return RedirectToPage(new { id });
+            }
 
-                // Mettre à jour les lignes BC avec les prix acceptés
-                foreach (var ligne in tentative.Lignes.Where(l => !l.EstRefusee))
+            tentative.Statut = "Acceptee";
+            tentative.DateReponse = DateTime.UtcNow;
+
+            foreach (var ligne in tentative.Lignes.Where(l => !l.EstRefusee))
+            {
+                var bcLigne = bc.Lignes.FirstOrDefault(bl => bl.Id == ligne.BonCommandeLigneId);
+                if (bcLigne != null)
                 {
-                    var bcLigne = bc.Lignes.FirstOrDefault(bl => bl.Id == ligne.BonCommandeLigneId);
-                    if (bcLigne != null && ligne.PrixProposeHT.HasValue)
-                    {
+                    if (ligne.PrixProposeHT.HasValue)
                         bcLigne.PrixUnitaireHT = ligne.PrixProposeHT.Value;
-                    }
-                }
-
-                // Mettre le BC en statut Confirmé
-                bc.Statut = StatutBonCommande.Confirme;
-                _db.AchatBonCommandes.Update(bc);
-
-                await _db.SaveChangesAsync();
-
-                // Envoyer email d'acceptation au fournisseur
-                string? emailFournisseur = bc!.Fournisseur?.Email;
-                if (!string.IsNullOrEmpty(emailFournisseur))
-                {
-                    try
-                    {
-                        if (await _gmailService.EstConfigureAsync())
-                            await _gmailService.EnvoyerAcceptationContrePropositionAsync(bc, emailFournisseur, tentative);
-                        else
-                            await _mailService.EnvoyerAcceptationContrePropositionAsync(bc, emailFournisseur, tentative);
-                    }
-                    catch (Exception ex)
-                    {
-                        // Acceptation enregistrée mais email échoué
-                        TempData["Succes"] = $"✅ BC {bc.Numero} confirmé. Envoi email échoué : {ex.Message}";
-                        return RedirectToPage(new { id });
-                    }
+                    if (ligne.QuantiteProposee.HasValue)
+                        bcLigne.Quantite = ligne.QuantiteProposee.Value;
                 }
             }
 
-            TempData["Succes"] = $"✅ Contre-proposition acceptée. BC {bc.Numero} confirmé + email envoyé.";
-            return RedirectToPage(new { id });
-        }
+            if (tentative.FournisseurId.HasValue)
+                bc.FournisseurId = tentative.FournisseurId;
 
-        // ─── POST : Contre-offre acheteur ─────────────────────────────────────
-        [BindProperty] public List<int>    OffreLigneIds   { get; set; } = new();
-        [BindProperty] public List<string> OffrePrix       { get; set; } = new();
-        [BindProperty] public List<int>    LignesIncluses  { get; set; } = new();
+            bc.Statut = StatutBonCommande.Confirme;
+            foreach (var l in bc.Lignes)
+                l.TotalHT = Math.Round(l.Quantite * l.PrixUnitaireHT, 2);
+            bc.TotalHT = bc.Lignes.Where(l => !l.EstExclue).Sum(l => l.TotalHT);
+            bc.MontantTVA = Math.Round(bc.TotalHT * 0.19m, 2);
+            bc.TotalTTC = bc.TotalHT + bc.MontantTVA;
+            await _db.SaveChangesAsync();
 
-        public async Task<IActionResult> OnPostContreOffrirAsync(int id)
-        {
-            var offres = new List<(int LigneId, decimal NouveauPrix, bool Reintegrer)>();
-            for (int i = 0; i < OffreLigneIds.Count; i++)
-            {
-                int ligneId = OffreLigneIds[i];
-                bool reintegrer = LignesIncluses.Contains(ligneId);
-
-                decimal prix = 0;
-                if (i < OffrePrix.Count)
-                    decimal.TryParse(OffrePrix[i],
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out prix);
-
-                offres.Add((ligneId, prix, reintegrer));
-            }
-
-            var tentative = await _achatsService.ContreOffrirAsync(id, offres);
-
-            var bc = await _achatsService.GetBonCommandeAsync(id);
-            string? emailFournisseur = bc!.Fournisseur?.Email;
+            var fournisseurContact = tentative.Fournisseur
+                ?? bc.BCFournisseurs.FirstOrDefault(f => f.FournisseurId == tentative.FournisseurId)?.Fournisseur;
+            string? emailFournisseur = fournisseurContact?.Email;
+            string nomFournisseur = fournisseurContact?.FullName ?? "le fournisseur";
 
             if (!string.IsNullOrEmpty(emailFournisseur))
             {
                 try
                 {
-                    string baseUrl = $"{Request.Scheme}://{Request.Host}";
                     if (await _gmailService.EstConfigureAsync())
-                        await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur);
+                        await _gmailService.EnvoyerAcceptationContrePropositionAsync(bc, emailFournisseur, tentative);
                     else
-                        await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, null, tentative.Token);
-
-                    TempData["Succes"] = $"Contre-offre envoyée au fournisseur (tentative n°{tentative.Numero}).";
+                        await _mailService.EnvoyerAcceptationContrePropositionAsync(bc, emailFournisseur, tentative);
                 }
                 catch (Exception ex)
                 {
-                    TempData["Succes"] = $"Contre-offre créée (tentative n°{tentative.Numero}). Envoi email échoué : {ex.Message}";
+                    TempData["Succes"] = $"Proforma de {nomFournisseur} acceptée. BC {bc.Numero} confirmé. Envoi email échoué : {ex.Message}";
+                    return RedirectToPage(new { id });
                 }
             }
-            else
-            {
-                TempData["Succes"] = $"Contre-offre créée (tentative n°{tentative.Numero}). Aucun email fournisseur.";
-            }
 
+            TempData["Succes"] = $"Proforma de {nomFournisseur} acceptée. BC {bc.Numero} confirmé.";
             return RedirectToPage(new { id });
         }
 

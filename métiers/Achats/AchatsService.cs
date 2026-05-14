@@ -107,6 +107,7 @@ namespace Metier.Achats
         {
             return await _db.AchatBonCommandes
                 .Include(b => b.Fournisseur)
+                .Include(b => b.BCFournisseurs).ThenInclude(f => f.Fournisseur)
                 .Include(b => b.Lignes).ThenInclude(l => l.Produit)
                 .OrderByDescending(b => b.DateCreation)
                 .ToListAsync();
@@ -116,9 +117,11 @@ namespace Metier.Achats
         {
             return await _db.AchatBonCommandes
                 .Include(b => b.Fournisseur)
+                .Include(b => b.BCFournisseurs).ThenInclude(f => f.Fournisseur)
                 .Include(b => b.Lignes).ThenInclude(l => l.Produit)
                 .Include(b => b.Proformas)
                 .Include(b => b.BonsReception).ThenInclude(r => r.Lignes).ThenInclude(l => l.Produit)
+                .Include(b => b.Tentatives).ThenInclude(t => t.Fournisseur)
                 .Include(b => b.Tentatives).ThenInclude(t => t.Lignes).ThenInclude(nl => nl.BonCommandeLigne).ThenInclude(l => l!.Produit)
                 .FirstOrDefaultAsync(b => b.Id == id);
         }
@@ -137,6 +140,7 @@ namespace Metier.Achats
         public async Task<AchatNegociationTentative?> GetTentativeParTokenAsync(string token)
         {
             return await _db.AchatNegociationTentatives
+                .Include(t => t.Fournisseur)
                 .Include(t => t.BonCommande).ThenInclude(b => b!.Fournisseur)
                 .Include(t => t.BonCommande).ThenInclude(b => b!.Lignes).ThenInclude(l => l.Produit)
                 .FirstOrDefaultAsync(t => t.Token == token && t.Statut == StatutTentative.EnAttente);
@@ -146,14 +150,14 @@ namespace Metier.Achats
         /// Crée une nouvelle tentative de négociation et met à jour le BC.
         /// Expire les tentatives précédentes en attente.
         /// </summary>
-        public async Task<AchatNegociationTentative> CreerTentativeAsync(int bcId)
+        public async Task<AchatNegociationTentative> CreerTentativeAsync(int bcId, int? fournisseurId = null)
         {
             var bc = await _db.AchatBonCommandes.FindAsync(bcId)
                 ?? throw new Exception($"BC {bcId} introuvable.");
 
-            // Expirer les tentatives EnAttente précédentes
             var anciennes = await _db.AchatNegociationTentatives
-                .Where(t => t.BonCommandeId == bcId && t.Statut == StatutTentative.EnAttente)
+                .Where(t => t.BonCommandeId == bcId && t.Statut == StatutTentative.EnAttente
+                    && (fournisseurId == null || t.FournisseurId == fournisseurId))
                 .ToListAsync();
             foreach (var a in anciennes)
                 a.Statut = StatutTentative.Expiree;
@@ -165,6 +169,7 @@ namespace Metier.Achats
             var tentative = new AchatNegociationTentative
             {
                 BonCommandeId = bcId,
+                FournisseurId = fournisseurId,
                 Numero        = numero,
                 Token         = Guid.NewGuid().ToString("N"),
                 DateEnvoi     = DateTime.UtcNow,
@@ -176,6 +181,22 @@ namespace Metier.Achats
             _db.AchatNegociationTentatives.Add(tentative);
             await _db.SaveChangesAsync();
             return tentative;
+        }
+
+        public async Task<List<AchatNegociationTentative>> CreerTentativesPourTousFournisseursAsync(int bcId)
+        {
+            var bc = await _db.AchatBonCommandes
+                .Include(b => b.BCFournisseurs)
+                .FirstOrDefaultAsync(b => b.Id == bcId)
+                ?? throw new Exception($"BC {bcId} introuvable.");
+
+            var tentatives = new List<AchatNegociationTentative>();
+            foreach (var bcf in bc.BCFournisseurs)
+            {
+                var t = await CreerTentativeAsync(bcId, bcf.FournisseurId);
+                tentatives.Add(t);
+            }
+            return tentatives;
         }
 
         /// <summary>
@@ -295,8 +316,12 @@ namespace Metier.Achats
             RecalculerTotaux(bc);
             await _db.SaveChangesAsync();
 
-            // Créer la nouvelle tentative
-            return await CreerTentativeAsync(bcId);
+            var derniereTent = await _db.AchatNegociationTentatives
+                .Where(t => t.BonCommandeId == bcId && t.Statut == StatutTentative.ContreProposition)
+                .OrderByDescending(t => t.Numero)
+                .FirstOrDefaultAsync();
+
+            return await CreerTentativeAsync(bcId, derniereTent?.FournisseurId);
         }
 
         /// <summary>
@@ -311,7 +336,7 @@ namespace Metier.Achats
         }
 
         public async Task<AchatBonCommande> CreerBonCommandeAsync(
-            int fournisseurId,
+            List<int> fournisseurIds,
             DateTime? dateLivraison,
             string? notes,
             List<(int ProduitId, bool EstSousTraitance, decimal Quantite, decimal PrixHT)> lignes,
@@ -322,7 +347,7 @@ namespace Metier.Achats
             var bc = new AchatBonCommande
             {
                 Numero                  = numero,
-                FournisseurId           = fournisseurId,
+                FournisseurId           = fournisseurIds.Count == 1 ? fournisseurIds[0] : null,
                 DateCommande            = DateTime.UtcNow,
                 DateLivraisonSouhaitee  = dateLivraison,
                 Notes                   = notes,
@@ -330,6 +355,9 @@ namespace Metier.Achats
                 DateCreation            = DateTime.UtcNow,
                 CreeParUserId           = userId
             };
+
+            foreach (var fId in fournisseurIds)
+                bc.BCFournisseurs.Add(new AchatBCFournisseur { FournisseurId = fId });
 
             foreach (var (produitId, estST, qte, prixHT) in lignes)
             {
@@ -521,7 +549,7 @@ namespace Metier.Achats
                     _db.AchatHistoriquesPrix.Add(new AchatHistoriquePrix
                     {
                         ProduitId       = ligne.ProduitId,
-                        FournisseurId   = br.BonCommande!.FournisseurId,
+                        FournisseurId   = br.BonCommande!.FournisseurId ?? 0,
                         PrixUnitaireHT  = prixHT,
                         Quantite        = quantiteConforme,
                         DateAchat       = DateTime.UtcNow,

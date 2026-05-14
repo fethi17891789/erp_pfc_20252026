@@ -33,8 +33,8 @@ namespace Donnees.Achats
         [Required, MaxLength(20)]
         public string Numero { get; set; } = string.Empty;
 
-        /// <summary>Fournisseur (Contact de type Fournisseur uniquement).</summary>
-        public int FournisseurId { get; set; }
+        /// <summary>Fournisseur confirmé (renseigné après acceptation d'une proforma). Null si multi-fournisseur en attente.</summary>
+        public int? FournisseurId { get; set; }
         public Contact? Fournisseur { get; set; }
 
         public DateTime DateCommande { get; set; } = DateTime.UtcNow;
@@ -75,6 +75,7 @@ namespace Donnees.Achats
 
         // Navigation
         public List<AchatBonCommandeLigne> Lignes { get; set; } = new();
+        public List<AchatBCFournisseur> BCFournisseurs { get; set; } = new();
         public List<AchatProforma> Proformas { get; set; } = new();
         public List<AchatBonReception> BonsReception { get; set; } = new();
         public List<AchatNegociationTentative> Tentatives { get; set; } = new();

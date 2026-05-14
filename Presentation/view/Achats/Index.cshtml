@@ -16,7 +16,9 @@
         {
             id          = bc.Id,
             numero      = bc.Numero,
-            fournisseur = bc.Fournisseur?.FullName ?? "—",
+            fournisseur = bc.BCFournisseurs.Any()
+                ? string.Join(", ", bc.BCFournisseurs.Select(f => f.Fournisseur?.FullName ?? "—"))
+                : bc.Fournisseur?.FullName ?? "—",
             statut      = bc.Statut,
             statutLabel = statLabel,
             statutBg    = statBg,
@@ -25,7 +27,7 @@
             totalTTCStr = bc.TotalTTC.ToString("N2", System.Globalization.CultureInfo.GetCultureInfo("fr-FR")),
             date        = bc.DateCommande.ToString("dd/MM/yyyy"),
             dateTs      = bc.DateCommande.Ticks,
-            search      = (bc.Numero + " " + (bc.Fournisseur?.FullName ?? "")).ToLower()
+            search      = (bc.Numero + " " + string.Join(" ", bc.BCFournisseurs.Select(f => f.Fournisseur?.FullName ?? ""))).ToLower()
         };
     }));
 }
