@@ -171,14 +171,23 @@ namespace Metier.Achats
                 Statut        = StatutTentative.EnAttente
             };
 
-            bc.Statut        = StatutBonCommande.Envoye;
-            bc.DateEnvoiMail = DateTime.UtcNow;
-            // Compatibilité : stocker aussi le token sur le BC
             bc.TokenConfirmation = tentative.Token;
 
             _db.AchatNegociationTentatives.Add(tentative);
             await _db.SaveChangesAsync();
             return tentative;
+        }
+
+        /// <summary>
+        /// Marque le BC comme envoyé (à appeler APRÈS succès de l'envoi email).
+        /// </summary>
+        public async Task MarquerBcEnvoyeAsync(int bcId)
+        {
+            var bc = await _db.AchatBonCommandes.FindAsync(bcId)
+                ?? throw new Exception($"BC {bcId} introuvable.");
+            bc.Statut        = StatutBonCommande.Envoye;
+            bc.DateEnvoiMail = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
         }
 
         /// <summary>

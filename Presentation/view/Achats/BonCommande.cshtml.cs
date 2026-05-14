@@ -36,8 +36,9 @@ namespace erp_pfc_20252026.Pages.Achats
         public List<AchatFactureFournisseur> Factures { get; set; } = new();
         public bool ModeCreation => BonCommande == null;
 
-        // Message de succès transmis depuis une action POST
+        // Messages transmis depuis une action POST
         public string? MessageSucces { get; set; }
+        public string? MessageErreur { get; set; }
 
         public class ProduitLigne
         {
@@ -82,6 +83,7 @@ namespace erp_pfc_20252026.Pages.Achats
             }
 
             if (TempData["Succes"] is string msg) MessageSucces = msg;
+            if (TempData["Erreur"] is string err) MessageErreur = err;
 
             return Page();
         }
@@ -132,31 +134,26 @@ namespace erp_pfc_20252026.Pages.Achats
 
             string? emailFournisseur = bc!.Fournisseur?.Email;
 
-            if (!string.IsNullOrEmpty(emailFournisseur))
+            if (string.IsNullOrEmpty(emailFournisseur))
             {
-                try
-                {
-                    string baseUrl = $"{Request.Scheme}://{Request.Host}";
-                    if (await _gmailService.EstConfigureAsync())
-                    {
-                        await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, tentative.Token);
-                        TempData["Succes"] = $"✅ BC {bc.Numero} — tentative n°{tentative.Numero} envoyée à {emailFournisseur}.";
-                    }
-                    else
-                    {
-                        await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, null, tentative.Token);
-                        TempData["Succes"] = $"✅ BC {bc.Numero} — tentative n°{tentative.Numero} envoyée à {emailFournisseur}.";
-                    }
-                }
-                catch (Exception ex)
-                {
-                    TempData["Succes"] = $"BC {bc.Numero} marqué envoyé (tentative n°{tentative.Numero}). " +
-                        $"Envoi email échoué : {ex.Message}";
-                }
+                TempData["Erreur"] = $"BC {bc.Numero} — aucun email fournisseur configuré. Ajoutez un email dans l'annuaire.";
+                return RedirectToPage(new { id });
             }
-            else
+
+            try
             {
-                TempData["Succes"] = $"BC {bc.Numero} marqué envoyé (tentative n°{tentative.Numero}). Aucun email fournisseur.";
+                string baseUrl = $"{Request.Scheme}://{Request.Host}";
+                if (await _gmailService.EstConfigureAsync())
+                    await _gmailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, tentative.Token);
+                else
+                    await _mailService.EnvoyerBonCommandeAsync(bc, emailFournisseur, baseUrl, null, tentative.Token);
+
+                await _achatsService.MarquerBcEnvoyeAsync(id);
+                TempData["Succes"] = $"✅ BC {bc.Numero} — tentative n°{tentative.Numero} envoyée à {emailFournisseur}.";
+            }
+            catch (Exception ex)
+            {
+                TempData["Erreur"] = $"Échec d'envoi du BC {bc.Numero} : {ex.Message}";
             }
 
             return RedirectToPage(new { id });
