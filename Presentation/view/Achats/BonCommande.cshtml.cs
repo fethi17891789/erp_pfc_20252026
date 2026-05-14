@@ -59,7 +59,7 @@ namespace erp_pfc_20252026.Pages.Achats
         }
 
         // ─── Champs du formulaire de création ─────────────────────────────────
-        [BindProperty] public int FournisseurId { get; set; }
+        [BindProperty] public string FournisseurIds { get; set; } = "[]";
         [BindProperty] public string? DateLivraisonSouhaitee { get; set; }
         [BindProperty] public string? Notes { get; set; }
         [BindProperty] public string LignesJson { get; set; } = "[]";
@@ -109,15 +109,32 @@ namespace erp_pfc_20252026.Pages.Achats
                 return RedirectToPage();
             }
 
+            var fournisseurIds = JsonSerializer.Deserialize<List<int>>(FournisseurIds ?? "[]") ?? new();
+            if (!fournisseurIds.Any())
+            {
+                TempData["Erreur"] = "Veuillez sélectionner au moins un fournisseur.";
+                return RedirectToPage();
+            }
+
             DateTime? dateLivraison = null;
             if (!string.IsNullOrEmpty(DateLivraisonSouhaitee) && DateTime.TryParse(DateLivraisonSouhaitee, out var dl))
                 dateLivraison = dl;
 
-            var bc = await _achatsService.CreerBonCommandeAsync(
-                FournisseurId, dateLivraison, Notes, lignesInput, userId);
+            AchatBonCommande? dernierBc = null;
+            foreach (var fId in fournisseurIds)
+            {
+                dernierBc = await _achatsService.CreerBonCommandeAsync(
+                    fId, dateLivraison, Notes, lignesInput, userId);
+            }
 
-            TempData["Succes"] = $"Bon de commande {bc.Numero} créé avec succès.";
-            return RedirectToPage(new { id = bc.Id });
+            if (fournisseurIds.Count == 1)
+            {
+                TempData["Succes"] = $"Bon de commande {dernierBc!.Numero} créé avec succès.";
+                return RedirectToPage(new { id = dernierBc.Id });
+            }
+
+            TempData["Succes"] = $"{fournisseurIds.Count} bons de commande créés — un par fournisseur sélectionné.";
+            return RedirectToPage("/Achats/Index");
         }
 
         // ─── POST : Envoyer le BC au fournisseur (crée une tentative) ────────────
