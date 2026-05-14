@@ -251,7 +251,7 @@
                 @if (bc.PdfDossierAchat != null)
                 {
                     <a asp-page="/Achats/BonCommande" asp-page-handler="TelechargerDossier" asp-route-id="@bc.Id"
-                       class="btn-primary bc-btn-send" style="background:linear-gradient(135deg,#22c55e,#16a34a);">
+                       class="btn-primary bc-btn-send">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
                             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
                             <polyline points="7 10 12 15 17 10"/>
@@ -516,7 +516,7 @@
                                     <span style="color:var(--accent-light); font-size:1.05rem; font-weight:800;">@totalProforma.ToString("N2") DZD</span>
                                 </div>
 
-                                @if (estContrePropo && bc.Statut != StatutBonCommande.Confirme)
+                                @if (estContrePropo && !estAcceptee && bc.Statut == StatutBonCommande.Envoye || estContrePropo && !estAcceptee && bc.Statut == StatutBonCommande.EnNegociation)
                                 {
                                     <div style="padding:14px; border-top:1px solid rgba(255,255,255,0.06);">
                                         <form method="post" asp-page-handler="AccepterProforma" style="display:inline;">
