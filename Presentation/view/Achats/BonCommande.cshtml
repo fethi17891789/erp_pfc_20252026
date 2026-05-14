@@ -372,9 +372,6 @@
                         <th>Référence</th>
                         <th style="text-align:center;">Sous-traitance</th>
                         <th style="text-align:right;">Quantité</th>
-                        <th style="text-align:right;">Prix unitaire HT</th>
-                        <th style="text-align:right;">Total HT</th>
-                        <th style="width:80px;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -391,35 +388,10 @@
                                 else { <span style="color:var(--text-muted-2);">—</span> }
                             </td>
                             <td style="text-align:right; font-weight:600;">@ligne.Quantite.ToString("N2")</td>
-                            <td style="text-align:right;">@ligne.PrixUnitaireHT.ToString("N2") DZD</td>
-                            <td style="text-align:right; font-weight:700; color:var(--accent-light);">@ligne.TotalHT.ToString("N2") DZD</td>
-                            <td style="text-align:right;">
-                                <a asp-page="/Achats/AnalysePrix" asp-route-produitId="@ligne.ProduitId"
-                                   class="bc-link" style="font-size:11px;font-weight:600;white-space:nowrap;"
-                                   title="Graphique historique des prix et simulateur Et si ?">
-                                   📈 Analyser
-                                </a>
-                            </td>
                         </tr>
                     }
                 </tbody>
             </table>
-
-            @* ── TOTAUX ────────────────────────────────────────────────── *@
-            <div class="bc-totaux">
-                <div class="bc-total-row">
-                    <span>Total HT</span>
-                    <span>@bc.TotalHT.ToString("N2") DZD</span>
-                </div>
-                <div class="bc-total-row">
-                    <span>TVA (19%)</span>
-                    <span>@bc.MontantTVA.ToString("N2") DZD</span>
-                </div>
-                <div class="bc-total-row bc-total-ttc">
-                    <span>Total TTC</span>
-                    <span>@bc.TotalTTC.ToString("N2") DZD</span>
-                </div>
-            </div>
         </div>
 
         @* ── HISTORIQUE DES NÉGOCIATIONS ──────────────────────────────── *@
@@ -430,7 +402,7 @@
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;">
                         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                     </svg>
-                    Historique des négociations (@tentatives.Count)
+                    Proformas (@tentatives.Count)
                 </div>
 
                 @foreach (var tent in tentatives)
@@ -453,7 +425,7 @@
                     <details class="bc-negoc-accordion">
                         <summary class="bc-negoc-summary">
                             <div style="display:flex; align-items:center; gap:10px; flex:1;">
-                                <span style="font-weight:700; color:var(--accent-light);">Tentative n°@tent.Numero</span>
+                                <span style="font-weight:700; color:var(--accent-light);">Proforma n°@tent.Numero</span>
                                 <span style="color:var(--text-muted); font-size:0.8rem;">@tent.DateEnvoi.ToString("dd/MM/yyyy HH:mm")</span>
                                 <span class="bc-statut-badge" style="background:@tentBadgeBg; color:@tentBadgeColor; border:1px solid @tentBadgeColor; font-size:0.72rem;">
                                     @tentBadgeLabel
@@ -465,67 +437,55 @@
                         </summary>
 
                         <div class="bc-negoc-body">
-                            @if (!string.IsNullOrEmpty(tent.MessageFournisseur))
+                            @if (estEnAttente)
                             {
-                                <div style="background:rgba(255,255,255,0.03); border-left:3px solid var(--accent); border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:0.85rem; color:var(--text-muted);">
-                                    <span style="font-weight:700; color:var(--text);">Message fournisseur :</span> @tent.MessageFournisseur
+                                <div style="text-align:center; padding:24px 0; color:var(--text-muted-2); font-size:0.85rem;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:32px;height:32px;margin-bottom:8px;opacity:0.4;">
+                                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                                    </svg>
+                                    <div>En attente de la réponse du fournisseur…</div>
                                 </div>
                             }
+                            else
+                            {
+                                @if (!string.IsNullOrEmpty(tent.MessageFournisseur))
+                                {
+                                    <div style="background:rgba(255,255,255,0.03); border-left:3px solid var(--accent); border-radius:4px; padding:10px 14px; margin-bottom:14px; font-size:0.85rem; color:var(--text-muted);">
+                                        <span style="font-weight:700; color:var(--text);">Message fournisseur :</span> @tent.MessageFournisseur
+                                    </div>
+                                }
 
-                            <table class="bc-table" style="margin:0;">
-                                <thead>
-                                    <tr>
-                                        <th>Composant</th>
-                                        <th style="text-align:right;">Qté</th>
-                                        <th style="text-align:right;">Prix BC</th>
-                                        <th style="text-align:right;">Prix proposé</th>
-                                        <th style="text-align:center;">Statut ligne</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var bcLigne in bc.Lignes)
-                                    {
-                                        var repLigne = tent.Lignes.FirstOrDefault(l => l.BonCommandeLigneId == bcLigne.Id);
-                                        bool ligneRefusee = repLigne?.EstRefusee == true;
-                                        bool prixModifie  = repLigne?.PrixProposeHT.HasValue == true;
-                                        decimal prixAffiche = repLigne?.PrixProposeHT ?? bcLigne.PrixUnitaireHT;
-
-                                        <tr style="@(ligneRefusee ? "opacity:0.45;" : "")">
-                                            <td class="bc-td-nom" style="@(ligneRefusee ? "text-decoration:line-through;" : "")">@bcLigne.Produit?.Nom</td>
-                                            <td style="text-align:right;">@bcLigne.Quantite.ToString("N3")</td>
-                                            <td style="text-align:right; color:var(--text-muted);">@bcLigne.PrixUnitaireHT.ToString("N2") DZD</td>
-                                            <td style="text-align:right; font-weight:700; color:@(ligneRefusee ? "#ef4444" : prixModifie ? "#fb923c" : "#22c55e");">
-                                                @if (ligneRefusee)
-                                                {
-                                                    <span>Refusé</span>
-                                                }
-                                                else if (prixModifie)
-                                                {
-                                                    <span>@prixAffiche.ToString("N2") DZD</span>
-                                                }
-                                                else
-                                                {
-                                                    <span>✓ Accepté</span>
-                                                }
-                                            </td>
-                                            <td style="text-align:center;">
-                                                @if (ligneRefusee)
-                                                {
-                                                    <span style="font-size:0.72rem; padding:2px 8px; border-radius:999px; background:rgba(239,68,68,0.10); color:#ef4444; border:1px solid #ef4444;">Refusée</span>
-                                                }
-                                                else if (prixModifie)
-                                                {
-                                                    <span style="font-size:0.72rem; padding:2px 8px; border-radius:999px; background:rgba(251,146,60,0.10); color:#fb923c; border:1px solid #fb923c;">Prix modifié</span>
-                                                }
-                                                else
-                                                {
-                                                    <span style="font-size:0.72rem; padding:2px 8px; border-radius:999px; background:rgba(34,197,94,0.10); color:#22c55e; border:1px solid #22c55e;">OK</span>
-                                                }
-                                            </td>
+                                <table class="bc-table" style="margin:0;">
+                                    <thead>
+                                        <tr>
+                                            <th>Composant</th>
+                                            <th style="text-align:right;">Qté</th>
+                                            <th style="text-align:right;">Prix unitaire HT</th>
+                                            <th style="text-align:right;">Total HT</th>
                                         </tr>
-                                    }
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var bcLigne in bc.Lignes)
+                                        {
+                                            var repLigne = tent.Lignes.FirstOrDefault(l => l.BonCommandeLigneId == bcLigne.Id);
+                                            bool ligneRefusee = repLigne?.EstRefusee == true;
+                                            decimal prixAffiche = repLigne?.PrixProposeHT ?? bcLigne.PrixUnitaireHT;
+                                            decimal totalLigne = prixAffiche * bcLigne.Quantite;
+
+                                            <tr style="@(ligneRefusee ? "opacity:0.45;" : "")">
+                                                <td class="bc-td-nom" style="@(ligneRefusee ? "text-decoration:line-through;" : "")">@bcLigne.Produit?.Nom</td>
+                                                <td style="text-align:right;">@bcLigne.Quantite.ToString("N2")</td>
+                                                <td style="text-align:right; font-weight:600; color:@(ligneRefusee ? "#ef4444" : "var(--text)");">
+                                                    @(ligneRefusee ? "Refusé" : prixAffiche.ToString("N2") + " DZD")
+                                                </td>
+                                                <td style="text-align:right; font-weight:700; color:@(ligneRefusee ? "#ef4444" : "var(--accent-light)");">
+                                                    @(ligneRefusee ? "—" : totalLigne.ToString("N2") + " DZD")
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
                         </div>
                     </details>
                 }
