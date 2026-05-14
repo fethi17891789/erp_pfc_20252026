@@ -533,14 +533,24 @@ namespace Metier.Achats
             // Mettre à jour le statut du BR
             br.Statut = StatutBonReception.Valide;
 
-            // Mettre à jour le statut du BC
+            // Mettre à jour le statut du BC en comparant quantités reçues vs commandées
             var bc = br.BonCommande;
             if (bc != null)
             {
-                var tousRecus = await _db.AchatBonReceptions
+                var totalRecuParProduit = await _db.AchatBonReceptions
                     .Where(r => r.BonCommandeId == bc.Id && r.Statut == StatutBonReception.Valide)
-                    .AnyAsync();
-                bc.Statut = tousRecus ? StatutBonCommande.Recu : StatutBonCommande.PartiellemtRecu;
+                    .SelectMany(r => r.Lignes)
+                    .GroupBy(l => l.ProduitId)
+                    .Select(g => new { ProduitId = g.Key, TotalRecu = g.Sum(l => l.QuantiteRecue) })
+                    .ToListAsync();
+
+                bool toutRecu = bc.Lignes.All(lbc =>
+                {
+                    var recu = totalRecuParProduit.FirstOrDefault(r => r.ProduitId == lbc.ProduitId);
+                    return recu != null && recu.TotalRecu >= lbc.Quantite;
+                });
+
+                bc.Statut = toutRecu ? StatutBonCommande.Recu : StatutBonCommande.PartiellemtRecu;
             }
 
             await _db.SaveChangesAsync();

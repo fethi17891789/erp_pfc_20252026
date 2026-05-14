@@ -86,14 +86,19 @@
     @if (Model.ModeCreation)
     {
         var bc = Model.BonCommande!;
-        var produitsDonnees = bc.Lignes.Select(l => new {
-            produitId         = l.ProduitId,
-            nom               = l.Produit?.Nom ?? "—",
-            reference         = l.Produit?.Reference ?? "",
-            quantiteCommandee = l.Quantite,
-            quantiteRecue     = l.Quantite,   // pré-rempli = commandée
-            quantiteEndommagee = 0m
-        }).ToList();
+        var dejaRecues = Model.QuantitesDejaRecues;
+        var produitsDonnees = bc.Lignes.Select(l => {
+            decimal dejaRecu = dejaRecues.ContainsKey(l.ProduitId) ? dejaRecues[l.ProduitId] : 0m;
+            decimal resteARecevoir = Math.Max(0, l.Quantite - dejaRecu);
+            return new {
+                produitId          = l.ProduitId,
+                nom                = l.Produit?.Nom ?? "—",
+                reference          = l.Produit?.Reference ?? "",
+                quantiteCommandee  = resteARecevoir,
+                quantiteRecue      = resteARecevoir,
+                quantiteEndommagee = 0m
+            };
+        }).Where(l => l.quantiteCommandee > 0).ToList();
 
         <form method="post" asp-page-handler="Creer" asp-route-bcId="@bc.Id">
             <input type="hidden" name="LignesJson" id="lignes-json" value='@Html.Raw(JsonSerializer.Serialize(produitsDonnees))' />
@@ -147,25 +152,25 @@
                             </tr>
                         </thead>
                         <tbody id="br-tbody">
-                            @for (int i = 0; i < bc.Lignes.Count; i++)
+                            @for (int i = 0; i < produitsDonnees.Count; i++)
                             {
-                                var ligne = bc.Lignes[i];
+                                var p = produitsDonnees[i];
                                 <tr class="br-ligne" data-index="@i">
                                     <td>
-                                        <div class="br-produit-nom">@(ligne.Produit?.Nom ?? "—")</div>
-                                        @if (!string.IsNullOrEmpty(ligne.Produit?.Reference))
+                                        <div class="br-produit-nom">@p.nom</div>
+                                        @if (!string.IsNullOrEmpty(p.reference))
                                         {
-                                            <div class="conf-table-ref">Réf. @ligne.Produit.Reference</div>
+                                            <div class="conf-table-ref">Réf. @p.reference</div>
                                         }
                                     </td>
                                     <td style="text-align:center;">
-                                        <span class="br-qte-cmd">@ligne.Quantite.ToString("N2")</span>
+                                        <span class="br-qte-cmd">@p.quantiteCommandee.ToString("N2")</span>
                                     </td>
                                     <td style="text-align:center;">
                                         <div class="br-reception-inline">
                                             <input type="number" class="br-qte-input-sm"
-                                                   value="@ligne.Quantite.ToString("0.##")"
-                                                   min="0" step="0.01"
+                                                   value="@p.quantiteRecue.ToString("0.##")"
+                                                   min="0" max="@p.quantiteCommandee.ToString("0.##")" step="0.01"
                                                    data-index="@i"
                                                    oninput="mettreAJourLigne(@i, 'quantiteRecue', parseFloat(this.value)||0)" />
                                             <span class="br-dont">reçu dont</span>

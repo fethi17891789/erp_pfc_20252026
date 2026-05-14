@@ -1,6 +1,7 @@
 // Fichier : Presentation/view/Achats/BonReception.cshtml.cs
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Donnees;
@@ -8,6 +9,7 @@ using Donnees.Achats;
 using Metier.Achats;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.EntityFrameworkCore;
 
 namespace erp_pfc_20252026.Pages.Achats
 {
@@ -31,6 +33,9 @@ namespace erp_pfc_20252026.Pages.Achats
 
         public string? MessageSucces { get; set; }
         public string? MessageErreur { get; set; }
+
+        /// <summary>Quantités déjà reçues par produit (somme des BR validés précédents)</summary>
+        public Dictionary<int, decimal> QuantitesDejaRecues { get; set; } = new();
 
         // ─── Champs du formulaire ──────────────────────────────────────────────
         [BindProperty] public string  DateReceptionStr { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
@@ -61,6 +66,19 @@ namespace erp_pfc_20252026.Pages.Achats
                 if (BonCommande.Statut != StatutBonCommande.Confirme
                     && BonCommande.Statut != StatutBonCommande.PartiellemtRecu)
                     return RedirectToPage("/Achats/BonCommande", new { id = bcId });
+
+                // Calculer les quantités déjà reçues via les BR validés précédents
+                var brPrecedents = await _db.AchatBonReceptions
+                    .Where(r => r.BonCommandeId == bcId && r.Statut == StatutBonReception.Valide)
+                    .Include(r => r.Lignes)
+                    .ToListAsync();
+                foreach (var br in brPrecedents)
+                    foreach (var l in br.Lignes)
+                    {
+                        if (!QuantitesDejaRecues.ContainsKey(l.ProduitId))
+                            QuantitesDejaRecues[l.ProduitId] = 0;
+                        QuantitesDejaRecues[l.ProduitId] += l.QuantiteRecue;
+                    }
             }
             else
             {
@@ -106,7 +124,7 @@ namespace erp_pfc_20252026.Pages.Achats
             await _achatsService.ValiderBonReceptionAsync(br.Id, userId);
 
             TempData["Succes"] = $"Bon de réception {br.Numero} créé et stock mis à jour.";
-            return RedirectToPage(new { id = br.Id });
+            return RedirectToPage("/Achats/BonCommande", new { id = bcId });
         }
 
         // ─── POST : Re-valider un BR EnCours (cas rare) ───────────────────────
